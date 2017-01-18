@@ -14,7 +14,7 @@
 -- @
 -- > :{
 -- runST $ do
---   let stateplus = statefun1 "s+" (\a v -> modifySTRef v (+a))
+--   let stateplus = statefun1 "s+" (\v a -> modifySTRef v (+a))
 --   var <- newSTRef (5::Int)
 --   case evaluate var =<< (stateplus $$ five) of
 --     Just act -> act
@@ -66,9 +66,9 @@ data Expr s m where
   Constant  :: Typeable a => String -> a -> TypeRep -> Expr s m
   Variable  :: String -> TypeRep -> Expr s m
   StateFun0 :: Typeable a => String -> (s -> m a) -> TypeRep -> Expr s m
-  StateFun1 :: (Typeable a, Typeable b) => String -> (a -> s -> m b) -> TypeRep -> Expr s m
-  StateFun2 :: (Typeable a, Typeable b, Typeable c) => String -> (a -> b -> s -> m c) -> TypeRep -> Expr s m
-  StateFun3 :: (Typeable a, Typeable b, Typeable c, Typeable d) => String -> (a -> b -> c -> s -> m d) -> TypeRep -> Expr s m
+  StateFun1 :: (Typeable a, Typeable b) => String -> (s -> a -> m b) -> TypeRep -> Expr s m
+  StateFun2 :: (Typeable a, Typeable b, Typeable c) => String -> (s -> a -> b -> m c) -> TypeRep -> Expr s m
+  StateFun3 :: (Typeable a, Typeable b, Typeable c, Typeable d) => String -> (s -> a -> b -> c -> m d) -> TypeRep -> Expr s m
   FunAp     :: Expr s m -> Expr s m -> TypeRep -> Expr s m
 
 instance Show (Expr s m) where
@@ -116,16 +116,16 @@ statefun0 :: forall s m a. Typeable a => String -> (s -> m a) -> Expr s m
 statefun0 s f = StateFun0 s f $ appFunTys stateTypeRep [monadTypeRep $ typeRep (Proxy :: Proxy a)]
 
 -- | A monadic function on the state taking 1 other argument.
-statefun1 :: forall s m a b. (Typeable a, Typeable b) => String -> (a -> s -> m b) -> Expr s m
-statefun1 s f = StateFun1 s f $ appFunTys (typeRep (Proxy :: Proxy a)) [stateTypeRep, monadTypeRep $ typeRep (Proxy :: Proxy b)]
+statefun1 :: forall s m a b. (Typeable a, Typeable b) => String -> (s -> a -> m b) -> Expr s m
+statefun1 s f = StateFun1 s f $ appFunTys stateTypeRep [typeRep (Proxy :: Proxy a), monadTypeRep $ typeRep (Proxy :: Proxy b)]
 
 -- | A monadic function on the state taking 2 other arguments.
-statefun2 :: forall s m a b c. (Typeable a, Typeable b, Typeable c) => String -> (a -> b -> s -> m c) -> Expr s m
-statefun2 s f = StateFun2 s f $ appFunTys (typeRep (Proxy :: Proxy a)) [typeRep (Proxy :: Proxy b), stateTypeRep, monadTypeRep $ typeRep (Proxy :: Proxy c)]
+statefun2 :: forall s m a b c. (Typeable a, Typeable b, Typeable c) => String -> (s -> a -> b -> m c) -> Expr s m
+statefun2 s f = StateFun2 s f $ appFunTys stateTypeRep [typeRep (Proxy :: Proxy a), typeRep (Proxy :: Proxy b), monadTypeRep $ typeRep (Proxy :: Proxy c)]
 
 -- | A monadic function on the state taking 3 other arguments.
-statefun3 :: forall s m a b c d. (Typeable a, Typeable b, Typeable c, Typeable d) => String -> (a -> b -> c -> s -> m d) -> Expr s m
-statefun3 s f = StateFun3 s f $ appFunTys (typeRep (Proxy :: Proxy a)) [typeRep (Proxy :: Proxy b), typeRep (Proxy :: Proxy c), stateTypeRep, monadTypeRep $ typeRep (Proxy :: Proxy d)]
+statefun3 :: forall s m a b c d. (Typeable a, Typeable b, Typeable c, Typeable d) => String -> (s -> a -> b -> c -> m d) -> Expr s m
+statefun3 s f = StateFun3 s f $ appFunTys stateTypeRep [typeRep (Proxy :: Proxy a), typeRep (Proxy :: Proxy b), typeRep (Proxy :: Proxy c), monadTypeRep $ typeRep (Proxy :: Proxy d)]
 
 -- | A variable.
 variable :: Typeable a => String -> proxy a -> Expr s m
@@ -174,16 +174,16 @@ evaluate s = go where
   go (StateFun0 _ f _) = gcast (f s)
   go (FunAp (StateFun1 _ f _) a _) = do
     a' <- go a
-    gcast $ do { a'' <- a'; f a'' s}
+    gcast $ do { a'' <- a'; f s a'' }
   go (FunAp (FunAp (StateFun2 _ f _) a _) b _) = do
     a' <- go a
     b' <- go b
-    gcast $ do { a'' <- a'; b'' <- b'; f a'' b'' s }
+    gcast $ do { a'' <- a'; b'' <- b'; f s a'' b'' }
   go (FunAp (FunAp (FunAp (StateFun3 _ f _) a _) b _) c _) = do
     a' <- go a
     b' <- go b
     c' <- go c
-    gcast $ do { a'' <- a'; b'' <- b'; c'' <- c'; f a'' b'' c'' s }
+    gcast $ do { a'' <- a'; b'' <- b'; c'' <- c'; f s a'' b'' c'' }
   go (FunAp f e _) = do
     f' <- dyngo f
     e' <- dyngo e
