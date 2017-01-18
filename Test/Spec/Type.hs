@@ -32,3 +32,8 @@ typeArity :: TypeRep -> Int
 typeArity ty = case splitTyConApp ty of
   (con, [_, resultType]) | con == funTyCon -> 1 + typeArity resultType
   _ -> 0
+
+-- | Apply a function type to a list of arguments.
+appFunTys :: TypeRep -> [TypeRep] -> TypeRep
+appFunTys f (ty:tys) = f `mkFunTy` appFunTys ty tys
+appFunTys f [] = f
