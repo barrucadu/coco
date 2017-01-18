@@ -14,10 +14,10 @@
 --
 -- @
 -- > :{
--- let ioplus = constant @(MVar Int) @IO @(MVar Int -> Int -> IO ()) "io+" (\v a -> modifyMVar_ v (\x -> pure $ x+a))
+-- let ioplus = constant \@(MVar Int) \@IO \@(MVar Int -> Int -> IO ()) "io+" (\v a -> modifyMVar_ v (\x -> pure $ x+a))
 -- let five   = showConstant (5::Int)
 -- mvar <- newMVar (5::Int)
--- case evaluate @(MVar Int) @IO @(IO ()) mvar . fromJust $ fromJust (ioplus $$ stateVariable) $$ five of
+-- case evaluate \@(MVar Int) \@IO \@(IO ()) mvar . fromJust $ fromJust (ioplus $$ stateVariable) $$ five of
 --   Just act -> act
 --   Nothing  -> pure ()
 -- readMVar mvar
