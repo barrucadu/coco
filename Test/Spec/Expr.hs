@@ -67,6 +67,7 @@ module Test.Spec.Expr
   , constants
   , variables
   , freeVariables
+  , boundVariables
   , assign
   , evaluate
   , evaluateDyn
@@ -79,7 +80,7 @@ module Test.Spec.Expr
 import Control.Monad (guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
-import Data.List (intercalate, nub, nubBy)
+import Data.List ((\\), intercalate, nub, nubBy)
 
 import Test.Spec.Type
 
@@ -191,6 +192,10 @@ freeVariables = nub . go where
   go (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
   go (Let s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
   go _ = []
+
+-- | Get all the bound variables in an expression, without repetition.
+boundVariables :: Expr s m -> [(String, TypeRep s m)]
+boundVariables expr = variables expr \\ freeVariables expr
 
 -- | Plug in a value for all occurrences of a variable, if the types
 -- match. A 'bind' of a variable of the same name is actually
