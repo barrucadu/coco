@@ -78,7 +78,7 @@ module Test.Spec.Expr
 import Control.Monad (guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
-import Data.List ((\\), intercalate, nub, nubBy)
+import Data.List ((\\), nub, nubBy)
 
 import Test.Spec.Type
 
@@ -102,13 +102,13 @@ instance Show (Expr s m) where
     go _ (Variable s _) = toPrefix s
     go _ StateVar = ":state:"
     go b (Bind var binder body _) =
-      let inner = go b binder ++ " >>= \\" ++ var ++ " -> " ++ go b body
+      let inner = unwords [go b binder, ">>=", '\\':var, "->", go b body]
       in if b then inner else "(" ++ inner ++ ")"
     go b (Let var binder body _) =
-      let inner = "let " ++ var ++ " = " ++ go b binder ++ " in " ++ go b body
+      let inner = unwords ["let", var, "=", go b binder, "in", go b body]
       in if b then inner else "(" ++ inner ++ ")"
     go b ap@(FunAp _ _ _) =
-      let inner = intercalate " " $ case unfoldAp ap of
+      let inner = unwords $ case unfoldAp ap of
             [Constant s _, arg1, arg2]
               | isSymbolic s -> [go False arg1, s, go False arg2]
             [Variable s _, arg1, arg2]
