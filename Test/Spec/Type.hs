@@ -71,7 +71,7 @@ toDyn :: HasTypeRep s m a => a -> Dynamic s m
 toDyn a = Dynamic (unsafeCoerce a) (typeOf a)
 
 -- | Try to convert a dynamic value back into a static one.
-fromDyn :: forall s m a. HasTypeRep s m a => Dynamic s m -> Maybe a
+fromDyn :: HasTypeRep s m a => Dynamic s m -> Maybe a
 fromDyn (Dynamic x ty) = case unsafeCoerce x of
   r | typeOf r == ty -> Just r
     | otherwise -> Nothing
