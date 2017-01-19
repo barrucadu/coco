@@ -173,7 +173,7 @@ typeArity = go . rawTypeRep where
     (con, [_, resultType]) | con == funTyCon -> 1 + go resultType
     _ -> 0
 
-  funTyCon = T.typeRepTyCon (T.typeRep @Proxy @(() -> ()) Proxy)
+  funTyCon = T.typeRepTyCon (T.typeRep (Proxy :: Proxy (() -> ())))
 
 -- | Remove the monad type constructor from a type, if it has it.
 unmonad :: TypeRep s m -> Maybe (TypeRep s m)
