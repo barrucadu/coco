@@ -28,10 +28,12 @@
 -- > let iopure = constant "pure" (pure :: Int -> IO Int) :: Expr () IO
 -- > let five   = constant "5" (5::Int) :: Expr () IO
 -- > :{
--- case iopure $$ five of
---   Just iofive -> case bind "x" iofive intvar of
---     Just bound -> case evaluate bound :: Maybe (() -> IO (Maybe (IO Int))) of
---       Just f -> maybe (pure ()) (print=<<) =<< f ()
+-- case iopure $$ intvar of
+--   Just pureX -> case iopure $$ five of
+--     Just iofive -> case bind "x" iofive pureX of
+--       Just bound -> case evaluate bound :: Maybe (() -> IO (Maybe (IO Int))) of
+--         Just f -> maybe (pure ()) (print=<<) =<< f ()
+--         Nothing -> pure ()
 --       Nothing -> pure ()
 --     Nothing -> pure ()
 --   Nothing -> pure ()
@@ -153,6 +155,7 @@ bind :: String   -- ^ Variable name
      -> Expr s m -- ^ Expression to bind variable in
      -> Maybe (Expr s m)
 bind var binder body = do
+  _ <- unmonad (exprTypeRep body)
   let boundVars = filter ((==var) . fst) (freeVariables body)
   innerTy <- unmonad (exprTypeRep binder)
   guard $ all ((==innerTy) . snd) boundVars
@@ -249,7 +252,13 @@ evaluateDyn expr
         Nothing -> error ("can't apply function " ++ show f' ++ " to argument " ++ show e')
     go env (Bind var e1 e2 _) s = do
       e1' <- go env e1 s
-      go ((var, e1'):env) e2 s
+      case dynMonadic e1' of
+        Just mx -> do
+          x <- mx
+          go ((var, x):env) e2 s
+        -- this should never happen, as 'bind' checks the application
+        -- is type-correct.
+        Nothing -> error ("can't bind non-monadic expression " ++ show e1' ++ " to variable " ++ var ++ " in body " ++ show e2)
     go env (Let var e1 e2 _) s = do
       e1' <- go env e1 s
       go ((var, e1'):env) e2 s

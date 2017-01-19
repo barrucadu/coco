@@ -30,6 +30,7 @@ module Test.Spec.Type
   , fromDyn
   , dynTypeRep
   , dynApp
+  , dynMonadic
 
   -- * Typeable
   , HasTypeRep
@@ -83,6 +84,13 @@ dynTypeRep (Dynamic _ ty) = ty
 dynApp :: Dynamic s m -> Dynamic s m -> Maybe (Dynamic s m)
 dynApp (Dynamic f t1) (Dynamic x t2) = case t1 `funResultTy` t2 of
   Just t3 -> Just (Dynamic ((unsafeCoerce f) x) t3)
+  Nothing -> Nothing
+
+-- | Take a dynamic value containing a monadic value, and turn it into
+-- a monadic value containing a dynamic value.
+dynMonadic :: Functor m => Dynamic s m -> Maybe (m (Dynamic s m))
+dynMonadic (Dynamic a ty) = case unmonad ty of
+  Just innerTy -> Just $ (\x -> Dynamic (unsafeCoerce x) innerTy) <$> unsafeCoerce a
   Nothing -> Nothing
 
 -------------------------------------------------------------------------------
