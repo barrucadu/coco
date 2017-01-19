@@ -43,7 +43,9 @@ module Test.Spec.Type
   , gcast
   , funResultTy
   , typeArity
+  , unmonad
   , stateTypeRep
+  , monadTyCon
   ) where
 
 import Data.Proxy (Proxy(..))
@@ -97,7 +99,7 @@ instance {-# OVERLAPPABLE #-} T.Typeable a => HasTypeRep s m a where
 instance {-# OVERLAPPABLE #-} HasTypeRep s m a => HasTypeRep s m (m a) where
   typeRep# _ = TypeRep $
     let ty = (typeRep# :: proxy a -> TypeRep s m) Proxy
-    in T.mkTyConApp (T.mkTyCon3 "" "" ":monad:") [rawTypeRep ty]
+    in T.mkTyConApp monadTyCon [rawTypeRep ty]
 
 instance (HasTypeRep s m a, HasTypeRep s m b) => HasTypeRep s m (a -> b) where
   typeRep# _ = TypeRep $
@@ -117,11 +119,15 @@ data TypeRep (s :: *) (m :: * -> *) where
 instance Show (TypeRep s m) where
   show = show . rawTypeRep
 
--- | The 'TypeRep' of the state variable.
+-- | The 'T.Typeable' 'T.TypeRep' of the state variable.
 stateTypeRep :: TypeRep s m
 stateTypeRep = TypeRep $ T.mkTyConApp (T.mkTyCon3 "" "" ":state:") []
 
--- | Get the underlying 'T.TypeRep' from a 'TypeRep'.
+-- | The 'T.Typeable' 'T.TyCon' of the monad variable.
+monadTyCon :: T.TyCon
+monadTyCon = T.mkTyCon3 "" "" ":monad:"
+
+-- | Get the underlying 'T.Typeable' 'T.TypeRep' from a 'TypeRep'.
 rawTypeRep :: TypeRep s m -> T.TypeRep
 rawTypeRep (TypeRep ty) = ty
 
@@ -162,3 +168,10 @@ typeArity = go . rawTypeRep where
     _ -> 0
 
   funTyCon = T.typeRepTyCon (T.typeRep @Proxy @(() -> ()) Proxy)
+
+-- | Remove the monad type constructor from a type, if it has it.
+unmonad :: TypeRep s m -> Maybe (TypeRep s m)
+unmonad = go . rawTypeRep where
+  go ty = case T.splitTyConApp ty of
+    (con, [innerType]) | con == monadTyCon -> Just (TypeRep innerType)
+    _ -> Nothing

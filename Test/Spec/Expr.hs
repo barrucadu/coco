@@ -1,6 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Module      : Test.Spec.Expr
@@ -8,7 +6,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, ScopedTypeVariables, TypeApplications
+-- Portability : GADTs
 --
 -- Constructing and evaluating dynamically-typed monadic expressions.
 --
@@ -17,12 +15,28 @@
 -- let ioplus = constant \@(MVar Int) \@IO \@(MVar Int -> Int -> IO ()) "io+" (\v a -> modifyMVar_ v (\x -> pure $ x+a))
 -- let five   = showConstant (5::Int)
 -- mvar <- newMVar (5::Int)
--- case evaluate \@(MVar Int) \@IO \@(IO ()) mvar . fromJust $ fromJust (ioplus $$ stateVariable) $$ five of
---   Just act -> act
---   Nothing  -> pure ()
+-- case evaluate \@IO \@(MVar Int) \@(IO ()) . fromJust $ fromJust (ioplus $$ stateVariable) $$ five of
+--   Just f  -> fromMaybe (pure ()) =<< f mvar
+--   Nothing -> pure ()
 -- readMVar mvar
 -- :}
 -- 10
+-- @
+--
+-- @
+-- > let intvar = variable "x" (Proxy :: Proxy Int)
+-- > let iopure = constant "pure" (pure :: Int -> IO Int) :: Expr () IO
+-- > let five   = constant "5" (5::Int) :: Expr () IO
+-- > :{
+-- case iopure $$ five of
+--   Just iofive -> case bind "x" iofive intvar of
+--     Just bound -> case evaluate bound :: Maybe (() -> IO (Maybe (IO Int))) of
+--       Just f -> maybe (pure ()) (print=<<) =<< f ()
+--       Nothing -> pure ()
+--     Nothing -> pure ()
+--   Nothing -> pure ()
+-- :}
+-- 5
 -- @
 --
 -- As you can see, there is basically no type inference working at the
@@ -35,8 +49,10 @@ module Test.Spec.Expr
   , variable
   , stateVariable
   , ($$)
+  , bind
   , constants
   , variables
+  , freeVariables
   , assign
   , evaluate
   , evaluateDyn
@@ -46,6 +62,7 @@ module Test.Spec.Expr
   , exprTypeRep
   ) where
 
+import Control.Monad (guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
 import Data.List (intercalate, nub, nubBy)
@@ -63,17 +80,21 @@ data Expr s m where
   Variable :: String -> TypeRep s m -> Expr s m
   StateVar :: Expr s m
   FunAp    :: Expr s m -> Expr s m -> TypeRep s m -> Expr s m
+  Bind     :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
 
 instance Show (Expr s m) where
   show = go True where
     go _ (Constant s _) = toPrefix s
     go _ (Variable s _) = toPrefix s
     go _ StateVar = ":state:"
-    go b ap =
+    go b (Bind var binder body _) =
+      let inner = go b binder ++ " >>= \\" ++ var ++ " -> " ++ go b body
+      in if b then inner else "(" ++ inner ++ ")"
+    go b ap@(FunAp _ _ _) =
       let inner = intercalate " " $ case unfoldAp ap of
-            [(Constant s _), arg1, arg2]
+            [Constant s _, arg1, arg2]
               | isSymbolic s -> [go False arg1, s, go False arg2]
-            [(Variable s _), arg1, arg2]
+            [Variable s _, arg1, arg2]
               | isSymbolic s -> [go False arg1, s, go False arg2]
             unfolded -> map (go False) unfolded
       in if b then inner else "(" ++ inner ++ ")"
@@ -107,6 +128,17 @@ stateVariable = StateVar
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
 f $$ e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
 
+-- | Bind a monadic value to a variable name, if well typed.
+bind :: String   -- ^ Variable name
+     -> Expr s m -- ^ Expression to bind
+     -> Expr s m -- ^ Expression to bind variable in
+     -> Maybe (Expr s m)
+bind var binder body = do
+  let boundVars = filter ((==var) . fst) (freeVariables body)
+  innerTy <- unmonad (exprTypeRep binder)
+  guard $ all ((==innerTy) . snd) boundVars
+  pure $ Bind var binder body (exprTypeRep body)
+
 -- | Get all constants in an expression, without repetition.
 constants :: Expr s m -> [(String, Dynamic s m)]
 constants = nubBy ((==) `on` fst) . go where
@@ -119,10 +151,21 @@ variables :: Expr s m -> [(String, TypeRep s m)]
 variables = nub . go where
   go (Variable s ty) = [(s, ty)]
   go (FunAp f e _) = variables f ++ variables e
+  go (Bind _ e1 e2 _) = variables e1 ++ variables e2
+  go _ = []
+
+-- | Get all free variables in an expression, without repetition.
+freeVariables :: Expr s m -> [(String, TypeRep s m)]
+freeVariables = nub . go where
+  go (Variable s ty) = [(s, ty)]
+  go (FunAp f e _) = variables f ++ variables e
+  go (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
   go _ = []
 
 -- | Plug in a value for all occurrences of a variable, if the types
--- match.
+-- match. A 'bind' of a variable of the same name is actually
+-- introducing a fresh variable, so upon encountering a binding with
+-- the variable name, assignment stops.
 assign :: String
        -- ^ The name of the variable.
        -> Expr s m
@@ -131,30 +174,45 @@ assign :: String
        -- ^ The expression being modified
        -> Maybe (Expr s m)
 assign s v e@(Variable s2 ty)
-  | s == s2 = if exprTypeRep v == ty then Just v else Nothing
+  | s == s2   = if exprTypeRep v == ty then Just v else Nothing
   | otherwise = Just e
-assign s v (FunAp f e ty) = FunAp <$> assign s v f <*> assign s v e <*> Just ty
+assign s v (FunAp f e ty) = FunAp <$> assign s v f <*> assign s v e <*> pure ty
+assign s v (Bind s2 e1 e2 ty)
+  | s == s2   = Bind s2 <$> assign s v e1 <*> pure e2 <*> pure ty
+  | otherwise = Bind s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
 assign _ _ e = Just e
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.
-evaluate :: forall s m a. (Monad m, HasTypeRep s m a) => s -> Expr s m -> Maybe a
-evaluate s e = fromDyn @s @m @a =<< evaluateDyn s e
+--
+-- If the outer 'Maybe' is @Nothing@, there are free variables. If the
+-- inner 'Maybe' is @Nothing@, the type is incorrect.
+evaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> m (Maybe a))
+evaluate e = (\f -> fmap fromDyn . f) <$> evaluateDyn e
 
 -- | Evaluate an expression, if it has no free variables.
-evaluateDyn :: forall s m. Monad m => s -> Expr s m -> Maybe (Dynamic s m)
-evaluateDyn s = go where
-  go StateVar = Just (toDyn @s @m @s s)
-  go (Constant _ dyn) = Just dyn
-  go (Variable _ _) = Nothing
-  go (FunAp f e _) = do
-    f' <- go f
-    e' <- go e
-    case f' `dynApp` e' of
-      Just x  -> Just x
-      -- this should never happen, as '$$' checks the application is
-      -- type-correct.
-      Nothing -> error ("can't apply function " ++ show f' ++ " to argument " ++ show e')
+evaluateDyn :: Monad m => Expr s m -> Maybe (s -> m (Dynamic s m))
+evaluateDyn expr
+    | null (freeVariables expr) = Just (go [] expr)
+    | otherwise = Nothing
+  where
+    go _ StateVar s = pure (toDyn s)
+    go _ (Constant _ dyn) _ = pure dyn
+    go env (Variable var _) _ = case lookup var env of
+      Just dyn -> pure dyn
+      Nothing  -> error ("unexpected free variable " ++ var ++ " in expression")
+    go env (FunAp f e _) s = do
+      f' <- go env f s
+      e' <- go env e s
+      case f' `dynApp` e' of
+        Just r -> pure r
+        -- this should never happen, as '$$' checks the application is
+        -- type-correct.
+        Nothing -> error ("can't apply function " ++ show f' ++ " to argument " ++ show e')
+    go env (Bind var e1 e2 _) s = do
+      e1' <- go env e1 s
+      go ((var, e1'):env) e2 s
+
 
 -------------------------------------------------------------------------------
 -- Types
@@ -166,7 +224,8 @@ exprTypeArity = typeArity . exprTypeRep
 
 -- | Get the type of an expression.
 exprTypeRep :: Expr s m -> TypeRep s m
-exprTypeRep (Constant _ dyn)  = dynTypeRep dyn
-exprTypeRep (Variable _   ty) = ty
-exprTypeRep (FunAp    _ _ ty) = ty
-exprTypeRep StateVar          = stateTypeRep
+exprTypeRep (Constant _ dyn) = dynTypeRep dyn
+exprTypeRep (Variable _ ty)  = ty
+exprTypeRep (FunAp _ _ ty)   = ty
+exprTypeRep (Bind _ _ _ ty)  = ty
+exprTypeRep StateVar = stateTypeRep
