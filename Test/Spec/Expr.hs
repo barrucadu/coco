@@ -256,6 +256,8 @@ evaluateDyn expr
     go _ (Constant _ dyn) _ = pure dyn
     go env (Variable var _) _ = case lookup var env of
       Just dyn -> pure dyn
+      -- this should never happen, as 'evaluateDyn' first checks that
+      -- there are no free variables before calling 'go'.
       Nothing  -> error ("unexpected free variable " ++ var ++ " in expression")
     go env (FunAp f e _) s = do
       f' <- go env f s
