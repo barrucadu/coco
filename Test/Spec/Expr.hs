@@ -11,15 +11,16 @@
 -- Constructing and evaluating dynamically-typed monadic expressions.
 --
 -- @
+-- > mvar <- newMVar (5::Int)
+-- > let ioplus = constant "io+" (\v a -> modifyMVar_ v (\x -> pure $ x + (a::Int))) :: Expr (MVar Int) IO
+-- > let five   = showConstant (5::Int)
+-- > let act = do { f <- ioplus $$ stateVariable; evaluate =<< (f $$ five) } :: Maybe (MVar Int -> IO (Maybe (IO ())))
 -- > :{
--- let ioplus = constant \@(MVar Int) \@IO \@(MVar Int -> Int -> IO ()) "io+" (\v a -> modifyMVar_ v (\x -> pure $ x+a))
--- let five   = showConstant (5::Int)
--- mvar <- newMVar (5::Int)
--- case evaluate \@IO \@(MVar Int) \@(IO ()) . fromJust $ fromJust (ioplus $$ stateVariable) $$ five of
+-- case act of
 --   Just f  -> fromMaybe (pure ()) =<< f mvar
 --   Nothing -> pure ()
--- readMVar mvar
 -- :}
+-- > readMVar mvar
 -- 10
 -- @
 --
@@ -27,15 +28,10 @@
 -- > let intvar = variable "x" (Proxy :: Proxy Int)
 -- > let iopure = constant "pure" (pure :: Int -> IO Int) :: Expr () IO
 -- > let five   = constant "5" (5::Int) :: Expr () IO
+-- > let act = do { pureX <- iopure $$ intvar; iofive <- iopure $$ five; evaluate =<< bind "x" iofive pureX } :: Maybe (() -> IO (Maybe (IO Int)))
 -- > :{
--- case iopure $$ intvar of
---   Just pureX -> case iopure $$ five of
---     Just iofive -> case bind "x" iofive pureX of
---       Just bound -> case evaluate bound :: Maybe (() -> IO (Maybe (IO Int))) of
---         Just f -> maybe (pure ()) (print=<<) =<< f ()
---         Nothing -> pure ()
---       Nothing -> pure ()
---     Nothing -> pure ()
+-- case act of
+--   Just f -> maybe (pure ()) (print=<<) =<< f ()
 --   Nothing -> pure ()
 -- :}
 -- 5
@@ -44,11 +40,10 @@
 -- @
 -- > let intvar = variable "x" (Proxy :: Proxy Int)
 -- > let five   = constant "5" (5::Int) :: Expr () IO
+-- > let act = do { evaluate =<< let_ "x" five intvar } :: Maybe (() -> IO (Maybe Int))
 -- > :{
--- case let_ "x" five intvar of
---   Just letted -> case evaluate letted :: Maybe (() -> IO (Maybe Int)) of
---     Just f -> maybe (pure ()) print =<< f ()
---     Nothing -> pure ()
+-- case act of
+--   Just f -> maybe (pure ()) print =<< f ()
 --   Nothing -> pure ()
 -- :}
 -- 5
