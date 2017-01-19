@@ -39,6 +39,19 @@
 -- 5
 -- @
 --
+-- @
+-- > let intvar = variable "x" (Proxy :: Proxy Int)
+-- > let five   = constant "5" (5::Int) :: Expr () IO
+-- > :{
+-- case let_ "x" five intvar of
+--   Just letted -> case evaluate letted :: Maybe (() -> IO (Maybe Int)) of
+--     Just f -> maybe (pure ()) print =<< f ()
+--     Nothing -> pure ()
+--   Nothing -> pure ()
+-- :}
+-- 5
+-- @
+--
 -- As you can see, there is basically no type inference working at the
 -- moment. I hope that this will improve as I build more on top.
 module Test.Spec.Expr
@@ -49,6 +62,7 @@ module Test.Spec.Expr
   , variable
   , stateVariable
   , ($$)
+  , let_
   , bind
   , constants
   , variables
@@ -81,6 +95,7 @@ data Expr s m where
   StateVar :: Expr s m
   FunAp    :: Expr s m -> Expr s m -> TypeRep s m -> Expr s m
   Bind     :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
+  Let      :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
 
 instance Show (Expr s m) where
   show = go True where
@@ -89,6 +104,9 @@ instance Show (Expr s m) where
     go _ StateVar = ":state:"
     go b (Bind var binder body _) =
       let inner = go b binder ++ " >>= \\" ++ var ++ " -> " ++ go b body
+      in if b then inner else "(" ++ inner ++ ")"
+    go b (Let var binder body _) =
+      let inner = "let " ++ var ++ " = " ++ go b binder ++ " in " ++ go b body
       in if b then inner else "(" ++ inner ++ ")"
     go b ap@(FunAp _ _ _) =
       let inner = intercalate " " $ case unfoldAp ap of
@@ -139,6 +157,16 @@ bind var binder body = do
   guard $ all ((==innerTy) . snd) boundVars
   pure $ Bind var binder body (exprTypeRep body)
 
+-- | Bind a value to a variable name, if well typed.
+let_ :: String   -- ^ Variable name
+     -> Expr s m -- ^ Expression to bind
+     -> Expr s m -- ^ Expression to bind variable in
+     -> Maybe (Expr s m)
+let_ var binder body = do
+  let boundVars = filter ((==var) . fst) (freeVariables body)
+  guard $ all ((==exprTypeRep binder) . snd) boundVars
+  pure $ Let var binder body (exprTypeRep body)
+
 -- | Get all constants in an expression, without repetition.
 constants :: Expr s m -> [(String, Dynamic s m)]
 constants = nubBy ((==) `on` fst) . go where
@@ -152,6 +180,7 @@ variables = nub . go where
   go (Variable s ty) = [(s, ty)]
   go (FunAp f e _) = variables f ++ variables e
   go (Bind _ e1 e2 _) = variables e1 ++ variables e2
+  go (Let _ e1 e2 _) = variables e1 ++ variables e2
   go _ = []
 
 -- | Get all free variables in an expression, without repetition.
@@ -160,6 +189,7 @@ freeVariables = nub . go where
   go (Variable s ty) = [(s, ty)]
   go (FunAp f e _) = variables f ++ variables e
   go (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
+  go (Let s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
   go _ = []
 
 -- | Plug in a value for all occurrences of a variable, if the types
@@ -180,6 +210,9 @@ assign s v (FunAp f e ty) = FunAp <$> assign s v f <*> assign s v e <*> pure ty
 assign s v (Bind s2 e1 e2 ty)
   | s == s2   = Bind s2 <$> assign s v e1 <*> pure e2 <*> pure ty
   | otherwise = Bind s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
+assign s v (Let s2 e1 e2 ty)
+  | s == s2   = Let s2 <$> assign s v e1 <*> pure e2 <*> pure ty
+  | otherwise = Let s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
 assign _ _ e = Just e
 
 -- | Evaluate an expression, if it has no free variables and it is the
@@ -212,6 +245,9 @@ evaluateDyn expr
     go env (Bind var e1 e2 _) s = do
       e1' <- go env e1 s
       go ((var, e1'):env) e2 s
+    go env (Let var e1 e2 _) s = do
+      e1' <- go env e1 s
+      go ((var, e1'):env) e2 s
 
 
 -------------------------------------------------------------------------------
@@ -228,4 +264,5 @@ exprTypeRep (Constant _ dyn) = dynTypeRep dyn
 exprTypeRep (Variable _ ty)  = ty
 exprTypeRep (FunAp _ _ ty)   = ty
 exprTypeRep (Bind _ _ _ ty)  = ty
+exprTypeRep (Let _ _ _ ty)   = ty
 exprTypeRep StateVar = stateTypeRep
