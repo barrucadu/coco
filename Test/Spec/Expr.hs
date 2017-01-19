@@ -73,6 +73,7 @@ module Test.Spec.Expr
   , assign
   , evaluate
   , evaluateDyn
+  , exprSize
 
   -- * Types
   , exprTypeArity
@@ -130,26 +131,38 @@ instance Show (Expr s m) where
     isSymbolic = not . all isAlphaNum
 
 -- | A constant value.
+--
+-- @exprSize (constant "foo" foo) == 1@
 constant :: HasTypeRep s m a => String -> a -> Expr s m
 constant s a = Constant s (toDyn a)
 
 -- | A constant value from a type which can be shown.
+--
+-- @exprSize (showConstant foo) == 1@
 showConstant :: (Show a, HasTypeRep s m a) => a -> Expr s m
 showConstant a = constant (show a) a
 
 -- | A variable.
+--
+-- @exprSize (variable "x" proxy) == 1@
 variable :: HasTypeRep s m a => String -> proxy a -> Expr s m
 variable s = Variable s . typeRep
 
 -- | The state variable
+--
+-- @exprSize stateVariable == 1@
 stateVariable :: Expr s m
 stateVariable = StateVar
 
 -- | Apply a function, if well-typed.
+--
+-- @fmap exprSize (e1 $$ e2) == Just (1 + exprSize e1 + exprSize e2)
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
 f $$ e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
 
 -- | Bind a monadic value to a variable name, if well typed.
+--
+-- @fmap exprSize (bind "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)
 bind :: String   -- ^ Variable name
      -> Expr s m -- ^ Expression to bind
      -> Expr s m -- ^ Expression to bind variable in
@@ -162,6 +175,8 @@ bind var binder body = do
   pure $ Bind var binder body (exprTypeRep body)
 
 -- | Bind a value to a variable name, if well typed.
+--
+-- @fmap exprSize (let_ "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)
 let_ :: String   -- ^ Variable name
      -> Expr s m -- ^ Expression to bind
      -> Expr s m -- ^ Expression to bind variable in
@@ -204,10 +219,15 @@ boundVariables expr = variables expr \\ freeVariables expr
 -- match. A 'bind' of a variable of the same name is actually
 -- introducing a fresh variable, so upon encountering a binding with
 -- the variable name, assignment stops.
+--
+-- @fmap exprSize (assign "x" e1 e2) == Just (exprSize e2 + numOccurrences * exprSize e1)
+--
+-- Because 'assign' has the potential to greatly increase the size of
+-- the expression, 'let_' is generally better.
 assign :: String
        -- ^ The name of the variable.
        -> Expr s m
-       -- ^ the new value.
+       -- ^ The new value.
        -> Expr s m
        -- ^ The expression being modified
        -> Maybe (Expr s m)
@@ -262,6 +282,15 @@ evaluateDyn expr
     go env (Let var e1 e2 _) s = do
       e1' <- go env e1 s
       go ((var, e1'):env) e2 s
+
+-- | Get the size of an expression.
+exprSize :: Expr s m -> Int
+exprSize (Constant _ _)   = 1
+exprSize (Variable _ _)   = 1
+exprSize (FunAp e1 e2 _)  = 1 + exprSize e1 + exprSize e2
+exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
+exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
+exprSize StateVar = 1
 
 
 -------------------------------------------------------------------------------
