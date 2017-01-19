@@ -90,7 +90,7 @@ dynApp (Dynamic f t1) (Dynamic x t2) = case t1 `funResultTy` t2 of
 -- a monadic value containing a dynamic value.
 dynMonadic :: Functor m => Dynamic s m -> Maybe (m (Dynamic s m))
 dynMonadic (Dynamic a ty) = case unmonad ty of
-  Just innerTy -> Just $ (\x -> Dynamic (unsafeCoerce x) innerTy) <$> unsafeCoerce a
+  Just innerTy -> Just $ (`Dynamic` innerTy) <$> unsafeCoerce a
   Nothing -> Nothing
 
 -------------------------------------------------------------------------------
