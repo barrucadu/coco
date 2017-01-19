@@ -150,9 +150,7 @@ typeOf _ = typeRep @s @m @a Proxy
 
 -- | The type-safe cast operation.
 cast :: forall s m a b. (HasTypeRep s m a, HasTypeRep s m b) => a -> Maybe b
-cast x = if typeRep @s @m @a Proxy == typeRep @s @m @b Proxy
-         then Just $ unsafeCoerce x
-         else Nothing
+cast x = fmap (\Refl -> x) (eqT @s @m @a @b)
 
 -- | Extract a witness of equality of two types
 eqT :: forall s m a b. (HasTypeRep s m a, HasTypeRep s m b) => Maybe (a :~: b)
