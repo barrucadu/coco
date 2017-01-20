@@ -269,7 +269,7 @@ evaluateDyn expr
         Nothing -> error ("can't apply function " ++ show f' ++ " to argument " ++ show e')
     go env (Bind var e1 e2 _) s = do
       e1' <- go env e1 s
-      case dynFunctor e1' of
+      case dynMonadic e1' of
         Just mx -> do
           x <- mx
           go ((var, x):env) e2 s
