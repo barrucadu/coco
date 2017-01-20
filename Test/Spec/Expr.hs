@@ -151,13 +151,13 @@ stateVariable = StateVar
 
 -- | Apply a function, if well-typed.
 --
--- @fmap exprSize (e1 $$ e2) == Just (1 + exprSize e1 + exprSize e2)
+-- @fmap exprSize (e1 $$ e2) == Just (1 + exprSize e1 + exprSize e2)@
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
 f $$ e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
 
 -- | Bind a monadic value to a variable name, if well typed.
 --
--- @fmap exprSize (bind "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)
+-- @fmap exprSize (bind "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)@
 bind :: String   -- ^ Variable name
      -> Expr s m -- ^ Expression to bind
      -> Expr s m -- ^ Expression to bind variable in
@@ -171,7 +171,7 @@ bind var binder body = do
 
 -- | Bind a value to a variable name, if well typed.
 --
--- @fmap exprSize (let_ "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)
+-- @fmap exprSize (let_ "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)@
 let_ :: String   -- ^ Variable name
      -> Expr s m -- ^ Expression to bind
      -> Expr s m -- ^ Expression to bind variable in
@@ -215,7 +215,7 @@ boundVariables expr = variables expr \\ freeVariables expr
 -- introducing a fresh variable, so upon encountering a binding with
 -- the variable name, assignment stops.
 --
--- @fmap exprSize (assign "x" e1 e2) == Just (exprSize e2 + numOccurrences * exprSize e1)
+-- @fmap exprSize (assign "x" e1 e2) == Just (exprSize e2 + numOccurrences * (exprSize e1 - 1))@
 --
 -- Because 'assign' has the potential to greatly increase the size of
 -- the expression, 'let_' is generally better.
