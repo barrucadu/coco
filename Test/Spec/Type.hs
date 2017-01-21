@@ -23,6 +23,9 @@
 -- isn't exposed. On the other hand, if it was exposed it would be
 -- trivial to violate its invariant and write unsafeCoerce, swings and
 -- roundabouts...
+--
+-- This is not good code. Do not come here to learn, unless you need
+-- to solve the same problem. Here be dragons.
 module Test.Spec.Type
   ( -- * Dynamic
     Dynamic
