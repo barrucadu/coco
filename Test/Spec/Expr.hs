@@ -65,6 +65,9 @@ module Test.Spec.Expr
   , variables
   , freeVariables
   , boundVariables
+  , variables'
+  , freeVariables'
+  , boundVariables'
   , saturate
   , assign
   , evaluate
@@ -192,25 +195,35 @@ constants = nubBy ((==) `on` fst) . go where
 
 -- | Get all variables in an expression, without repetition.
 variables :: Expr s m -> [(String, TypeRep s m)]
-variables = nub . go where
-  go (Variable s ty) = [(s, ty)]
-  go (FunAp f e _) = variables f ++ variables e
-  go (Bind _ e1 e2 _) = variables e1 ++ variables e2
-  go (Let _ e1 e2 _) = variables e1 ++ variables e2
-  go _ = []
+variables = nub . variables'
+
+-- | Get all variables in an expression.
+variables' :: Expr s m -> [(String, TypeRep s m)]
+variables' (Variable s ty) = [(s, ty)]
+variables' (FunAp f e _) = variables f ++ variables e
+variables' (Bind _ e1 e2 _) = variables e1 ++ variables e2
+variables' (Let _ e1 e2 _) = variables e1 ++ variables e2
+variables' _ = []
 
 -- | Get all free variables in an expression, without repetition.
 freeVariables :: Expr s m -> [(String, TypeRep s m)]
-freeVariables = nub . go where
-  go (Variable s ty) = [(s, ty)]
-  go (FunAp f e _) = variables f ++ variables e
-  go (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
-  go (Let s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
-  go _ = []
+freeVariables = nub . freeVariables'
+
+-- | Get all free variables in an expression.
+freeVariables' :: Expr s m -> [(String, TypeRep s m)]
+freeVariables' (Variable s ty) = [(s, ty)]
+freeVariables' (FunAp f e _) = variables f ++ variables e
+freeVariables' (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
+freeVariables' (Let s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
+freeVariables' _ = []
 
 -- | Get all the bound variables in an expression, without repetition.
 boundVariables :: Expr s m -> [(String, TypeRep s m)]
-boundVariables expr = variables expr \\ freeVariables expr
+boundVariables = nub . boundVariables'
+
+-- | Get all the bound variables in an expression.
+boundVariables' :: Expr s m -> [(String, TypeRep s m)]
+boundVariables' expr = variables' expr \\ freeVariables' expr
 
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the
