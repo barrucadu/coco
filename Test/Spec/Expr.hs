@@ -65,6 +65,7 @@ module Test.Spec.Expr
   , variables
   , freeVariables
   , boundVariables
+  , saturate
   , assign
   , evaluate
   , evaluateDyn
@@ -75,10 +76,11 @@ module Test.Spec.Expr
   , exprTypeRep
   ) where
 
-import Control.Monad (guard)
+import Control.Monad (filterM, guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
-import Data.List ((\\), nub, nubBy)
+import Data.List ((\\), foldl', nub, nubBy)
+import Data.Maybe (fromMaybe)
 
 import Test.Spec.Type
 
@@ -209,6 +211,28 @@ freeVariables = nub . go where
 -- | Get all the bound variables in an expression, without repetition.
 boundVariables :: Expr s m -> [(String, TypeRep s m)]
 boundVariables expr = variables expr \\ freeVariables expr
+
+-- | If an expression represents an unsaturated function, introduce
+-- new variables to saturate it. These variables are free in the
+-- resultant expression.
+--
+-- @exprSize (saturate e) == exprSize e + typeArity (exprTypeRep e)@
+saturate :: Expr s m -> Expr s m
+saturate expr = foldl' ($$!) expr vars where
+  -- the should never happen, as we've just constructed the list of
+  -- variables from the needed types.
+  e1 $$! e2 = fromMaybe (error "type error in 'saturate'") (e1 $$ e2)
+
+  -- the variables introduced to saturate the application
+  vars = zipWith Variable (take (length tys) varnames) tys
+
+  -- the list ["a", "b", "ba", "c", "ca", ...], sans those which are
+  -- already variables in the expression.
+  varnames = filter (`notElem` takenVars) . tail $ filterM (const [False, True]) ['z','y'..'a']
+  takenVars = map fst (variables expr)
+
+  -- the types of the function arguments
+  tys = funArgTys (exprTypeRep expr)
 
 -- | Plug in a value for all occurrences of a variable, if the types
 -- match. A 'bind' of a variable of the same name is actually

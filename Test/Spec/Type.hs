@@ -45,6 +45,7 @@ module Test.Spec.Type
   , cast
   , eqT
   , gcast
+  , funArgTys
   , funResultTy
   , typeArity
   , unmonad
@@ -164,6 +165,10 @@ eqT = if typeRep @s @m @a Proxy == typeRep @s @m @b Proxy
 -- | Cast through a type constructor.
 gcast :: forall s m a b c. (HasTypeRep s m a, HasTypeRep s m b) => c a -> Maybe (c b)
 gcast x = fmap (\Refl -> x) (eqT @s @m @a @b)
+
+-- | The types of a function's arguments.
+funArgTys :: TypeRep s m -> [TypeRep s m]
+funArgTys = map TypeRep . snd . T.splitTyConApp . rawTypeRep
 
 -- | Applies a type to a given function type, if the types match.
 funResultTy :: TypeRep s m -> TypeRep s m -> Maybe (TypeRep s m)
