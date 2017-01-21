@@ -112,23 +112,25 @@ data Expr s m where
   Let      :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
 
 instance Show (Expr s m) where
-  show = go True where
-    go _ (Constant s _) = toPrefix s
-    go _ (Variable s _) = toPrefix s
-    go _ StateVar = ":state:"
-    go b (Bind var binder body _) =
-      let inner = unwords [go b binder, ">>=", '\\':var, "->", go b body]
+  show = go True "" where
+    go _ _ (Constant s _) = toPrefix s
+    go _ t (Variable s _) = toPrefix (s ++ t)
+    go _ _ StateVar = ":state:"
+    go b t (Bind var binder body _) =
+      let t' = t ++ "'"
+          inner = unwords [go b t binder, ">>=", '\\':var ++ t', "->", go b t' body]
       in if b then inner else "(" ++ inner ++ ")"
-    go b (Let var binder body _) =
-      let inner = unwords ["let", var, "=", go b binder, "in", go b body]
+    go b t (Let var binder body _) =
+      let t' = t ++ "'"
+          inner = unwords ["let", var++t', "=", go b t binder, "in", go b t' body]
       in if b then inner else "(" ++ inner ++ ")"
-    go b ap@(FunAp _ _ _) =
+    go b t ap@(FunAp _ _ _) =
       let inner = unwords $ case unfoldAp ap of
             [Constant s _, arg1, arg2]
-              | isSymbolic s -> [go False arg1, s, go False arg2]
+              | isSymbolic s -> [go False t arg1, s, go False t arg2]
             [Variable s _, arg1, arg2]
-              | isSymbolic s -> [go False arg1, s, go False arg2]
-            unfolded -> map (go False) unfolded
+              | isSymbolic s -> [go False t arg1, s, go False t arg2]
+            unfolded -> map (go False t) unfolded
       in if b then inner else "(" ++ inner ++ ")"
 
     toPrefix s
@@ -138,7 +140,7 @@ instance Show (Expr s m) where
     unfoldAp (FunAp f e _) = unfoldAp f ++ [e]
     unfoldAp e = [e]
 
-    isSymbolic = not . all isAlphaNum
+    isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
 
 -- | A constant value.
 --
