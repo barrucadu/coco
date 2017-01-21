@@ -38,16 +38,19 @@ module Test.Spec.Type
   -- * Typeable
   , HasTypeRep
   , TypeRep
-  , (:~:)(..)
-  , rawTypeRep
   , typeRep
   , typeOf
+  , rawTypeRep
+  -- ** Type-safe casting
+  , (:~:)(..)
   , cast
   , eqT
   , gcast
+  -- ** Function types
   , funArgTys
   , funResultTy
   , typeArity
+  -- ** Miscellaneous
   , unmonad
   , stateTypeRep
   , monadTyCon
@@ -131,7 +134,7 @@ data TypeRep (s :: *) (m :: * -> *) where
 instance Show (TypeRep s m) where
   show = show . rawTypeRep
 
--- | The 'T.Typeable' 'T.TypeRep' of the state variable.
+-- | The 'TypeRep' of the state variable.
 stateTypeRep :: TypeRep s m
 stateTypeRep = TypeRep $ T.mkTyConApp (T.mkTyCon3 "" "" ":state:") []
 

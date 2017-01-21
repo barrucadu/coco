@@ -61,26 +61,30 @@ module Test.Spec.Expr
   , ($$)
   , let_
   , bind
+  -- ** Constants and variables
   , constants
   , variables
   , freeVariables
   , boundVariables
+  , constants'
   , variables'
   , freeVariables'
   , boundVariables'
+  -- ** Queries
   , isConstant
   , isVariable
   , isStateVariable
   , isApplication
   , isLet
   , isBind
+  -- ** Modification
   , saturate
   , assign
+  -- ** Evaluation
   , evaluate
   , evaluateDyn
+  -- ** Miscellaneous
   , exprSize
-
-  -- * Types
   , exprTypeArity
   , exprTypeRep
   ) where
@@ -194,10 +198,15 @@ let_ var binder body = do
 
 -- | Get all constants in an expression, without repetition.
 constants :: Expr s m -> [(String, Dynamic s m)]
-constants = nubBy ((==) `on` fst) . go where
-  go (Constant s dyn) = [(s, dyn)]
-  go (FunAp f e _) = go f ++ go e
-  go _ = []
+constants = nubBy ((==) `on` fst) . constants'
+
+-- | Get all constants in an expression.
+constants' :: Expr s m -> [(String, Dynamic s m)]
+constants' (Constant s dyn) = [(s, dyn)]
+constants' (FunAp f e _) = constants' f ++ constants' e
+constants' (Bind _ e1 e2 _) = constants' e1 ++ constants' e2
+constants' (Let _ e1 e2 _) = constants' e1 ++ constants' e2
+constants' _ = []
 
 -- | Get all variables in an expression, without repetition.
 variables :: Expr s m -> [(String, TypeRep s m)]
@@ -265,7 +274,7 @@ isLet _ = False
 -- new variables to saturate it. These variables are free in the
 -- resultant expression.
 --
--- @exprSize (saturate e) == exprSize e + typeArity (exprTypeRep e)@
+-- @exprSize (saturate e) == exprSize e + exprTypeArity e@
 saturate :: Expr s m -> Expr s m
 saturate expr = foldl' ($$!) expr vars where
   -- the should never happen, as we've just constructed the list of
@@ -284,9 +293,9 @@ saturate expr = foldl' ($$!) expr vars where
   tys = funArgTys (exprTypeRep expr)
 
 -- | Plug in a value for all occurrences of a variable, if the types
--- match. A 'bind' of a variable of the same name is actually
--- introducing a fresh variable, so upon encountering a binding with
--- the variable name, assignment stops.
+-- match. A 'bind' or 'let_' of a variable of the same name is
+-- actually introducing a fresh variable, so upon encountering a
+-- binding with the variable name, assignment stops.
 --
 -- @fmap exprSize (assign "x" e1 e2) == Just (exprSize e2 + numOccurrences * (exprSize e1 - 1))@
 --
