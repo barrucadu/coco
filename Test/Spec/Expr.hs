@@ -68,6 +68,12 @@ module Test.Spec.Expr
   , variables'
   , freeVariables'
   , boundVariables'
+  , isConstant
+  , isVariable
+  , isStateVariable
+  , isApplication
+  , isLet
+  , isBind
   , saturate
   , assign
   , evaluate
@@ -224,6 +230,36 @@ boundVariables = nub . boundVariables'
 -- | Get all the bound variables in an expression.
 boundVariables' :: Expr s m -> [(String, TypeRep s m)]
 boundVariables' expr = variables' expr \\ freeVariables' expr
+
+-- | Check if an expression is a constant.
+isConstant :: Expr s m -> Bool
+isConstant (Constant _ _) = True
+isConstant _ = False
+
+-- | Check if an expression is a named variable.
+isVariable :: Expr s m -> Bool
+isVariable (Variable _ _) = True
+isVariable _ = False
+
+-- | Check if an expression is the state variable.
+isStateVariable :: Expr s m -> Bool
+isStateVariable StateVar = True
+isStateVariable _ = False
+
+-- | Check if an expression is a function application.
+isApplication :: Expr s m -> Bool
+isApplication (FunAp _ _ _) = True
+isApplication _ = False
+
+-- | Check if an expression is a monadic bind.
+isBind :: Expr s m -> Bool
+isBind (Bind _ _ _ _) = True
+isBind _ = False
+
+-- | Check if an expression is a let binding.
+isLet :: Expr s m -> Bool
+isLet (Let _ _ _ _) = True
+isLet _ = False
 
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the
