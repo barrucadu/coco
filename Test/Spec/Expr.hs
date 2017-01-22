@@ -77,10 +77,12 @@ module Test.Spec.Expr
   , isApplication
   , isLet
   , isBind
+  , alphaEq
   -- ** Modification
   , saturate
   , assign
   , assignLets
+  , rename
   -- ** Evaluation
   , evaluate
   , evaluateDyn
@@ -93,7 +95,7 @@ module Test.Spec.Expr
 import Control.Monad (filterM, guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
-import Data.List ((\\), foldl', nub, nubBy)
+import Data.List ((\\), foldl', mapAccumL, nub, nubBy)
 import Data.Maybe (fromMaybe)
 
 import Test.Spec.Type
@@ -145,6 +147,9 @@ instance Show (Expr s m) where
 
 instance Eq (Expr s m) where
   e1 == e2 = show e1 == show e2
+
+instance Ord (Expr s m) where
+  e1 <= e2 = show e1 <= show e2
 
 -- | A constant value.
 --
@@ -276,6 +281,10 @@ isLet :: Expr s m -> Bool
 isLet (Let _ _ _ _) = True
 isLet _ = False
 
+-- | Check if two terms are alpha-equivalent, respecting types.
+alphaEq :: Expr s m -> Expr s m -> Bool
+alphaEq = (==) `on` rename
+
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the
 -- resultant expression.
@@ -292,7 +301,7 @@ saturate expr = foldl' ($$!) expr vars where
 
   -- the list ["a", "b", "ba", "c", "ca", ...], sans those which are
   -- already variables in the expression.
-  varnames = filter (`notElem` takenVars) . tail $ filterM (const [False, True]) ['z','y'..'a']
+  varnames = filter (`notElem` takenVars) names
   takenVars = map fst (variables expr)
 
   -- the types of the function arguments
@@ -339,6 +348,24 @@ assignLets (Let s e1 e2 _) = fromMaybe
   (error ("can't assign variable " ++ s ++ " value " ++ show e1 ++ " in body " ++ show e2))
   (assign s (assignLets e1) e2)
 assignLets e = e
+
+-- | Rename all variables canonically.
+rename :: Expr s m -> Expr s m
+rename expr = go freeVars expr where
+  freeVars = snd $ mapAccumL (\(n:ns) (s, ty) -> (ns, ((s,ty),n))) names (freeVariables expr)
+  go rs (Variable s ty) =
+    let newName = fromMaybe (error "un-renamed free variable") (lookup (s, ty) rs)
+    in Variable newName ty
+  go rs (FunAp e1 e2 ty) = FunAp (go rs e1) (go rs e2) ty
+  go rs (Bind s e1 e2 ty) =
+    let newName = show (length rs)
+        r = ((s, fromMaybe (error "non-monadic bound type") (unmonad $ exprTypeRep e1)), newName)
+    in Bind newName (go rs e1) (go (r:rs) e2) ty
+  go rs (Let s e1 e2 ty) =
+    let newName = show (length rs)
+        r = ((s, exprTypeRep e1), newName)
+    in Let newName (go rs e1) (go (r:rs) e2) ty
+  go _ e = e
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.
@@ -408,3 +435,11 @@ exprTypeRep (FunAp _ _ ty)   = ty
 exprTypeRep (Bind _ _ _ ty)  = ty
 exprTypeRep (Let _ _ _ ty)   = ty
 exprTypeRep StateVar = stateTypeRep
+
+
+-------------------------------------------------------------------------------
+-- Utilities
+
+-- | A list of unique names,
+names :: [String]
+names = tail $ filterM (const [False, True]) ['z','y'..'a']

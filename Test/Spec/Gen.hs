@@ -79,7 +79,9 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
       | isLet term =
         let term' = assignLets term
         in term' `notElem` sizedTerms (exprSize term') tieredTerms
-      | otherwise = True
+      | otherwise = case filter (\t -> t /= term && t `alphaEq` term) (sizedTerms (exprSize term) tieredTerms) of
+          [] -> True
+          eqs -> term < minimum eqs
 
   -- merge a list of maps of terms-by-size into a map of lists of
   -- terms-by-size.
