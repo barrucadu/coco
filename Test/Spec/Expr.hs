@@ -80,6 +80,7 @@ module Test.Spec.Expr
   -- ** Modification
   , saturate
   , assign
+  , assignLets
   -- ** Evaluation
   , evaluate
   , evaluateDyn
@@ -321,6 +322,20 @@ assign s v (Let s2 e1 e2 ty)
   | s == s2   = Let s2 <$> assign s v e1 <*> pure e2 <*> pure ty
   | otherwise = Let s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
 assign _ _ e = Just e
+
+-- | Transform all 'let_'s into assignments.
+--
+-- The effect of this on the size of an expression is difficult to
+-- predict.
+assignLets :: Expr s m -> Expr s m
+assignLets (FunAp e1 e2 ty) = FunAp (assignLets e1) (assignLets e2) ty
+assignLets (Bind s e1 e2 ty) = Bind s (assignLets e1) (assignLets e2) ty
+assignLets (Let s e1 e2 _) = fromMaybe
+  -- this should never happen, as 'let_' checks the binding is
+  -- type-correct.
+  (error ("can't assign variable " ++ s ++ " value " ++ show e1 ++ " in body " ++ show e2))
+  (assign s (assignLets e1) e2)
+assignLets e = e
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.

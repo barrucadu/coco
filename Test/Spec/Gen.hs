@@ -20,13 +20,9 @@
 -- :}
 -- > mapM_ print . (!!8) $ enumerate baseTerms
 -- succ_int (succ_int (succ_int (succ_int x)))
--- succ_int (let x' = (succ_int x) in (succ_int x'))
 -- putMVar_int :state: (succ_int (succ_int x))
--- takeMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- readMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- let x' = succ_int x in succ_int (succ_int x')
--- let x' = succ_int x in putMVar_int :state: x'
--- let x' = succ_int (succ_int x) in succ_int x'
+-- takeMVar_int :state: >>= \x' -> putMVar_int :state: x'
+-- readMVar_int :state: >>= \x' -> putMVar_int :state: x'
 -- @
 module Test.Spec.Gen where
 
@@ -48,11 +44,12 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
   -- all without free variables as the terms for this size-tier.
   genTier tieredTerms size =
     let newTiers = termsList [ tieredTerms
-                             , M.singleton size (genFunAps size tieredTerms)
-                             , M.singleton size (genBinds  size tieredTerms)
-                             , M.singleton size (genLets   size tieredTerms)
+                             , M.singleton size (genFunAps tieredTerms size)
+                             , M.singleton size (genBinds  tieredTerms size)
+                             , M.singleton size (genLets   tieredTerms size)
                              ]
-    in (newTiers, M.findWithDefault [] size newTiers)
+        newTiers' = M.adjust (prune newTiers) size newTiers
+    in (newTiers', M.findWithDefault [] size newTiers')
 
   -- produce new terms by function application.
   genFunAps = mkTerms $ \terms candidates ->
@@ -67,10 +64,18 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
     [let_ var t1 t2 | t1 <- terms, not (isVariable t1), t2 <- candidates, not (isVariable t2), (var,_) <- freeVariables t2]
 
   -- produce new terms
-  mkTerms f size tieredTerms = M.foldMapWithKey go tieredTerms where
+  mkTerms f tieredTerms size = M.foldMapWithKey go tieredTerms where
     go tier terms =
       let candidates = M.findWithDefault [] (size - tier - 1) tieredTerms
       in catMaybes (f terms candidates)
+
+  -- prune uninteresting expressions.
+  prune tieredTerms = filter go where
+    go term
+      | isLet term =
+        let term' = assignLets term
+        in show term' `notElem` map show (M.findWithDefault [] (exprSize term') tieredTerms)
+      | otherwise = True
 
   -- merge a list of maps of terms-by-size into a map of lists of
   -- terms-by-size.
