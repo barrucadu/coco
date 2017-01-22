@@ -118,11 +118,11 @@ instance Show (Expr s m) where
     go _ t (Variable s _) = toPrefix (s ++ t)
     go _ _ StateVar = ":state:"
     go b t (Bind var binder body _) =
-      let t' = t ++ "'"
+      let t' = if var == "_" then t else t ++ "'"
           inner = unwords [go b t binder, ">>=", '\\':var ++ t', "->", go b t' body]
       in if b then inner else "(" ++ inner ++ ")"
     go b t (Let var binder body _) =
-      let t' = t ++ "'"
+      let t' = if var == "_" then t else t ++ "'"
           inner = unwords ["let", var++t', "=", go b t binder, "in", go b t' body]
       in if b then inner else "(" ++ inner ++ ")"
     go b t ap@(FunAp _ _ _) =
