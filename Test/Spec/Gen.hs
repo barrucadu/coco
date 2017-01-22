@@ -53,7 +53,7 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
                              , M.singleton size (genLets   tieredTerms size)
                              ]
         newTiers' = M.adjust (prune newTiers) size newTiers
-    in (newTiers', M.findWithDefault [] size newTiers')
+    in (newTiers', sizedTerms size newTiers')
 
   -- produce new terms by function application.
   genFunAps = mkTerms $ \terms candidates ->
@@ -70,7 +70,7 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
   -- produce new terms
   mkTerms f tieredTerms size = M.foldMapWithKey go tieredTerms where
     go tier terms =
-      let candidates = M.findWithDefault [] (size - tier - 1) tieredTerms
+      let candidates = sizedTerms (size - tier - 1) tieredTerms
       in catMaybes (f terms candidates)
 
   -- prune uninteresting expressions.
@@ -78,9 +78,12 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
     go term
       | isLet term =
         let term' = assignLets term
-        in show term' `notElem` map show (M.findWithDefault [] (exprSize term') tieredTerms)
+        in term' `notElem` sizedTerms (exprSize term') tieredTerms
       | otherwise = True
 
   -- merge a list of maps of terms-by-size into a map of lists of
   -- terms-by-size.
   termsList = M.unionsWith (++)
+
+  -- get all terms of the given size.
+  sizedTerms = M.findWithDefault []

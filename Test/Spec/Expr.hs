@@ -143,6 +143,9 @@ instance Show (Expr s m) where
 
     isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
 
+instance Eq (Expr s m) where
+  e1 == e2 = show e1 == show e2
+
 -- | A constant value.
 --
 -- @exprSize (constant "foo" foo) == 1@
