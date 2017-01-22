@@ -38,6 +38,8 @@ module Test.Spec.Gen
   , stepGenerator
   , getTier
   , mapTier
+  , filterTier
+  , adjustTier
   , maxTier
   ) where
 
@@ -118,14 +120,27 @@ getTier tier g
   | tier > sofar g = Nothing
   | otherwise = M.lookup tier (tiers g)
 
--- | Apply a function to the terms in a tier.
+-- | Apply a function to every expression in a tier.
 --
 -- It is IMPORTANT that this function does not make any expressions
 -- larger or smaller! 'stepGenerator' assumes that every expression in
 -- a tier is of the correct size, and it WILL NOT behave properly if
 -- this invariant is broken!
-mapTier :: ([Expr s m] -> [Expr s m]) -> Int -> Generator s m -> Generator s m
-mapTier f tier g = g { tiers = M.adjust f tier (tiers g) }
+mapTier :: (Expr s m -> Expr s m) -> Int -> Generator s m -> Generator s m
+mapTier = adjustTier . map
+
+-- | Filter expressions in a tier.
+filterTier :: (Expr s m -> Bool) -> Int -> Generator s m -> Generator s m
+filterTier = adjustTier . filter
+
+-- | Apply a function to a tier.
+--
+-- It is IMPORTANT that this function does not make any expressions
+-- larger or smaller! 'stepGenerator' assumes that every expression in
+-- a tier is of the correct size, and it WILL NOT behave properly if
+-- this invariant is broken!
+adjustTier :: ([Expr s m] -> [Expr s m]) -> Int -> Generator s m -> Generator s m
+adjustTier f tier g = g { tiers = M.adjust f tier (tiers g) }
 
 -- | Get the highest size generated so far.
 maxTier :: Generator s m -> Int
