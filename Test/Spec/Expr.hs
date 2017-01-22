@@ -77,7 +77,6 @@ module Test.Spec.Expr
   , isApplication
   , isLet
   , isBind
-  , alphaEq
   -- ** Modification
   , saturate
   , assign
@@ -145,8 +144,9 @@ instance Show (Expr s m) where
 
     isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
 
+-- | This is alpha-equivalence.
 instance Eq (Expr s m) where
-  e1 == e2 = show e1 == show e2
+  e1 == e2 = show (rename e1) == show (rename e2)
 
 instance Ord (Expr s m) where
   e1 <= e2 = show e1 <= show e2
@@ -280,10 +280,6 @@ isBind _ = False
 isLet :: Expr s m -> Bool
 isLet (Let _ _ _ _) = True
 isLet _ = False
-
--- | Check if two terms are alpha-equivalent, respecting types.
-alphaEq :: Expr s m -> Expr s m -> Bool
-alphaEq = (==) `on` rename
 
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the

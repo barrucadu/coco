@@ -33,6 +33,7 @@ module Test.Spec.Gen where
 import Data.List (mapAccumL)
 import qualified Data.IntMap as M
 import Data.Maybe (catMaybes, isJust)
+import qualified Data.Set as S
 
 import Test.Spec.Expr
 import Test.Spec.Type (unmonad)
@@ -74,14 +75,12 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
       in catMaybes (f terms candidates)
 
   -- prune uninteresting expressions.
-  prune tieredTerms = filter go where
+  prune tieredTerms = filter go . ordNub where
     go term
       | isLet term =
         let term' = assignLets term
         in term' `notElem` sizedTerms (exprSize term') tieredTerms
-      | otherwise = case filter (\t -> t /= term && t `alphaEq` term) (sizedTerms (exprSize term) tieredTerms) of
-          [] -> True
-          eqs -> term < minimum eqs
+      | otherwise = True
 
   -- merge a list of maps of terms-by-size into a map of lists of
   -- terms-by-size.
@@ -89,3 +88,15 @@ enumerate baseTerms = snd (mapAccumL genTier initialTerms [1..]) where
 
   -- get all terms of the given size.
   sizedTerms = M.findWithDefault []
+
+
+-------------------------------------------------------------------------------
+-- Utilities
+
+-- | Remove duplicates from a list efficiently.
+ordNub :: Ord a => [a] -> [a]
+ordNub = go S.empty where
+  go _ [] = []
+  go s (x:xs)
+    | x `S.member` s = go s xs
+    | otherwise = x : go (S.insert x s) xs
