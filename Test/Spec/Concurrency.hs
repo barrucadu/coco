@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiWayIf #-}
 
 -- |
@@ -6,7 +7,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : MultiWayIf
+-- Portability : GADTs, MultiWayIf
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -35,6 +36,7 @@
 module Test.Spec.Concurrency
   ( -- * Property discovery
     Exprs(..)
+  , Observation(..)
   , discover
     -- * Observational refinement
   , refinesCC
@@ -50,11 +52,24 @@ import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, stateVariable)
+import Test.Spec.Expr (Expr, ($$), bind, rename, stateVariable)
 import Test.Spec.Gen (newGenerator, stepGenerator, getTier, maxTier)
 
 -------------------------------------------------------------------------------
 -- Property discovery
+
+data Observation where
+  Equiv   :: Expr s1 m -> Expr s2 m -> Observation
+  Refines :: Expr s1 m -> Expr s2 m -> Observation
+
+instance Eq Observation where
+  (Equiv   l1 l2) == (Equiv   r1 r2) = show (rename l1) == show (rename r1) && show (rename l2) == show (rename r2)
+  (Refines l1 l2) == (Refines r1 r2) = show (rename l1) == show (rename r1) && show (rename l2) == show (rename r2)
+  _ == _ = False
+
+instance Show Observation where
+  show (Equiv   a b) = show a ++ "\tis equivalent to\t" ++ show b
+  show (Refines a b) = show a ++ "\trefines\t"          ++ show b
 
 -- | A collection of expressions.
 data Exprs s m x a = Exprs
@@ -78,7 +93,7 @@ discover :: Ord x
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
          -> a   -- ^ Seed for the state variable
          -> Int -- ^ Term size limit
-         -> [ST t (Maybe String)]
+         -> [ST t (Maybe Observation)]
 discover exprs1 exprs2 seed lim = go (start exprs1) (start exprs2) where
   -- add in the state variable if it's not there
   start exprs
@@ -106,9 +121,9 @@ discover exprs1 exprs2 seed lim = go (start exprs1) (start exprs2) where
       refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
 
       pure $ if
-        | refines_ab && refines_ba -> Just (show a ++ "\tis equivalent to\t" ++ show b)
-        | refines_ab -> Just (show a ++ "\trefines\t" ++ show b)
-        | refines_ba -> Just (show b ++ "\trefines\t" ++ show a)
+        | refines_ab && refines_ba -> Just (Equiv a b)
+        | refines_ab -> Just (Refines a b)
+        | refines_ba -> Just (Refines b a)
         | otherwise -> Nothing
     (_,_) -> pure Nothing
 
