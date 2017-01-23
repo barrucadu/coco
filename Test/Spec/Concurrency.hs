@@ -27,11 +27,11 @@
 --                   , eval = evaluate
 --                   }
 -- :}
--- > mapM_ putStrLn . catMaybes $ runST $ sequence (discover exprs exprs 5 10)
--- takeMVar_int :state: >>= \\_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
--- takeMVar_int :state: >>= \\_ -> readMVar_int :state:     is equivalent to        takeMVar_int :state:
--- readMVar_int :state: >>= \\_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
--- readMVar_int :state: >>= \\_ -> readMVar_int :state:     is equivalent to        readMVar_int :state:
+-- > mapM_ print $ runST $ discover exprs exprs 5 10
+-- takeMVar_int :state: >>= \_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
+-- takeMVar_int :state: >>= \_ -> readMVar_int :state:     is equivalent to        takeMVar_int :state:
+-- readMVar_int :state: >>= \_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
+-- readMVar_int :state: >>= \_ -> readMVar_int :state:     is equivalent to        readMVar_int :state:
 -- @
 module Test.Spec.Concurrency
   ( -- * Property discovery
@@ -45,7 +45,7 @@ module Test.Spec.Concurrency
 
 import Control.Monad ((<=<), join)
 import Control.Monad.ST (ST)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Test.DejaFu (Failure, defaultBounds, defaultMemType)
@@ -93,8 +93,8 @@ discover :: Ord x
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
          -> a   -- ^ Seed for the state variable
          -> Int -- ^ Term size limit
-         -> [ST t (Maybe Observation)]
-discover exprs1 exprs2 seed lim = go (start exprs1) (start exprs2) where
+         -> ST t [Observation]
+discover exprs1 exprs2 seed lim = concat <$> go (start exprs1) (start exprs2) where
   -- add in the state variable if it's not there
   start exprs
     | stateVariable `elem` expressions exprs = newGenerator (expressions exprs)
@@ -102,9 +102,11 @@ discover exprs1 exprs2 seed lim = go (start exprs1) (start exprs2) where
 
   -- check every term on the current tier for equality and refinement
   -- with the smaller terms.
-  go g1 g2 =
-    map (uncurry check) (pairs g1 g2) ++
-    if maxTier g1 == lim then [] else go (stepGenerator g1) (stepGenerator g2)
+  go g1 g2 = do
+    observations <- mapM (uncurry check) (pairs g1 g2)
+    (catMaybes observations:) <$> if maxTier g1 == lim
+      then pure []
+      else go (stepGenerator g1) (stepGenerator g2)
 
   -- pairs of expressions to check for equality and refinement.
   pairs g1 g2 = [ (e1, e2)
