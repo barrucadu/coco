@@ -97,7 +97,7 @@ discover :: Ord x
 discover exprs1 exprs2 seed lim = go (start exprs1) (start exprs2) where
   -- add in the state variable if it's not there
   start exprs
-    | any (==stateVariable) (expressions exprs) = newGenerator (expressions exprs)
+    | stateVariable `elem` expressions exprs = newGenerator (expressions exprs)
     | otherwise = newGenerator (stateVariable : expressions exprs)
 
   -- check every term on the current tier for equality and refinement
