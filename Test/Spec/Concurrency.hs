@@ -53,7 +53,7 @@ import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
 import Test.Spec.Expr (Expr, ($$), bind, exprSize, rename, stateVariable)
-import Test.Spec.Gen (newGenerator, stepGenerator, getTier, maxTier)
+import Test.Spec.Gen (newGenerator, stepGenerator, filterTier, getTier, maxTier)
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -103,10 +103,10 @@ discover exprs1 exprs2 seed lim = concat <$> go (start exprs1) (start exprs2) wh
   -- check every term on the current tier for equality and refinement
   -- with the smaller terms.
   go g1 g2 = do
-    observations <- mapM (uncurry check) (pairs g1 g2)
+    ((g1', g2'), observations) <- mapAccumLM check (g1, g2) (pairs g1 g2)
     (catMaybes observations:) <$> if maxTier g1 == lim
       then pure []
-      else go (stepGenerator g1) (stepGenerator g2)
+      else go (stepGenerator g1') (stepGenerator g2')
 
   -- pairs of expressions to check for equality and refinement.
   pairs g1 g2 = [ (e1, e2)
@@ -117,24 +117,34 @@ discover exprs1 exprs2 seed lim = concat <$> go (start exprs1) (start exprs2) wh
 
   -- check if a pair of terms are observationally equal, or if one is
   -- a refinement of the other.
-  check a b = case (evalA a, evalB b) of
+  check acc@(g1, g2) (a, b) = case (evalA a, evalB b) of
     (Just eval_a, Just eval_b) -> do
       refines_ab <- refinesAB (commute . eval_a) (commute . eval_b)
       refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
 
-      pure $ if
-        | refines_ab && refines_ba -> Just $
-          if exprSize a > exprSize b then Equiv b a else Equiv a b
-        | refines_ab -> Just (Refines a b)
-        | refines_ba -> Just (Refines b a)
-        | otherwise -> Nothing
-    (_,_) -> pure Nothing
+      pure $
+        let acc' = if refines_ab || refines_ba
+                   then if exprSize a >= exprSize b
+                        then (filterTier (/=a) (exprSize a) g1, g2)
+                        else (g1, filterTier (/=b) (exprSize b) g2)
+                   else acc
+
+            obs = if
+              | refines_ab && refines_ba -> Just $
+                if exprSize a > exprSize b then Equiv b a else Equiv a b
+              | refines_ab -> Just (Refines a b)
+              | refines_ba -> Just (Refines b a)
+              | otherwise -> Nothing
+
+        in (acc', obs)
+    (_,_) -> pure (acc, Nothing)
 
   evalA a = eval exprs1 =<< bind "" a =<< (observation exprs1 $$ stateVariable)
   evalB b = eval exprs2 =<< bind "" b =<< (observation exprs2 $$ stateVariable)
 
   refinesAB a b = refinesCC (initialState exprs1) (initialState exprs2) a b seed
   refinesBA b a = refinesCC (initialState exprs2) (initialState exprs1) b a seed
+
 
 -------------------------------------------------------------------------------
 -- Observational refinement
@@ -184,3 +194,15 @@ runConc c =
 -- | Commute and join monads.
 commute :: Monad m => m (Maybe (m a)) -> m (Maybe a)
 commute = join . fmap (maybe (pure Nothing) (fmap Just))
+
+-- | Monadic version of 'mapAccumL' specialised to lists.
+mapAccumLM :: Monad m
+           => (a -> b -> m (a, c))
+           -> a
+           -> [b]
+           -> m (a, [c])
+mapAccumLM _ s []     = pure (s, [])
+mapAccumLM f s (x:xs) = do
+  (s1, x')  <- f s x
+  (s2, xs') <- mapAccumLM f s1 xs
+  pure (s2, x' : xs')
