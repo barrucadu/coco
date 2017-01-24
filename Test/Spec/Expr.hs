@@ -177,7 +177,7 @@ stateVariable = StateVar
 
 -- | Apply a function, if well-typed.
 --
--- @fmap exprSize (e1 $$ e2) == Just (1 + exprSize e1 + exprSize e2)@
+-- @fmap exprSize (e1 $$ e2) == Just (exprSize e1 + exprSize e2)@
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
 f $$ e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
 
@@ -409,7 +409,7 @@ evaluateDyn expr
 exprSize :: Expr s m -> Int
 exprSize (Constant _ _)   = 1
 exprSize (Variable _ _)   = 1
-exprSize (FunAp e1 e2 _)  = 1 + exprSize e1 + exprSize e2
+exprSize (FunAp e1 e2 _)  = exprSize e1 + exprSize e2
 exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
 exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
 exprSize StateVar = 1

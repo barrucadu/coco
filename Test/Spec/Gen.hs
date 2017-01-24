@@ -83,21 +83,21 @@ stepGenerator g = Generator newTiers (sofar g + 1) where
     in M.adjust (prune new) (sofar g + 1) new
 
   -- produce new terms by function application.
-  funAps = mkTerms $ \terms candidates ->
+  funAps = mkTerms 0 $ \terms candidates ->
     [ t1 $$ t2 | t1 <- terms, exprTypeArity t1 > 0, t2 <- candidates]
 
   -- produce new terms by monad-binding variables.
-  binds = mkTerms $ \terms candidates ->
+  binds = mkTerms 1 $ \terms candidates ->
     [bind var t1 t2 | t1 <- terms, isJust . unmonad $ exprTypeRep t1, t2 <- candidates, var <- "_" : map fst (freeVariables t2)]
 
   -- produce new terms by let-binding variables.
-  lets = mkTerms $ \terms candidates ->
+  lets = mkTerms 1 $ \terms candidates ->
     [let_ var t1 t2 | t1 <- terms, not (isVariable t1), t2 <- candidates, not (isVariable t2), (var,_) <- freeVariables t2]
 
   -- produce new terms
-  mkTerms f = M.foldMapWithKey go (tiers g) where
+  mkTerms n f = M.foldMapWithKey go (tiers g) where
     go tier terms =
-      let candidates = sizedTerms (sofar g - tier) (tiers g)
+      let candidates = sizedTerms (sofar g + 1 - tier - n) (tiers g)
       in catMaybes (f terms candidates)
 
   -- prune uninteresting expressions.
