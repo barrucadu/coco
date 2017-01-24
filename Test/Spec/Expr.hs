@@ -71,12 +71,17 @@ module Test.Spec.Expr
   , freeVariables'
   , boundVariables'
   -- ** Queries
-  , isConstant
-  , isVariable
-  , isStateVariable
   , isApplication
-  , isLet
   , isBind
+  , isConstant
+  , isLet
+  , isStateVariable
+  , isVariable
+  , unApplication
+  , unBind
+  , unConstant
+  , unLet
+  , unVariable
   -- ** Modification
   , saturate
   , assign
@@ -95,7 +100,7 @@ import Control.Monad (filterM, guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
 import Data.List ((\\), foldl', mapAccumL, nub, nubBy)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 
 import Test.Spec.Type
 
@@ -253,13 +258,11 @@ boundVariables' expr = variables' expr \\ freeVariables' expr
 
 -- | Check if an expression is a constant.
 isConstant :: Expr s m -> Bool
-isConstant (Constant _ _) = True
-isConstant _ = False
+isConstant = isJust . unConstant
 
 -- | Check if an expression is a named variable.
 isVariable :: Expr s m -> Bool
-isVariable (Variable _ _) = True
-isVariable _ = False
+isVariable = isJust . unVariable
 
 -- | Check if an expression is the state variable.
 isStateVariable :: Expr s m -> Bool
@@ -268,18 +271,40 @@ isStateVariable _ = False
 
 -- | Check if an expression is a function application.
 isApplication :: Expr s m -> Bool
-isApplication (FunAp _ _ _) = True
-isApplication _ = False
+isApplication = isJust . unApplication
 
 -- | Check if an expression is a monadic bind.
 isBind :: Expr s m -> Bool
-isBind (Bind _ _ _ _) = True
-isBind _ = False
+isBind = isJust . unBind
 
 -- | Check if an expression is a let binding.
 isLet :: Expr s m -> Bool
-isLet (Let _ _ _ _) = True
-isLet _ = False
+isLet = isJust . unLet
+
+-- | Deconstruct a constant.
+unConstant :: Expr s m -> Maybe (String, Dynamic s m)
+unConstant (Constant s dyn) = Just (s, dyn)
+unConstant _ = Nothing
+
+-- | Deconstruct a named variable.
+unVariable :: Expr s m -> Maybe (String, TypeRep s m)
+unVariable (Variable s ty) = Just (s, ty)
+unVariable _ = Nothing
+
+-- | Deconstruct a function application.
+unApplication :: Expr s m -> Maybe (Expr s m, Expr s m)
+unApplication (FunAp e1 e2 _) = Just (e1, e2)
+unApplication _ = Nothing
+
+-- | Deconstruct a monadic bind.
+unBind :: Expr s m -> Maybe (String, Expr s m, Expr s m)
+unBind (Bind s e1 e2 _) = Just (s, e1, e2)
+unBind _ = Nothing
+
+-- | Deconstruct a let binding.
+unLet :: Expr s m -> Maybe (String, Expr s m, Expr s m)
+unLet (Let s e1 e2 _) = Just (s, e1, e2)
+unLet _ = Nothing
 
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the
