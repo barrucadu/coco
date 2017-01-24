@@ -21,12 +21,12 @@
 -- > mapM_ print . (!!8) $ enumerate baseTerms
 -- succ_int (succ_int (succ_int (succ_int x)))
 -- putMVar_int :state: (succ_int (succ_int x))
--- takeMVar_int :state: >>= \\_ -> putMVar_int :state: x
+-- takeMVar_int :state: >> putMVar_int :state: x
 -- takeMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- readMVar_int :state: >>= \\_ -> putMVar_int :state: x
+-- readMVar_int :state: >> putMVar_int :state: x
 -- readMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- putMVar_int :state: x >>= \\_ -> takeMVar_int :state:
--- putMVar_int :state: x >>= \\_ -> readMVar_int :state:
+-- putMVar_int :state: x >> takeMVar_int :state:
+-- putMVar_int :state: x >> readMVar_int :state:
 -- @
 module Test.Spec.Gen
   ( -- * Generating Terms

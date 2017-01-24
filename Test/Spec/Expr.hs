@@ -123,21 +123,23 @@ instance Show (Expr s m) where
     go _ _ _ (Constant s _) = toPrefix s
     go _ _ alts (Variable s _) = toPrefix $ fromMaybe s (lookup s alts)
     go _ _ _ StateVar = ":state:"
-    go b t alts (Bind var binder body _) =
-      let (t', var', alts') = if var == "_" then (t, var, alts) else ('\'':t, var++t, (var, var++t):alts)
-          inner = unwords [go b t alts binder, ">>=", '\\':var', "->", go b t' alts' body]
-      in if b then inner else "(" ++ inner ++ ")"
-    go b t alts (Let var binder body _) =
-      let (t', var', alts') = if var == "_" then (t, var, alts) else ('\'':t, var++t, (var, var++t):alts)
-          inner = unwords ["let", var', "=", go b t alts binder, "in", go b t' alts' body]
-      in if b then inner else "(" ++ inner ++ ")"
-    go b t alts ap@(FunAp _ _ _) =
-      let inner = unwords $ case unfoldAp ap of
-            [Constant s _, arg1, arg2]
-              | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
-            [Variable s _, arg1, arg2]
-              | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
-            unfolded -> map (go False t alts) unfolded
+    go b t alts e =
+      let inner = unwords $ case e of
+            (Bind "_" binder body _) ->
+              [go b t alts binder, ">>", go b t alts body]
+            (Bind var binder body _) ->
+              let (t', var', alts') = ('\'':t, var++t, (var, var++t):alts)
+              in [go b t alts binder, ">>=", '\\':var', "->", go b t' alts' body]
+            (Let var binder body _) ->
+              let (t', var', alts') = if var == "_" then (t, var, alts) else ('\'':t, var++t, (var, var++t):alts)
+              in ["let", var', "=", go b t alts binder, "in", go b t' alts' body]
+            (FunAp _ _ _) -> case unfoldAp e of
+              [Constant s _, arg1, arg2]
+                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
+              [Variable s _, arg1, arg2]
+                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
+              unfolded -> map (go False t alts) unfolded
+            _ -> [] -- shouldn't be reached
       in if b then inner else "(" ++ inner ++ ")"
 
     toPrefix s
