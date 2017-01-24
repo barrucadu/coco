@@ -52,7 +52,7 @@ import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, rename, stateVariable)
+import Test.Spec.Expr (Expr, ($$), bind, exprSize, rename, stateVariable)
 import Test.Spec.Gen (newGenerator, stepGenerator, getTier, maxTier)
 
 -------------------------------------------------------------------------------
@@ -123,7 +123,8 @@ discover exprs1 exprs2 seed lim = concat <$> go (start exprs1) (start exprs2) wh
       refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
 
       pure $ if
-        | refines_ab && refines_ba -> Just (Equiv a b)
+        | refines_ab && refines_ba -> Just $
+          if exprSize a > exprSize b then Equiv b a else Equiv a b
         | refines_ab -> Just (Refines a b)
         | refines_ba -> Just (Refines b a)
         | otherwise -> Nothing
