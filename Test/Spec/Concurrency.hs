@@ -38,11 +38,14 @@ module Test.Spec.Concurrency
     Exprs(..)
   , Observation(..)
   , discover
+  , discoverSingle
     -- * Observational refinement
   , refinesCC
   , equivalentCC
   ) where
 
+import Control.Applicative ((<|>))
+import Control.Arrow (second)
 import Control.Monad ((<=<), join)
 import Control.Monad.ST (ST)
 import Data.Maybe (catMaybes, fromMaybe)
@@ -53,7 +56,7 @@ import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
 import Test.Spec.Expr (Expr, ($$), bind, exprSize, rename, stateVariable)
-import Test.Spec.Gen (newGenerator, stepGenerator, filterTier, getTier, maxTier)
+import Test.Spec.Gen (Generator, newGenerator, stepGenerator, filterTier, getTier)
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -76,8 +79,7 @@ data Exprs s m x a = Exprs
   { initialState :: a -> m s
   -- ^ Create a new instance of the state variable.
   , expressions :: [Expr s m]
-  -- ^ The primitive expressions to use. If 'stateVariable' is not in
-  -- this collection, it will be added by 'discover'.
+  -- ^ The primitive expressions to use.
   , observation :: Expr s m
   -- ^ The observation to make. This should be a function of type
   -- @s -> m x@. If it's not, you will get bogus results.
@@ -94,56 +96,74 @@ discover :: Ord x
          -> a   -- ^ Seed for the state variable
          -> Int -- ^ Term size limit
          -> ST t [Observation]
-discover exprs1 exprs2 seed lim = concat <$> go (start exprs1) (start exprs2) where
-  -- add in the state variable if it's not there
-  start exprs
-    | stateVariable `elem` expressions exprs = newGenerator (expressions exprs)
-    | otherwise = newGenerator (stateVariable : expressions exprs)
+discover exprs1 exprs2 seed lim = do
+    (g1, _) <- discoverSingle' exprs1 seed lim
+    (g2, _) <- discoverSingle' exprs2 seed lim
+    concat <$> findObservations 0 g1 g2
+  where
+    -- check every pair of terms (in size order) for equality and
+    -- refinement with the smaller terms.
+    findObservations tier g1 g2 = do
+      ((g1', g2'), observations) <- mapAccumLM check (g1, g2) (pairs tier g1 g2)
+      (catMaybes observations:) <$> if tier == lim
+        then pure []
+        else findObservations (tier+1) g1' g2'
 
-  -- check every term on the current tier for equality and refinement
-  -- with the smaller terms.
-  go g1 g2 = do
-    ((g1', g2'), observations) <- mapAccumLM check (g1, g2) (pairs g1 g2)
-    (catMaybes observations:) <$> if maxTier g1 == lim
-      then pure []
-      else go (stepGenerator g1') (stepGenerator g2')
+    -- check if a pair of terms are observationally equal, or if one
+    -- is a refinement of the other.
+    check acc@(g1, g2) (a, b) = case (evalA a, evalB b) of
+      (Just eval_a, Just eval_b) -> do
+        refines_ab <- refinesAB (commute . eval_a) (commute . eval_b)
+        refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
+        let (g1', g2', obs) = mkobservation refines_ab refines_ba g1 g2 a b
+        pure ((fromMaybe g1 g1', fromMaybe g2 g2'), obs)
+      (_,_) -> pure (acc, Nothing)
 
-  -- pairs of expressions to check for equality and refinement.
-  pairs g1 g2 = [ (e1, e2)
-                | e1 <- fromMaybe [] (getTier (maxTier g1) g1)
-                , tier <- [0..maxTier g1 - 1]
-                , e2 <- fromMaybe [] (getTier tier g2)
-                ]
+    evalA a = eval exprs1 =<< bind "" a =<< (observation exprs1 $$ stateVariable)
+    evalB b = eval exprs2 =<< bind "" b =<< (observation exprs2 $$ stateVariable)
 
-  -- check if a pair of terms are observationally equal, or if one is
-  -- a refinement of the other.
-  check acc@(g1, g2) (a, b) = case (evalA a, evalB b) of
-    (Just eval_a, Just eval_b) -> do
-      refines_ab <- refinesAB (commute . eval_a) (commute . eval_b)
-      refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
+    refinesAB a b = refinesCC (initialState exprs1) (initialState exprs2) a b seed
+    refinesBA b a = refinesCC (initialState exprs2) (initialState exprs1) b a seed
 
-      pure $
-        let acc' = if refines_ab || refines_ba
-                   then if exprSize a >= exprSize b
-                        then (filterTier (/=a) (exprSize a) g1, g2)
-                        else (g1, filterTier (/=b) (exprSize b) g2)
-                   else acc
+-- | Like 'discover', but only takes a single set of expressions. This
+-- will lead to better pruning.
+discoverSingle :: Ord x
+               => Exprs s (ConcST t) x a
+               -> a
+               -> Int
+               -> ST t [Observation]
+discoverSingle exprs seed lim = snd <$> discoverSingle' exprs seed lim
 
-            obs = if
-              | refines_ab && refines_ba -> Just $
-                if exprSize a > exprSize b then Equiv b a else Equiv a b
-              | refines_ab -> Just (Refines a b)
-              | refines_ba -> Just (Refines b a)
-              | otherwise -> Nothing
+-- | 'discoverSingle' but also returns the 'Generator'.
+discoverSingle' :: Ord x
+                => Exprs s (ConcST t) x a
+                -> a
+                -> Int
+                -> ST t (Generator s (ConcST t), [Observation])
+discoverSingle' exprs seed lim =
+    let g = newGenerator (expressions exprs)
+    in second concat <$> findObservations 0 g
+  where
+    -- check every term on the current tier for equality and
+    -- refinement with the smaller terms.
+    findObservations tier g = do
+      (g', observations) <- mapAccumLM check g (pairs tier g g)
+      second (catMaybes observations:) <$> if tier == lim
+        then pure (g', [])
+        else findObservations (tier+1) (stepGenerator g')
 
-        in (acc', obs)
-    (_,_) -> pure (acc, Nothing)
+    -- check if a pair of terms are observationally equal, or if one
+    -- is a refinement of the other.
+    check g (a, b) = case (evalExpr a, evalExpr b) of
+      (Just eval_a, Just eval_b) -> do
+        refines_ab <- (commute . eval_a) `refines` (commute . eval_b)
+        refines_ba <- (commute . eval_b) `refines` (commute . eval_a)
+        let (g1', g2', obs) = mkobservation refines_ab refines_ba g g a b
+        pure (fromMaybe g (g1' <|> g2'), obs)
+      (_,_) -> pure (g, Nothing)
 
-  evalA a = eval exprs1 =<< bind "" a =<< (observation exprs1 $$ stateVariable)
-  evalB b = eval exprs2 =<< bind "" b =<< (observation exprs2 $$ stateVariable)
-
-  refinesAB a b = refinesCC (initialState exprs1) (initialState exprs2) a b seed
-  refinesBA b a = refinesCC (initialState exprs2) (initialState exprs1) b a seed
+    evalExpr a = eval exprs =<< bind "" a =<< (observation exprs $$ stateVariable)
+    refines a b = refinesCC (initialState exprs) (initialState exprs) a b seed
 
 
 -------------------------------------------------------------------------------
@@ -206,3 +226,40 @@ mapAccumLM f s (x:xs) = do
   (s1, x')  <- f s x
   (s2, xs') <- mapAccumLM f s1 xs
   pure (s2, x' : xs')
+
+-- | Helper for 'discover' and 'discoverSingle': construct an
+-- appropriate 'Observation' given the result of checking refinement.
+mkobservation :: Bool -- ^ Whether the left refines the right.
+              -> Bool -- ^ Whether the right refines the left.
+              -> Generator s1 m -- ^ The left generator.
+              -> Generator s2 m -- ^ The right generator.
+              -> Expr s1 m -- ^ The left expression.
+              -> Expr s2 m -- ^ The right expression.
+              -> (Maybe (Generator s1 m), Maybe (Generator s2 m), Maybe Observation)
+mkobservation refines_ab refines_ba g1 g2 a b =
+  let (g1', g2') = if refines_ab || refines_ba
+                   then if exprSize a >= exprSize b
+                        then (Just $ filterTier (/=a) (exprSize a) g1, Nothing)
+                        else (Nothing, Just $ filterTier (/=b) (exprSize b) g2)
+        else (Nothing, Nothing)
+
+      obs = if
+        | refines_ab && refines_ba -> Just $
+          if exprSize a > exprSize b then Equiv b a else Equiv a b
+        | refines_ab -> Just (Refines a b)
+        | refines_ba -> Just (Refines b a)
+        | otherwise -> Nothing
+  in (g1', g2', obs)
+
+-- | Helper for 'discover' and 'discoverSingle': find pairs of
+-- expressions to try checking for equality and refinement.
+pairs :: Int -- ^ The current tier.
+      -> Generator s1 m -- ^ The left generator.
+      -> Generator s2 m -- ^ The right generator.
+      -> [(Expr s1 m, Expr s2 m)]
+pairs tier g1 g2 =
+  [ (e1, e2)
+  | e1 <- fromMaybe [] (getTier tier g1)
+  , t  <- [0..tier - 1]
+  , e2 <- fromMaybe [] (getTier t    g2)
+  ]
