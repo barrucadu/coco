@@ -245,9 +245,9 @@ freeVariables = nub . freeVariables'
 -- | Get all free variables in an expression.
 freeVariables' :: Expr s m -> [(String, TypeRep s m)]
 freeVariables' (Variable s ty) = [(s, ty)]
-freeVariables' (FunAp f e _) = variables f ++ variables e
-freeVariables' (Bind s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
-freeVariables' (Let s e1 e2 _) = variables e1 ++ filter ((/=s) . fst) (variables e2)
+freeVariables' (FunAp f e _) = freeVariables f ++ freeVariables e
+freeVariables' (Bind s e1 e2 _) = freeVariables e1 ++ filter ((/=s) . fst) (freeVariables e2)
+freeVariables' (Let s e1 e2 _) = freeVariables e1 ++ filter ((/=s) . fst) (freeVariables e2)
 freeVariables' _ = []
 
 -- | Get all the bound variables in an expression, without repetition.
