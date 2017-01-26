@@ -111,7 +111,7 @@ discover exprs1 exprs2 seed lim = do
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check acc@(g1, g2) (a, b) = case (evalA a, evalB b) of
+    check acc@(g1, g2) ((_, a), (_, b)) = case (evalA a, evalB b) of
       (Just eval_a, Just eval_b) -> do
         refines_ab <- refinesAB (commute . eval_a) (commute . eval_b)
         refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
@@ -139,7 +139,7 @@ discoverSingle' :: Ord x
                 => Exprs s (ConcST t) x a
                 -> a
                 -> Int
-                -> ST t (Generator s (ConcST t), [Observation])
+                -> ST t (Generator s (ConcST t) (), [Observation])
 discoverSingle' exprs seed lim =
     let g = newGenerator (expressions exprs)
     in second concat <$> findObservations 0 g
@@ -154,7 +154,7 @@ discoverSingle' exprs seed lim =
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g (a, b) = case (evalExpr a, evalExpr b) of
+    check g ((_, a), (_, b)) = case (evalExpr a, evalExpr b) of
       (Just eval_a, Just eval_b) -> do
         refines_ab <- (commute . eval_a) `refines` (commute . eval_b)
         refines_ba <- (commute . eval_b) `refines` (commute . eval_a)
@@ -231,16 +231,16 @@ mapAccumLM f s (x:xs) = do
 -- appropriate 'Observation' given the result of checking refinement.
 mkobservation :: Bool -- ^ Whether the left refines the right.
               -> Bool -- ^ Whether the right refines the left.
-              -> Generator s1 m -- ^ The left generator.
-              -> Generator s2 m -- ^ The right generator.
+              -> Generator s1 m ann1 -- ^ The left generator.
+              -> Generator s2 m ann2 -- ^ The right generator.
               -> Expr s1 m -- ^ The left expression.
               -> Expr s2 m -- ^ The right expression.
-              -> (Maybe (Generator s1 m), Maybe (Generator s2 m), Maybe Observation)
+              -> (Maybe (Generator s1 m ann1), Maybe (Generator s2 m ann2), Maybe Observation)
 mkobservation refines_ab refines_ba g1 g2 a b =
   let (g1', g2') = if refines_ab || refines_ba
                    then if exprSize a >= exprSize b
-                        then (Just $ filterTier (/=a) (exprSize a) g1, Nothing)
-                        else (Nothing, Just $ filterTier (/=b) (exprSize b) g2)
+                        then (Just $ filterTier ((/=a) . snd) (exprSize a) g1, Nothing)
+                        else (Nothing, Just $ filterTier ((/=b) . snd) (exprSize b) g2)
         else (Nothing, Nothing)
 
       obs = if
@@ -254,9 +254,9 @@ mkobservation refines_ab refines_ba g1 g2 a b =
 -- | Helper for 'discover' and 'discoverSingle': find pairs of
 -- expressions to try checking for equality and refinement.
 pairs :: Int -- ^ The current tier.
-      -> Generator s1 m -- ^ The left generator.
-      -> Generator s2 m -- ^ The right generator.
-      -> [(Expr s1 m, Expr s2 m)]
+      -> Generator s1 m ann1 -- ^ The left generator.
+      -> Generator s2 m ann2 -- ^ The right generator.
+      -> [((ann1, Expr s1 m), (ann2, Expr s2 m))]
 pairs tier g1 g2 =
   [ (e1, e2)
   | e1 <- fromMaybe [] (getTier tier g1)
