@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiWayIf #-}
 
 -- |
 -- Module      : Test.Spec.Concurrency
@@ -7,7 +6,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, MultiWayIf
+-- Portability : GADTs
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -246,20 +245,21 @@ mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) 
   refines_ba = results_b `S.isSubsetOf` results_a
 
   -- if there is a refinement, remove the larger expression from the generator
-  g12' = if refines_ab || refines_ba
-         then if exprSize expr_a >= exprSize expr_b
-              then Just . Left  $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
-              else Just . Right $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
-         else Nothing
+  g12'
+    | refines_ab && (not refines_ba || refines_ba && exprSize expr_b >= exprSize expr_a) =
+      Just . Right $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
+    | refines_ba && (not refines_ab || refines_ab && exprSize expr_a >= exprSize expr_b) =
+      Just . Left  $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
+    | otherwise = Nothing
 
   -- describe the observation
-  obs = if
-    | uninteresting_failure -> Nothing
-    | refines_ab && refines_ba -> Just $
+  obs
+    | uninteresting_failure = Nothing
+    | refines_ab && refines_ba = Just $
       if exprSize expr_a > exprSize expr_b then Equiv expr_b expr_a else Equiv expr_a expr_b
-    | refines_ab -> Just (Refines expr_a expr_b)
-    | refines_ba -> Just (Refines expr_b expr_a)
-    | otherwise -> Nothing
+    | refines_ab = Just (Refines expr_a expr_b)
+    | refines_ba = Just (Refines expr_b expr_a)
+    | otherwise = Nothing
 
 -- | Helper for 'discover' and 'discoverSingle': find pairs of
 -- expressions to try checking for equality and refinement.
