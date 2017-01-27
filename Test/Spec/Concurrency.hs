@@ -45,6 +45,7 @@ import Control.Applicative ((<|>))
 import Control.Arrow (second)
 import Control.Monad (join)
 import Control.Monad.ST (ST)
+import Data.Either (isLeft)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
@@ -113,8 +114,13 @@ discover exprs1 exprs2 seed lim = do
       (Just eval_a, Just eval_b) -> do
         results_a <- runConc $ commute . eval_a =<< initialState exprs1 seed
         results_b <- runConc $ commute . eval_b =<< initialState exprs2 seed
-        let (g1', g2', obs) = mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b
-        pure ((fromMaybe g1 g1', fromMaybe g2 g2'), obs)
+
+        -- if an expression always fails, record that.
+        let g1' = annotate expr_a (if all isLeft results_a then Fails else ann_a) g1
+        let g2' = annotate expr_b (if all isLeft results_b then Fails else ann_b) g2
+
+        let (g1'', g2'', obs) = mkobservation results_a results_b g1' g2' expr_a expr_b ann_a ann_b
+        pure ((fromMaybe g1' g1'', fromMaybe g2' g2''), obs)
       (_,_) -> pure (acc, Nothing)
 
     evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
@@ -153,8 +159,13 @@ discoverSingle' exprs seed lim =
       (Just eval_a, Just eval_b) -> do
         results_a <- runConc $ commute . eval_a =<< initialState exprs seed
         results_b <- runConc $ commute . eval_b =<< initialState exprs seed
-        let (g1', g2', obs) = mkobservation results_a results_b g g expr_a expr_b ann_a ann_b
-        pure (fromMaybe g (g1' <|> g2'), obs)
+
+        -- if an expression always fails, record that.
+        let g' = annotate expr_a (if all isLeft results_a then Fails else ann_a) $
+                 annotate expr_b (if all isLeft results_b then Fails else ann_b) g
+
+        let (g1', g2', obs) = mkobservation results_a results_b g' g' expr_a expr_b ann_a ann_b
+        pure (fromMaybe g' (g1' <|> g2'), obs)
       (_,_) -> pure (g, Nothing)
 
     evalExpr e = eval exprs =<< bind "" e =<< (observation exprs $$ stateVariable)
@@ -177,8 +188,8 @@ instance Monoid Ann where
   mempty = Ok
 
 -- | Annotate an expression. This overwrites any previous annotation.
-annotate :: Generator s m Ann -> Expr s m -> Ann -> Generator s m Ann
-annotate g expr ann = mapTier go (exprSize expr) g where
+annotate :: Expr s m -> ann -> Generator s m ann -> Generator s m ann
+annotate expr ann = mapTier go (exprSize expr) where
   go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
 
 
@@ -207,8 +218,9 @@ mapAccumLM f s (x:xs) = do
   pure (s2, x' : xs')
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
--- appropriate 'Observation' given the result of checking refinement,
--- annotate the expressions, and update the generators.
+-- appropriate 'Observation' given the results of execution. The left
+-- and right annotations may have been changed: this is used to
+-- determine if a failure is interesting or not.
 mkobservation :: Ord x
               => Set (Either Failure x) -- ^ The left results.
               -> Set (Either Failure x) -- ^ The right results.
@@ -216,10 +228,15 @@ mkobservation :: Ord x
               -> Generator s2 m Ann -- ^ The right generator.
               -> Expr s1 m -- ^ The left expression.
               -> Expr s2 m -- ^ The right expression.
-              -> Ann -- ^ The left annotation
-              -> Ann -- ^ The right annotation.
+              -> Ann -- ^ The original left annotation.
+              -> Ann -- ^ The original right annotation.
               -> (Maybe (Generator s1 m Ann), Maybe (Generator s2 m Ann), Maybe Observation)
 mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g1', g2', obs) where
+  -- a failure is uninteresting if the failing term is built out of failing components
+  uninteresting_failure
+    | exprSize expr_a >= exprSize expr_b = all isLeft results_a && ann_a == Fails
+    | otherwise = all isLeft results_b && ann_b == Fails
+
   -- P ⊑ Q iff the results of P are a subset of the results of Q
   refines_ab = results_a `S.isSubsetOf` results_b
   refines_ba = results_b `S.isSubsetOf` results_a
@@ -227,12 +244,13 @@ mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g1', g2', o
   -- if there is a refinement, remove the larger expression from the generator
   (g1', g2') = if refines_ab || refines_ba
                then if exprSize expr_a >= exprSize expr_b
-                    then (Just $ filterTier (/=(ann_a, expr_a)) (exprSize expr_a) g1, Nothing)
-                    else (Nothing, Just $ filterTier (/=(ann_b, expr_b)) (exprSize expr_b) g2)
+                    then (Just $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1, Nothing)
+                    else (Nothing, Just $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2)
                else (Nothing, Nothing)
 
   -- describe the observation
   obs = if
+    | uninteresting_failure -> Nothing
     | refines_ab && refines_ba -> Just $
       if exprSize expr_a > exprSize expr_b then Equiv expr_b expr_a else Equiv expr_a expr_b
     | refines_ab -> Just (Refines expr_a expr_b)
