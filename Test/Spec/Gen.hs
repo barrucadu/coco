@@ -44,7 +44,7 @@ module Test.Spec.Gen
   ) where
 
 import qualified Data.IntMap as M
-import Data.Maybe (isJust, mapMaybe)
+import Data.Maybe (isJust)
 import Data.Semigroup (Semigroup, (<>))
 import qualified Data.Set as S
 
@@ -56,7 +56,7 @@ enumerate :: [Expr s m] -> [[Expr s m]]
 enumerate = tail . go 0 . newGenerator where
   go :: Int -> Generator s m () -> [[Expr s m]]
   go tier g =
-    maybe [] (map snd) (getTier tier g) : go (tier+1) (stepGenerator g)
+    maybe [] (map snd) (getTier tier g) : go (tier+1) (stepGenerator (const True) g)
 
 
 -------------------------------------------------------------------------------
@@ -74,8 +74,8 @@ newGenerator baseTerms = Generator
   }
 
 -- | Generate the next tier.
-stepGenerator :: Semigroup ann => Generator s m ann -> Generator s m ann
-stepGenerator g = Generator newTiers (sofar g + 1) where
+stepGenerator :: Semigroup ann => ((ann, Expr s m) -> Bool) -> Generator s m ann -> Generator s m ann
+stepGenerator check g = Generator newTiers (sofar g + 1) where
   newTiers =
     let new = merge [ tiers g
                     , M.singleton (sofar g + 1) funAps
@@ -86,21 +86,39 @@ stepGenerator g = Generator newTiers (sofar g + 1) where
 
   -- produce new terms by function application.
   funAps = mkTerms 0 $ \terms candidates ->
-    [(a1 <> a2, t1 $$ t2) | (a1, t1) <- terms, exprTypeArity t1 > 0, (a2, t2) <- candidates]
+    [ (resAnn, resExpr) | (a1, t1) <- terms
+                        , exprTypeArity t1 > 0
+                        , (a2, t2) <- candidates
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, t1 $$ t2)]
+                        , check (resAnn, resExpr)
+    ]
 
   -- produce new terms by monad-binding variables.
   binds = mkTerms 1 $ \terms candidates ->
-    [(a1 <> a2, bind var t1 t2) | (a1, t1) <- terms, isJust . unmonad $ exprTypeRep t1, (a2, t2) <- candidates, var <- "_" : map fst (freeVariables t2)]
+    [ (resAnn, resExpr) | (a1, t1) <- terms
+                        , isJust . unmonad $ exprTypeRep t1
+                        , (a2, t2) <- candidates
+                        , var <- "_" : map fst (freeVariables t2)
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, bind var t1 t2)]
+                        , check (resAnn, resExpr)
+    ]
 
   -- produce new terms by let-binding variables.
   lets = mkTerms 1 $ \terms candidates ->
-    [(a1 <> a2, let_ var t1 t2) | (a1, t1) <- terms, not (isVariable t1), (a2, t2) <- candidates, not (isVariable t2), (var,_) <- freeVariables t2]
+    [ (resAnn, resExpr) | (a1, t1) <- terms
+                        , not (isVariable t1)
+                        , (a2, t2) <- candidates
+                        , not (isVariable t2)
+                        , (var,_) <- freeVariables t2
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, let_ var t1 t2)]
+                        , check (resAnn, resExpr)
+    ]
 
   -- produce new terms
   mkTerms n f = M.foldMapWithKey go (tiers g) where
     go tier terms =
       let candidates = sizedTerms (sofar g + 1 - tier - n) (tiers g)
-      in mapMaybe sequence (f terms candidates)
+      in f terms candidates
 
   -- prune uninteresting expressions.
   prune tieredTerms = filter go . ordNubOn snd where

@@ -154,7 +154,7 @@ discoverSingle' exprs seed lim =
       (g', observations) <- mapAccumLM check g (pairs tier g g)
       second (catMaybes observations:) <$> if tier == lim
         then pure (g', [])
-        else findObservations (tier+1) (stepGenerator g')
+        else findObservations (tier+1) (stepGenerator (const True) g')
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
