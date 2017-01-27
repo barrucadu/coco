@@ -41,7 +41,6 @@ module Test.Spec.Concurrency
   , discoverSingle
   ) where
 
-import Control.Applicative ((<|>))
 import Control.Arrow (second)
 import Control.Monad (join)
 import Control.Monad.ST (ST)
@@ -119,8 +118,13 @@ discover exprs1 exprs2 seed lim = do
         let g1' = annotate expr_a (if all isLeft results_a then Fails else ann_a) g1
         let g2' = annotate expr_b (if all isLeft results_b then Fails else ann_b) g2
 
-        let (g1'', g2'', obs) = mkobservation results_a results_b g1' g2' expr_a expr_b ann_a ann_b
-        pure ((fromMaybe g1' g1'', fromMaybe g2' g2''), obs)
+        let (g12'', obs) = mkobservation results_a results_b g1' g2' expr_a expr_b ann_a ann_b
+
+        -- get the updated generators
+        let g1'' = maybe g1' (either id (const g1')) g12''
+        let g2'' = maybe g2' (either (const g2') id) g12''
+
+        pure ((g1'', g2''), obs)
       (_,_) -> pure (acc, Nothing)
 
     evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
@@ -164,8 +168,8 @@ discoverSingle' exprs seed lim =
         let g' = annotate expr_a (if all isLeft results_a then Fails else ann_a) $
                  annotate expr_b (if all isLeft results_b then Fails else ann_b) g
 
-        let (g1', g2', obs) = mkobservation results_a results_b g' g' expr_a expr_b ann_a ann_b
-        pure (fromMaybe g' (g1' <|> g2'), obs)
+        let (g'', obs) = mkobservation results_a results_b g' g' expr_a expr_b ann_a ann_b
+        pure (maybe g' (either id id) g'', obs)
       (_,_) -> pure (g, Nothing)
 
     evalExpr e = eval exprs =<< bind "" e =<< (observation exprs $$ stateVariable)
@@ -230,8 +234,8 @@ mkobservation :: Ord x
               -> Expr s2 m -- ^ The right expression.
               -> Ann -- ^ The original left annotation.
               -> Ann -- ^ The original right annotation.
-              -> (Maybe (Generator s1 m Ann), Maybe (Generator s2 m Ann), Maybe Observation)
-mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g1', g2', obs) where
+              -> (Maybe (Either (Generator s1 m Ann) (Generator s2 m Ann)), Maybe Observation)
+mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
   uninteresting_failure
     | exprSize expr_a >= exprSize expr_b = all isLeft results_a && ann_a == Fails
@@ -242,11 +246,11 @@ mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g1', g2', o
   refines_ba = results_b `S.isSubsetOf` results_a
 
   -- if there is a refinement, remove the larger expression from the generator
-  (g1', g2') = if refines_ab || refines_ba
-               then if exprSize expr_a >= exprSize expr_b
-                    then (Just $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1, Nothing)
-                    else (Nothing, Just $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2)
-               else (Nothing, Nothing)
+  g12' = if refines_ab || refines_ba
+         then if exprSize expr_a >= exprSize expr_b
+              then Just . Left  $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
+              else Just . Right $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
+         else Nothing
 
   -- describe the observation
   obs = if
