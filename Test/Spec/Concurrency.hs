@@ -39,16 +39,14 @@ module Test.Spec.Concurrency
   , Observation(..)
   , discover
   , discoverSingle
-    -- * Observational refinement
-  , refinesCC
-  , equivalentCC
   ) where
 
 import Control.Applicative ((<|>))
 import Control.Arrow (second)
-import Control.Monad ((<=<), join)
+import Control.Monad (join)
 import Control.Monad.ST (ST)
 import Data.Maybe (catMaybes, fromMaybe)
+import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
 import Test.DejaFu (Failure, defaultBounds, defaultMemType)
@@ -56,7 +54,7 @@ import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
 import Test.Spec.Expr (Expr, ($$), bind, exprSize, rename, stateVariable)
-import Test.Spec.Gen (Generator, newGenerator, stepGenerator, filterTier, getTier)
+import Test.Spec.Gen (Generator, newGenerator, stepGenerator, filterTier, getTier, mapTier)
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -111,19 +109,16 @@ discover exprs1 exprs2 seed lim = do
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check acc@(g1, g2) ((_, a), (_, b)) = case (evalA a, evalB b) of
+    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case (evalA expr_a, evalB expr_b) of
       (Just eval_a, Just eval_b) -> do
-        refines_ab <- refinesAB (commute . eval_a) (commute . eval_b)
-        refines_ba <- refinesBA (commute . eval_b) (commute . eval_a)
-        let (g1', g2', obs) = mkobservation refines_ab refines_ba g1 g2 a b
+        results_a <- runConc $ commute . eval_a =<< initialState exprs1 seed
+        results_b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+        let (g1', g2', obs) = mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b
         pure ((fromMaybe g1 g1', fromMaybe g2 g2'), obs)
       (_,_) -> pure (acc, Nothing)
 
-    evalA a = eval exprs1 =<< bind "" a =<< (observation exprs1 $$ stateVariable)
-    evalB b = eval exprs2 =<< bind "" b =<< (observation exprs2 $$ stateVariable)
-
-    refinesAB a b = refinesCC (initialState exprs1) (initialState exprs2) a b seed
-    refinesBA b a = refinesCC (initialState exprs2) (initialState exprs1) b a seed
+    evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
+    evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
@@ -139,7 +134,7 @@ discoverSingle' :: Ord x
                 => Exprs s (ConcST t) x a
                 -> a
                 -> Int
-                -> ST t (Generator s (ConcST t) (), [Observation])
+                -> ST t (Generator s (ConcST t) Ann, [Observation])
 discoverSingle' exprs seed lim =
     let g = newGenerator (expressions exprs)
     in second concat <$> findObservations 0 g
@@ -154,53 +149,37 @@ discoverSingle' exprs seed lim =
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g ((_, a), (_, b)) = case (evalExpr a, evalExpr b) of
+    check g ((ann_a, expr_a), (ann_b, expr_b)) = case (evalExpr expr_a, evalExpr expr_b) of
       (Just eval_a, Just eval_b) -> do
-        refines_ab <- (commute . eval_a) `refines` (commute . eval_b)
-        refines_ba <- (commute . eval_b) `refines` (commute . eval_a)
-        let (g1', g2', obs) = mkobservation refines_ab refines_ba g g a b
+        results_a <- runConc $ commute . eval_a =<< initialState exprs seed
+        results_b <- runConc $ commute . eval_b =<< initialState exprs seed
+        let (g1', g2', obs) = mkobservation results_a results_b g g expr_a expr_b ann_a ann_b
         pure (fromMaybe g (g1' <|> g2'), obs)
       (_,_) -> pure (g, Nothing)
 
-    evalExpr a = eval exprs =<< bind "" a =<< (observation exprs $$ stateVariable)
-    refines a b = refinesCC (initialState exprs) (initialState exprs) a b seed
+    evalExpr e = eval exprs =<< bind "" e =<< (observation exprs $$ stateVariable)
 
 
 -------------------------------------------------------------------------------
--- Observational refinement
+-- Annotations
 
--- | Check if left concurrent expression is a refinement of the right.
---
--- Observational refinement is typically read as \"being more
--- deterministic than\" (or perhaps more accurately \"being at most as
--- nondeterministic as\").  \"@P@ refines @Q@\", written @P ⊑ Q@,
--- means that all behaviours of @P@ are possible behaviours of @Q@, up
--- to some observation.  For example, an observation we might take of
--- a stack is converting it to a list.
-refinesCC :: Ord x
-          => (a -> ConcST t cL) -- ^ Produce a new concurrent value of the left kind.
-          -> (a -> ConcST t cR) -- ^ Produce a new concurrent value of the right kind.
-          -> (cL -> ConcST t x) -- ^ Operation and observation on the left concurrent representation.
-          -> (cR -> ConcST t x) -- ^ Operation and observation on the right concurrent representation.
-          -> a
-          -> ST t Bool
-refinesCC mk_cL mk_cR obs_op_cL obs_op_cR seed = do
-  cL_res <- runConc $ (obs_op_cL <=< mk_cL) seed
-  cR_res <- runConc $ (obs_op_cR <=< mk_cR) seed
-  pure (cL_res `S.isSubsetOf` cR_res)
+-- | An annotation on an expression.
+data Ann = Ok | Fails
+  deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
--- | If we have @P ⊑ Q ∧ Q ⊑ P@, then @P@ and @Q@ are equivalent, up
--- to the provided observation.
-equivalentCC :: Ord x
-             => (a -> ConcST t c1) -- ^ Produce a new concurrent value of the first kind.
-             -> (a -> ConcST t c2) -- ^ Produce a new concurrent value of the second kind.
-             -> (c1 -> ConcST t x) -- ^ Operation and observation on the first concurrent representation.
-             -> (c2 -> ConcST t x) -- ^ Operation and observation on the second concurrent representation.
-             -> a
-             -> ST t Bool
-equivalentCC mk_c1 mk_c2 obs_op_c1 obs_op_c2 seed =
-  (&&) <$> refinesCC mk_c1 mk_c2 obs_op_c1 obs_op_c2 seed
-       <*> refinesCC mk_c2 mk_c1 obs_op_c2 obs_op_c1 seed
+instance Semigroup Ann where
+  Ok <> ann = ann
+  ann <> Ok = ann
+  _ <> _ = Fails
+
+instance Monoid Ann where
+  mappend = (<>)
+  mempty = Ok
+
+-- | Annotate an expression. This overwrites any previous annotation.
+annotate :: Generator s m Ann -> Expr s m -> Ann -> Generator s m Ann
+annotate g expr ann = mapTier go (exprSize expr) g where
+  go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
 
 
 -------------------------------------------------------------------------------
@@ -228,28 +207,37 @@ mapAccumLM f s (x:xs) = do
   pure (s2, x' : xs')
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
--- appropriate 'Observation' given the result of checking refinement.
-mkobservation :: Bool -- ^ Whether the left refines the right.
-              -> Bool -- ^ Whether the right refines the left.
-              -> Generator s1 m ann1 -- ^ The left generator.
-              -> Generator s2 m ann2 -- ^ The right generator.
+-- appropriate 'Observation' given the result of checking refinement,
+-- annotate the expressions, and update the generators.
+mkobservation :: Ord x
+              => Set (Either Failure x) -- ^ The left results.
+              -> Set (Either Failure x) -- ^ The right results.
+              -> Generator s1 m Ann -- ^ The left generator.
+              -> Generator s2 m Ann -- ^ The right generator.
               -> Expr s1 m -- ^ The left expression.
               -> Expr s2 m -- ^ The right expression.
-              -> (Maybe (Generator s1 m ann1), Maybe (Generator s2 m ann2), Maybe Observation)
-mkobservation refines_ab refines_ba g1 g2 a b =
-  let (g1', g2') = if refines_ab || refines_ba
-                   then if exprSize a >= exprSize b
-                        then (Just $ filterTier ((/=a) . snd) (exprSize a) g1, Nothing)
-                        else (Nothing, Just $ filterTier ((/=b) . snd) (exprSize b) g2)
-        else (Nothing, Nothing)
+              -> Ann -- ^ The left annotation
+              -> Ann -- ^ The right annotation.
+              -> (Maybe (Generator s1 m Ann), Maybe (Generator s2 m Ann), Maybe Observation)
+mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g1', g2', obs) where
+  -- P ⊑ Q iff the results of P are a subset of the results of Q
+  refines_ab = results_a `S.isSubsetOf` results_b
+  refines_ba = results_b `S.isSubsetOf` results_a
 
-      obs = if
-        | refines_ab && refines_ba -> Just $
-          if exprSize a > exprSize b then Equiv b a else Equiv a b
-        | refines_ab -> Just (Refines a b)
-        | refines_ba -> Just (Refines b a)
-        | otherwise -> Nothing
-  in (g1', g2', obs)
+  -- if there is a refinement, remove the larger expression from the generator
+  (g1', g2') = if refines_ab || refines_ba
+               then if exprSize expr_a >= exprSize expr_b
+                    then (Just $ filterTier (/=(ann_a, expr_a)) (exprSize expr_a) g1, Nothing)
+                    else (Nothing, Just $ filterTier (/=(ann_b, expr_b)) (exprSize expr_b) g2)
+               else (Nothing, Nothing)
+
+  -- describe the observation
+  obs = if
+    | refines_ab && refines_ba -> Just $
+      if exprSize expr_a > exprSize expr_b then Equiv expr_b expr_a else Equiv expr_a expr_b
+    | refines_ab -> Just (Refines expr_a expr_b)
+    | refines_ba -> Just (Refines expr_b expr_a)
+    | otherwise -> Nothing
 
 -- | Helper for 'discover' and 'discoverSingle': find pairs of
 -- expressions to try checking for equality and refinement.
