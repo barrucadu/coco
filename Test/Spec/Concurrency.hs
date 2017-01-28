@@ -52,8 +52,8 @@ import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, exprSize, rename, stateVariable)
-import Test.Spec.Gen (Generator, newGenerator, stepGenerator, filterTier, getTier, mapTier)
+import Test.Spec.Expr (Expr, ($$), bind, exprSize, exprTypeRep, rename, stateVariable, unBind)
+import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -114,10 +114,10 @@ discover exprs1 exprs2 seed lim = do
         results_b <- runConc $ commute . eval_b =<< initialState exprs2 seed
 
         -- if an expression always fails, record that.
-        let g1' = annotate expr_a (if all isLeft results_a then Fails else ann_a) g1
-        let g2' = annotate expr_b (if all isLeft results_b then Fails else ann_b) g2
+        let g1' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) g1
+        let g2' = annotate expr_b (\ann -> ann { isFailing = all isLeft results_b }) g2
 
-        let (g12'', obs) = mkobservation results_a results_b g1' g2' expr_a expr_b ann_a ann_b
+        let (g12'', obs) = mkobservation False results_a results_b g1' g2' expr_a expr_b ann_a ann_b
 
         -- get the updated generators
         let g1'' = maybe g1' (either id (const g1')) g12''
@@ -145,7 +145,7 @@ discoverSingle' :: Ord x
                 -> Int
                 -> ST t (Generator s (ConcST t) Ann, [Observation])
 discoverSingle' exprs seed lim =
-    let g = newGenerator (expressions exprs)
+    let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
     in second concat <$> findObservations 0 g
   where
     -- check every term on the current tier for equality and
@@ -154,7 +154,7 @@ discoverSingle' exprs seed lim =
       (g', observations) <- mapAccumLM check g (pairs tier g g)
       second (catMaybes observations:) <$> if tier == lim
         then pure (g', [])
-        else findObservations (tier+1) (stepGenerator (const True) g')
+        else findObservations (tier+1) (stepGenerator checkGenBind g')
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
@@ -164,36 +164,51 @@ discoverSingle' exprs seed lim =
         results_b <- runConc $ commute . eval_b =<< initialState exprs seed
 
         -- if an expression always fails, record that.
-        let g' = annotate expr_a (if all isLeft results_a then Fails else ann_a) $
-                 annotate expr_b (if all isLeft results_b then Fails else ann_b) g
+        let g' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) $
+                 annotate expr_b (\ann -> ann { isFailing = all isLeft results_b }) g
 
-        let (g'', obs) = mkobservation results_a results_b g' g' expr_a expr_b ann_a ann_b
+        let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results_a results_b g' g' expr_a expr_b ann_a ann_b
         pure (maybe g' (either id id) g'', obs)
       (_,_) -> pure (g, Nothing)
 
     evalExpr e = eval exprs =<< bind "" e =<< (observation exprs $$ stateVariable)
+
+    checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
+      Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
+      Just _ -> isSmallest ann2
+      _ -> True
 
 
 -------------------------------------------------------------------------------
 -- Annotations
 
 -- | An annotation on an expression.
-data Ann = Ok | Fails
-  deriving (Eq, Ord, Read, Show, Bounded, Enum)
+--
+-- The 'Semigroup' instance is very optimistic, and assumes that
+-- combining two expressions will yield the smallest in its new
+-- equivalence class (which means there is no unit). It is the job of
+-- 'mkobservation' to crush these dreams.
+data Ann = Ann
+  { isFailing  :: Bool
+  , isSmallest :: Bool
+  }
+  deriving (Eq, Ord, Read, Show)
 
 instance Semigroup Ann where
-  Ok <> ann = ann
-  ann <> Ok = ann
-  _ <> _ = Fails
+  ann1 <> ann2 = Ann { isFailing  = isFailing ann1 || isFailing ann2
+                     , isSmallest = True
+                     }
 
-instance Monoid Ann where
-  mappend = (<>)
-  mempty = Ok
+-- | The \"default\" annotation. This is not the unit of
+-- 'Semigroup.<>', as it has no unit.
+initialAnn :: Ann
+initialAnn = Ann { isFailing = False, isSmallest = True }
 
--- | Annotate an expression. This overwrites any previous annotation.
-annotate :: Expr s m -> ann -> Generator s m ann -> Generator s m ann
-annotate expr ann = mapTier go (exprSize expr) where
-  go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
+-- | Annotate an expression.
+annotate :: Expr s m -> (ann -> ann) -> Generator s m ann -> Generator s m ann
+annotate expr f = mapTier go (exprSize expr) where
+  go (ann0, expr0) = (if expr0 == expr then f ann0 else ann0, expr0)
+
 
 
 -------------------------------------------------------------------------------
@@ -224,8 +239,12 @@ mapAccumLM f s (x:xs) = do
 -- appropriate 'Observation' given the results of execution. The left
 -- and right annotations may have been changed: this is used to
 -- determine if a failure is interesting or not.
+--
+-- TODO: This is pretty messy, combining the annotation changes with
+-- the observation. Maybe better to split it up?
 mkobservation :: Ord x
-              => Set (Either Failure x) -- ^ The left results.
+              => Bool -- ^ Whether the expressions are the same type.
+              -> Set (Either Failure x) -- ^ The left results.
               -> Set (Either Failure x) -- ^ The right results.
               -> Generator s1 m Ann -- ^ The left generator.
               -> Generator s2 m Ann -- ^ The right generator.
@@ -234,11 +253,11 @@ mkobservation :: Ord x
               -> Ann -- ^ The original left annotation.
               -> Ann -- ^ The original right annotation.
               -> (Maybe (Either (Generator s1 m Ann) (Generator s2 m Ann)), Maybe Observation)
-mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) where
+mkobservation same_type results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
   uninteresting_failure
-    | exprSize expr_a >= exprSize expr_b = all isLeft results_a && ann_a == Fails
-    | otherwise = all isLeft results_b && ann_b == Fails
+    | exprSize expr_a >= exprSize expr_b = all isLeft results_a && isFailing ann_a
+    | otherwise = all isLeft results_b && isFailing ann_b
 
   -- P ⊑ Q iff the results of P are a subset of the results of Q
   refines_ab = results_a `S.isSubsetOf` results_b
@@ -247,9 +266,13 @@ mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) 
   -- if there is a refinement, remove the larger expression from the generator
   g12'
     | refines_ab && (not refines_ba || refines_ba && exprSize expr_b >= exprSize expr_a) =
-      Just . Right $ filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
+      Just . Right $ if same_type
+                     then filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
+                     else annotate expr_b (\ann -> ann { isSmallest = False }) g2
     | refines_ba && (not refines_ab || refines_ab && exprSize expr_a >= exprSize expr_b) =
-      Just . Left  $ filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
+      Just . Left  $ if same_type
+                     then filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
+                     else annotate expr_a (\ann -> ann { isSmallest = False }) g1
     | otherwise = Nothing
 
   -- describe the observation
@@ -264,12 +287,14 @@ mkobservation results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) 
 -- | Helper for 'discover' and 'discoverSingle': find pairs of
 -- expressions to try checking for equality and refinement.
 pairs :: Int -- ^ The current tier.
-      -> Generator s1 m ann1 -- ^ The left generator.
-      -> Generator s2 m ann2 -- ^ The right generator.
-      -> [((ann1, Expr s1 m), (ann2, Expr s2 m))]
+      -> Generator s1 m Ann -- ^ The left generator.
+      -> Generator s2 m Ann -- ^ The right generator.
+      -> [((Ann, Expr s1 m), (Ann, Expr s2 m))]
 pairs tier g1 g2 =
   [ (e1, e2)
   | e1 <- fromMaybe [] (getTier tier g1)
+  , isSmallest (fst e1)
   , t  <- [0..tier - 1]
   , e2 <- fromMaybe [] (getTier t    g2)
+  , isSmallest (fst e2)
   ]

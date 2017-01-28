@@ -35,6 +35,7 @@ module Test.Spec.Gen
   -- ** Controlled generation
   , Generator
   , newGenerator
+  , newGenerator'
   , stepGenerator
   , getTier
   , mapTier
@@ -56,7 +57,7 @@ enumerate :: [Expr s m] -> [[Expr s m]]
 enumerate = tail . go 0 . newGenerator where
   go :: Int -> Generator s m () -> [[Expr s m]]
   go tier g =
-    maybe [] (map snd) (getTier tier g) : go (tier+1) (stepGenerator (const True) g)
+    maybe [] (map snd) (getTier tier g) : go (tier+1) (stepGenerator (\_ _ _ -> True) g)
 
 
 -------------------------------------------------------------------------------
@@ -68,13 +69,20 @@ data Generator s m ann = Generator { tiers :: M.IntMap [(ann, Expr s m)], sofar 
 
 -- | Create a new generator from a collection of basic expressions.
 newGenerator :: Monoid ann => [Expr s m] -> Generator s m ann
-newGenerator baseTerms = Generator
-  { tiers = merge [M.fromList [(exprSize t, [(mempty, t)])] | t <- baseTerms]
+newGenerator = newGenerator' . map (\e -> (mempty, e))
+
+-- | Like 'newGenerator', but use an explicit default value.
+newGenerator' :: [(ann, Expr s m)] -> Generator s m ann
+newGenerator' baseTerms = Generator
+  { tiers = merge [M.fromList [(exprSize (snd t), [t])] | t <- baseTerms]
   , sofar = 0
   }
 
 -- | Generate the next tier.
-stepGenerator :: Semigroup ann => ((ann, Expr s m) -> Bool) -> Generator s m ann -> Generator s m ann
+stepGenerator :: Semigroup ann
+              => ((ann, Expr s m) -> (ann, Expr s m) -> (ann, Expr s m) -> Bool)
+              -- ^ First expr, second expr, combined expr.
+              -> Generator s m ann -> Generator s m ann
 stepGenerator check g = Generator newTiers (sofar g + 1) where
   newTiers =
     let new = merge [ tiers g
@@ -86,32 +94,32 @@ stepGenerator check g = Generator newTiers (sofar g + 1) where
 
   -- produce new terms by function application.
   funAps = mkTerms 0 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, t1) <- terms
-                        , exprTypeArity t1 > 0
-                        , (a2, t2) <- candidates
-                        , (resAnn, Just resExpr) <- [(a1 <> a2, t1 $$ t2)]
-                        , check (resAnn, resExpr)
+    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+                        , exprTypeArity e1 > 0
+                        , t2@(a2, e2) <- candidates
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, e1 $$ e2)]
+                        , check t1 t2 (resAnn, resExpr)
     ]
 
   -- produce new terms by monad-binding variables.
   binds = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, t1) <- terms
-                        , isJust . unmonad $ exprTypeRep t1
-                        , (a2, t2) <- candidates
-                        , var <- "_" : map fst (freeVariables t2)
-                        , (resAnn, Just resExpr) <- [(a1 <> a2, bind var t1 t2)]
-                        , check (resAnn, resExpr)
+    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+                        , isJust . unmonad $ exprTypeRep e1
+                        , t2@(a2, e2) <- candidates
+                        , var <- "_" : map fst (freeVariables e2)
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, bind var e1 e2)]
+                        , check t1 t2 (resAnn, resExpr)
     ]
 
   -- produce new terms by let-binding variables.
   lets = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, t1) <- terms
-                        , not (isVariable t1)
-                        , (a2, t2) <- candidates
-                        , not (isVariable t2)
-                        , (var,_) <- freeVariables t2
-                        , (resAnn, Just resExpr) <- [(a1 <> a2, let_ var t1 t2)]
-                        , check (resAnn, resExpr)
+    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+                        , not (isVariable e1)
+                        , t2@(a2, e2) <- candidates
+                        , not (isVariable e2)
+                        , (var,_) <- freeVariables e2
+                        , (resAnn, Just resExpr) <- [(a1 <> a2, let_ var e1 e2)]
+                        , check t1 t2 (resAnn, resExpr)
     ]
 
   -- produce new terms
