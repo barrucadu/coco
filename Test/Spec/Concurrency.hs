@@ -38,9 +38,12 @@ module Test.Spec.Concurrency
   , Observation(..)
   , discover
   , discoverSingle
+  -- * Building blocks
+  , (|||)
   ) where
 
 import Control.Arrow (second)
+import qualified Control.Concurrent.Classy as C
 import Control.Monad (join)
 import Control.Monad.ST (ST)
 import Data.Either (isLeft)
@@ -209,6 +212,18 @@ annotate :: Expr s m -> (ann -> ann) -> Generator s m ann -> Generator s m ann
 annotate expr f = mapTier go (exprSize expr) where
   go (ann0, expr0) = (if expr0 == expr then f ann0 else ann0, expr0)
 
+
+-------------------------------------------------------------------------------
+-- Building blocks
+
+-- | Concurrent composition. Waits for the two component computations
+-- to finish.
+(|||) :: ConcST t () -> ConcST t () -> ConcST t ()
+a ||| b = do
+  j1 <- C.spawn a
+  j2 <- C.spawn b
+  C.takeMVar j1
+  C.takeMVar j2
 
 
 -------------------------------------------------------------------------------
