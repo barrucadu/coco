@@ -30,6 +30,7 @@ module Test.Spec.Type
   ( -- * Dynamic
     Dynamic
   , toDyn
+  , possiblyUnsafeToDyn
   , fromDyn
   , dynTypeRep
   , dynApp
@@ -76,6 +77,13 @@ instance Show (Dynamic s m) where
 -- | Convert a static value into a dynamic one.
 toDyn :: HasTypeRep s m a => a -> Dynamic s m
 toDyn a = Dynamic (unsafeCoerce a) (typeOf a)
+
+-- | Convert a static value into a dynamic one, using a regular normal
+-- Typeable 'T.TypeRep'. This is safe if 'HasTypeRep' would assign
+-- that 'T.TypeRep', and so is unsafe if the monad or state cases
+-- apply.
+possiblyUnsafeToDyn :: T.TypeRep -> a -> Dynamic s m
+possiblyUnsafeToDyn ty a = Dynamic (unsafeCoerce a) (TypeRep ty)
 
 -- | Try to convert a dynamic value back into a static one.
 fromDyn :: HasTypeRep s m a => Dynamic s m -> Maybe a
