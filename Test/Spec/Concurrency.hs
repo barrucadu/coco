@@ -60,7 +60,7 @@ import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, evaluate, exprSize, exprTypeRep, rename, stateVariable, unBind)
+import Test.Spec.Expr (Expr, ($$), bind, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
 import Test.Spec.List (defaultListValues)
 import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, possiblyUnsafeFromDyn, possiblyUnsafeFromRawTypeRep)
@@ -142,9 +142,9 @@ discoverWithSeeds exprs1 exprs2 seeds lim = do
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case (evalA expr_a, evalB expr_b) of
-      (Just eval_a, Just eval_b) -> do
-        (results_a, results_b) <- runBoth exprs1 exprs2 eval_a eval_b seeds
+    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth exprs1 exprs2 expr_a expr_b seeds of
+      Just run -> do
+        (results_a, results_b) <- run
 
         -- if an expression always fails, record that.
         let g1' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) g1
@@ -157,10 +157,7 @@ discoverWithSeeds exprs1 exprs2 seeds lim = do
         let g2'' = maybe g2' (either (const g2') id) g12''
 
         pure ((g1'', g2''), obs)
-      (_,_) -> pure (acc, Nothing)
-
-    evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
-    evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
+      Nothing -> pure (acc, Nothing)
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
@@ -202,9 +199,9 @@ discoverSingleWithSeeds' exprs seeds lim =
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g ((ann_a, expr_a), (ann_b, expr_b)) = case (evalExpr expr_a, evalExpr expr_b) of
-      (Just eval_a, Just eval_b) -> do
-        (results_a, results_b) <- runBoth exprs exprs eval_a eval_b seeds
+    check g ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth exprs exprs expr_a expr_b seeds of
+      Just run -> do
+        (results_a, results_b) <- run
 
         -- if an expression always fails, record that.
         let g' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) $
@@ -212,9 +209,7 @@ discoverSingleWithSeeds' exprs seeds lim =
 
         let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results_a results_b g' g' expr_a expr_b ann_a ann_b
         pure (maybe g' (either id id) g'', obs)
-      (_,_) -> pure (g, Nothing)
-
-    evalExpr e = eval exprs =<< bind "" e =<< (observation exprs $$ stateVariable)
+      Nothing -> pure (g, Nothing)
 
     checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
       Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
@@ -270,23 +265,42 @@ a ||| b = do
 -- Utilities
 
 -- | Run a pair of concurrent programs many times, gathering the
--- results. This only tests the first 100 seeds.
+-- results. This performs up to 100 executions.
 runBoth :: Ord x
         => Exprs s1 (ConcST t) x a
         -> Exprs s2 (ConcST t) x a
-        -> (s1 -> ConcST t (Maybe (ConcST t x)))
-        -> (s2 -> ConcST t (Maybe (ConcST t x)))
+        -> Expr s1 (ConcST t)
+        -> Expr s2 (ConcST t)
         -> [a]
-        -> ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x)))
-runBoth exprs1 exprs2 eval_a eval_b = foldM go (S.empty, S.empty) . take 100 where
-  go (results_a, results_b) seed = do
-    a <- runConc $ commute . eval_a =<< initialState exprs1 seed
-    b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+        -> Maybe (ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x))))
+runBoth exprs1 exprs2 expr_a expr_b seeds
+    | null assignments = Nothing
+    | otherwise = Just $ foldM go (S.empty, S.empty) (take 100 assignments)
+  where
+    go (results_a, results_b) (eval_a, eval_b, seed) = do
+      a <- runConc $ commute . eval_a =<< initialState exprs1 seed
+      b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+      -- strict union, to avoid wasting memory on intermediate results.
+      let results_a' = a `S.union` results_a
+      let results_b' = b `S.union` results_b
+      S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
 
-    -- strict union, to avoid wasting memory on intermediate results.
-    let results_a' = a `S.union` results_a
-    let results_b' = b `S.union` results_b
-    S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
+    assignments = assignments' 0 where
+      assignments' n = maybe [] (: assignments' (n+1)) (assignment n)
+
+      assignment n =
+        let eval_a = evalA =<< assign n expr_a varsA
+            eval_b = evalB =<< assign n expr_b varsB
+            seed = seeds `at` n
+        in (,,) <$> eval_a <*> eval_b <*> pure seed
+
+      assign n = foldM (\e (var, dyns) -> let_ var (dynConstant "@" (dyns `at` n)) e)
+
+    varsA = map (second $ listValues exprs1) (freeVariables expr_a)
+    varsB = map (second $ listValues exprs2) (freeVariables expr_b)
+
+    evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
+    evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
 
 -- | Run a concurrent computation, producing the set of all results.
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
@@ -372,3 +386,12 @@ pairs tier g1 g2 =
   , e2 <- fromMaybe [] (getTier t    g2)
   , isSmallest (fst e2)
   ]
+
+-- | Get a value from a list, with wrapping.
+at :: [a] -> Int -> a
+at [] = const (error "empty list passed to 'at'")
+at xs0 = go xs0 where
+  go [] i = go xs0 i
+  go (x:xs) i
+    | i == 0 = x
+    | otherwise = go xs (i-1)
