@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Module      : Test.Spec.Concurrency
@@ -6,7 +7,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs
+-- Portability : GADTs, ScopedTypeVariables
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -38,25 +39,39 @@ module Test.Spec.Concurrency
   , Observation(..)
   , discover
   , discoverSingle
+  , defaultEvaluate
+  , defaultListValues
   -- * Building blocks
   , (|||)
   ) where
 
 import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
-import Control.Monad (join)
+import Control.Monad (foldM, join)
 import Control.Monad.ST (ST)
 import Data.Either (isLeft)
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
+import Data.Proxy (Proxy(..))
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
+import qualified Data.Typeable as T
 import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, exprSize, exprTypeRep, rename, stateVariable, unBind)
+import Test.Spec.Expr (Expr, ($$), bind, evaluate, exprSize, exprTypeRep, rename, stateVariable, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
+import Test.Spec.List (defaultListValues)
+import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, possiblyUnsafeFromDyn, possiblyUnsafeFromRawTypeRep)
+
+-- | Evaluate an expression, if it has no free variables and it is the
+-- correct type.
+--
+-- If the outer 'Maybe' is @Nothing@, there are free variables. If the
+-- inner 'Maybe' is @Nothing@, the type is incorrect.
+defaultEvaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> m (Maybe a))
+defaultEvaluate = evaluate
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -85,20 +100,36 @@ data Exprs s m x a = Exprs
   -- @s -> m x@. If it's not, you will get bogus results.
   , eval :: Expr s m -> Maybe (s -> m (Maybe (m x)))
   -- ^ Evaluate an expression. In practice this will just be
-  -- @evaluate@ from "Test.Spec.Expr", but it's here to make the types
-  -- work out.
+  -- 'defaultEvaluate' from "Test.Spec.Expr", but it's here to make
+  -- the types work out.
+  , listValues :: TypeRep s m -> [Dynamic s m]
+  -- ^ List values of the demanded type. The 'defaultListValues'
+  -- function is a good choice unless you have your own types.
   }
 
--- | Attempt to discover properties of the given set of concurrent operations.
-discover :: Ord x
+-- | Attempt to discover properties of the given set of concurrent
+-- operations. Each 'Exprs' value should have the same 'listValues'
+-- for the @a@ type.
+discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
          => Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
-         -> a   -- ^ Seed for the state variable
          -> Int -- ^ Term size limit
          -> ST t [Observation]
-discover exprs1 exprs2 seed lim = do
-    (g1, _) <- discoverSingle' exprs1 seed lim
-    (g2, _) <- discoverSingle' exprs2 seed lim
+discover exprs1 exprs2 =
+  let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues exprs1 seedty
+  in discoverWithSeeds exprs1 exprs2 seeds
+
+-- | Like 'discover', but takes a list of seeds.
+discoverWithSeeds :: Ord x
+                  => Exprs s1 (ConcST t) x a
+                  -> Exprs s2 (ConcST t) x a
+                  -> [a]
+                  -> Int
+                  -> ST t [Observation]
+discoverWithSeeds exprs1 exprs2 seeds lim = do
+    (g1, _) <- discoverSingleWithSeeds' exprs1 seeds lim
+    (g2, _) <- discoverSingleWithSeeds' exprs2 seeds lim
     concat <$> findObservations 0 g1 g2
   where
     -- check every pair of terms (in size order) for equality and
@@ -113,8 +144,7 @@ discover exprs1 exprs2 seed lim = do
     -- is a refinement of the other.
     check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case (evalA expr_a, evalB expr_b) of
       (Just eval_a, Just eval_b) -> do
-        results_a <- runConc $ commute . eval_a =<< initialState exprs1 seed
-        results_b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+        (results_a, results_b) <- runBoth exprs1 exprs2 eval_a eval_b seeds
 
         -- if an expression always fails, record that.
         let g1' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) g1
@@ -134,20 +164,31 @@ discover exprs1 exprs2 seed lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: Ord x
+discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
                => Exprs s (ConcST t) x a
-               -> a
                -> Int
                -> ST t [Observation]
-discoverSingle exprs seed lim = snd <$> discoverSingle' exprs seed lim
+discoverSingle exprs =
+  let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues exprs seedty
+  in discoverSingleWithSeeds exprs seeds
 
--- | 'discoverSingle' but also returns the 'Generator'.
-discoverSingle' :: Ord x
-                => Exprs s (ConcST t) x a
-                -> a
-                -> Int
-                -> ST t (Generator s (ConcST t) Ann, [Observation])
-discoverSingle' exprs seed lim =
+-- | Like 'discoverSingle', but takes a list of seeds.
+discoverSingleWithSeeds :: Ord x
+                        => Exprs s (ConcST t) x a
+                        -> [a]
+                        -> Int
+                        -> ST t [Observation]
+discoverSingleWithSeeds exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' exprs seeds lim
+
+-- | 'discoverSingleWithSeeds' but also returns the 'Generator'.
+discoverSingleWithSeeds' :: Ord x
+                         => Exprs s (ConcST t) x a
+                         -> [a]
+                         -> Int
+                         -> ST t (Generator s (ConcST t) Ann, [Observation])
+discoverSingleWithSeeds' exprs seeds lim =
     let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
     in second concat <$> findObservations 0 g
   where
@@ -163,8 +204,7 @@ discoverSingle' exprs seed lim =
     -- is a refinement of the other.
     check g ((ann_a, expr_a), (ann_b, expr_b)) = case (evalExpr expr_a, evalExpr expr_b) of
       (Just eval_a, Just eval_b) -> do
-        results_a <- runConc $ commute . eval_a =<< initialState exprs seed
-        results_b <- runConc $ commute . eval_b =<< initialState exprs seed
+        (results_a, results_b) <- runBoth exprs exprs eval_a eval_b seeds
 
         -- if an expression always fails, record that.
         let g' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) $
@@ -228,6 +268,21 @@ a ||| b = do
 
 -------------------------------------------------------------------------------
 -- Utilities
+
+-- | Run a pair of concurrent programs many times, gathering the
+-- results. This only tests the first 100 seeds.
+runBoth :: Ord x
+        => Exprs s1 (ConcST t) x a
+        -> Exprs s2 (ConcST t) x a
+        -> (s1 -> ConcST t (Maybe (ConcST t x)))
+        -> (s2 -> ConcST t (Maybe (ConcST t x)))
+        -> [a]
+        -> ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x)))
+runBoth exprs1 exprs2 eval_a eval_b = foldM go (S.empty, S.empty) . take 100 where
+  go (results_a, results_b) seed = do
+    a <- runConc $ commute . eval_a =<< initialState exprs1 seed
+    b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+    pure (a `S.union` results_a, b `S.union` results_b)
 
 -- | Run a concurrent computation, producing the set of all results.
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))

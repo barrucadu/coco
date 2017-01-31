@@ -32,6 +32,7 @@ module Test.Spec.Type
   , toDyn
   , possiblyUnsafeToDyn
   , fromDyn
+  , possiblyUnsafeFromDyn
   , dynTypeRep
   , dynApp
   , dynMonadic
@@ -42,6 +43,7 @@ module Test.Spec.Type
   , typeRep
   , typeOf
   , rawTypeRep
+  , possiblyUnsafeFromRawTypeRep
   -- ** Type-safe casting
   , (:~:)(..)
   , cast
@@ -89,6 +91,14 @@ possiblyUnsafeToDyn ty a = Dynamic (unsafeCoerce a) (TypeRep ty)
 fromDyn :: HasTypeRep s m a => Dynamic s m -> Maybe a
 fromDyn (Dynamic x ty) = case unsafeCoerce x of
   r | typeOf r == ty -> Just r
+    | otherwise -> Nothing
+
+-- | Convert a dynamic value into a static one. This is safe if
+-- 'HasTypeRep' would assign the same 'T.TypeRep', and so is unsafe if
+-- the monad or state cases apply.
+possiblyUnsafeFromDyn :: T.Typeable a => Dynamic s m -> Maybe a
+possiblyUnsafeFromDyn (Dynamic x ty) = case unsafeCoerce x of
+  r | possiblyUnsafeFromRawTypeRep (T.typeOf r) == ty -> Just r
     | otherwise -> Nothing
 
 -- | Get the type of a dynamic value.
@@ -153,6 +163,12 @@ monadTyCon = T.mkTyCon3 "" "" ":monad:"
 -- | Get the underlying 'T.Typeable' 'T.TypeRep' from a 'TypeRep'.
 rawTypeRep :: TypeRep s m -> T.TypeRep
 rawTypeRep (TypeRep ty) = ty
+
+-- | Turn a 'T.TypeRep' into a 'TypeRep'. This is This is safe if
+-- 'HasTypeRep' would assign that 'T.TypeRep', and so is unsafe if the
+-- monad or state cases apply.
+possiblyUnsafeFromRawTypeRep :: T.TypeRep -> TypeRep s m
+possiblyUnsafeFromRawTypeRep = TypeRep
 
 -- | Takes a value of type @a@ with state @s@ in some monad @m@, and
 -- returns a concrete representation of that type.
