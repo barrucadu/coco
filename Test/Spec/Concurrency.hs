@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -7,7 +8,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, ScopedTypeVariables
+-- Portability : GADTs, RankNTypes, ScopedTypeVariables
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -102,34 +103,32 @@ data Exprs s m x a = Exprs
   -- ^ Evaluate an expression. In practice this will just be
   -- 'defaultEvaluate' from "Test.Spec.Expr", but it's here to make
   -- the types work out.
-  , listValues :: TypeRep s m -> [Dynamic s m]
-  -- ^ List values of the demanded type. The 'defaultListValues'
-  -- function is a good choice unless you have your own types.
   }
 
 -- | Attempt to discover properties of the given set of concurrent
--- operations. Each 'Exprs' value should have the same 'listValues'
--- for the @a@ type.
+-- operations.
 discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
-         => Exprs s1 (ConcST t) x a -- ^ A collection of expressions
+         => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx]) -- ^ List values of the demanded type.
+         -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
          -> Int -- ^ Term size limit
          -> ST t [Observation]
-discover exprs1 exprs2 =
+discover listValues exprs1 exprs2 =
   let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
-      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues exprs1 seedty
-  in discoverWithSeeds exprs1 exprs2 seeds
+      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues seedty
+  in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: Ord x
-                  => Exprs s1 (ConcST t) x a
+                  => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                  -> Exprs s1 (ConcST t) x a
                   -> Exprs s2 (ConcST t) x a
                   -> [a]
                   -> Int
                   -> ST t [Observation]
-discoverWithSeeds exprs1 exprs2 seeds lim = do
-    (g1, _) <- discoverSingleWithSeeds' exprs1 seeds lim
-    (g2, _) <- discoverSingleWithSeeds' exprs2 seeds lim
+discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
+    (g1, _) <- discoverSingleWithSeeds' listValues exprs1 seeds lim
+    (g2, _) <- discoverSingleWithSeeds' listValues exprs2 seeds lim
     concat <$> findObservations 0 g1 g2
   where
     -- check every pair of terms (in size order) for equality and
@@ -142,7 +141,7 @@ discoverWithSeeds exprs1 exprs2 seeds lim = do
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth exprs1 exprs2 expr_a expr_b seeds of
+    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs1 exprs2 expr_a expr_b seeds of
       Just run -> do
         (results_a, results_b) <- run
 
@@ -162,30 +161,33 @@ discoverWithSeeds exprs1 exprs2 seeds lim = do
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
 discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
-               => Exprs s (ConcST t) x a
+               => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+               -> Exprs s (ConcST t) x a
                -> Int
                -> ST t [Observation]
-discoverSingle exprs =
+discoverSingle listValues exprs =
   let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
-      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues exprs seedty
-  in discoverSingleWithSeeds exprs seeds
+      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues seedty
+  in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: Ord x
-                        => Exprs s (ConcST t) x a
+                        => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                        -> Exprs s (ConcST t) x a
                         -> [a]
                         -> Int
                         -> ST t [Observation]
-discoverSingleWithSeeds exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' exprs seeds lim
+discoverSingleWithSeeds listValues exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | 'discoverSingleWithSeeds' but also returns the 'Generator'.
 discoverSingleWithSeeds' :: Ord x
-                         => Exprs s (ConcST t) x a
+                         => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                         -> Exprs s (ConcST t) x a
                          -> [a]
                          -> Int
                          -> ST t (Generator s (ConcST t) Ann, [Observation])
-discoverSingleWithSeeds' exprs seeds lim =
+discoverSingleWithSeeds' listValues exprs seeds lim =
     let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
     in second concat <$> findObservations 0 g
   where
@@ -199,7 +201,7 @@ discoverSingleWithSeeds' exprs seeds lim =
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth exprs exprs expr_a expr_b seeds of
+    check g ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs exprs expr_a expr_b seeds of
       Just run -> do
         (results_a, results_b) <- run
 
@@ -267,13 +269,14 @@ a ||| b = do
 -- | Run a pair of concurrent programs many times, gathering the
 -- results. This performs up to 100 executions.
 runBoth :: Ord x
-        => Exprs s1 (ConcST t) x a
+        => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+        -> Exprs s1 (ConcST t) x a
         -> Exprs s2 (ConcST t) x a
         -> Expr s1 (ConcST t)
         -> Expr s2 (ConcST t)
         -> [a]
         -> Maybe (ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x))))
-runBoth exprs1 exprs2 expr_a expr_b seeds
+runBoth listValues exprs1 exprs2 expr_a expr_b seeds
     | null assignments = Nothing
     | otherwise = Just $ foldM go (S.empty, S.empty) (take 100 assignments)
   where
@@ -296,8 +299,8 @@ runBoth exprs1 exprs2 expr_a expr_b seeds
 
       assign n = foldM (\e (var, dyns) -> let_ var (dynConstant "@" (dyns `at` n)) e)
 
-    varsA = map (second $ listValues exprs1) (freeVariables expr_a)
-    varsB = map (second $ listValues exprs2) (freeVariables expr_b)
+    varsA = map (second listValues) (freeVariables expr_a)
+    varsB = map (second listValues) (freeVariables expr_b)
 
     evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
     evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
