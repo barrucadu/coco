@@ -282,7 +282,11 @@ runBoth exprs1 exprs2 eval_a eval_b = foldM go (S.empty, S.empty) . take 100 whe
   go (results_a, results_b) seed = do
     a <- runConc $ commute . eval_a =<< initialState exprs1 seed
     b <- runConc $ commute . eval_b =<< initialState exprs2 seed
-    pure (a `S.union` results_a, b `S.union` results_b)
+
+    -- strict union, to avoid wasting memory on intermediate results.
+    let results_a' = a `S.union` results_a
+    let results_b' = b `S.union` results_b
+    S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
 
 -- | Run a concurrent computation, producing the set of all results.
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
