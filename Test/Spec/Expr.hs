@@ -55,6 +55,7 @@ module Test.Spec.Expr
   ( -- * Expressions
     Expr
   , constant
+  , dynConstant
   , showConstant
   , variable
   , stateVariable
@@ -163,6 +164,10 @@ instance Ord (Expr s m) where
 -- @exprSize (constant "foo" foo) == 1@
 constant :: HasTypeRep s m a => String -> a -> Expr s m
 constant s a = Constant s (toDyn a)
+
+-- | A constant value from a dynamic value.
+dynConstant :: String -> Dynamic s m -> Expr s m
+dynConstant = Constant
 
 -- | A constant value from a type which can be shown.
 --
