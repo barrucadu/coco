@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -8,7 +7,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, RankNTypes, ScopedTypeVariables
+-- Portability : GADTs, ScopedTypeVariables
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -51,12 +50,13 @@ import qualified Control.Concurrent.Classy as C
 import Control.Monad (foldM, join)
 import Control.Monad.ST (ST)
 import Data.Either (isLeft)
-import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Typeable as T
+import Data.Void (Void)
 import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST)
 import Test.DejaFu.SCT (sctBound)
@@ -64,7 +64,8 @@ import Test.DejaFu.SCT (sctBound)
 import Test.Spec.Expr (Expr, ($$), bind, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
 import Test.Spec.List (defaultListValues)
-import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, possiblyUnsafeFromDyn, possiblyUnsafeFromRawTypeRep)
+import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
+import Test.Spec.Util
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.
@@ -108,19 +109,19 @@ data Exprs s m x a = Exprs
 -- | Attempt to discover properties of the given set of concurrent
 -- operations.
 discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
-         => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx]) -- ^ List values of the demanded type.
+         => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
          -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
          -> Int -- ^ Term size limit
          -> ST t [Observation]
 discover listValues exprs1 exprs2 =
-  let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
-      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues seedty
+  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+      seeds  = mapMaybe unsafeFromDyn $ listValues seedty
   in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: Ord x
-                  => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                  => (TypeRep Void Void1 -> [Dynamic Void Void1])
                   -> Exprs s1 (ConcST t) x a
                   -> Exprs s2 (ConcST t) x a
                   -> [a]
@@ -161,18 +162,18 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
 discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
-               => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+               => (TypeRep Void Void1 -> [Dynamic Void Void1])
                -> Exprs s (ConcST t) x a
                -> Int
                -> ST t [Observation]
 discoverSingle listValues exprs =
-  let seedty = possiblyUnsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
-      seeds  = mapMaybe possiblyUnsafeFromDyn $ listValues seedty
+  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+      seeds  = mapMaybe unsafeFromDyn $ listValues seedty
   in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: Ord x
-                        => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                        => (TypeRep Void Void1 -> [Dynamic Void Void1])
                         -> Exprs s (ConcST t) x a
                         -> [a]
                         -> Int
@@ -182,7 +183,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
 
 -- | 'discoverSingleWithSeeds' but also returns the 'Generator'.
 discoverSingleWithSeeds' :: Ord x
-                         => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x a
                          -> [a]
                          -> Int
@@ -267,9 +268,10 @@ a ||| b = do
 -- Utilities
 
 -- | Run a pair of concurrent programs many times, gathering the
--- results. This performs up to 100 executions.
+-- results. Up to 5 values of every free variable (including the seed)
+-- will be tried, in all combinations.
 runBoth :: Ord x
-        => (forall sx mx. TypeRep sx mx -> [Dynamic sx mx])
+        => (TypeRep Void Void1 -> [Dynamic Void Void1])
         -> Exprs s1 (ConcST t) x a
         -> Exprs s2 (ConcST t) x a
         -> Expr s1 (ConcST t)
@@ -278,7 +280,7 @@ runBoth :: Ord x
         -> Maybe (ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x))))
 runBoth listValues exprs1 exprs2 expr_a expr_b seeds
     | null assignments = Nothing
-    | otherwise = Just $ foldM go (S.empty, S.empty) (take 100 assignments)
+    | otherwise = Just $ foldM go (S.empty, S.empty) assignments
   where
     go (results_a, results_b) (eval_a, eval_b, seed) = do
       a <- runConc $ commute . eval_a =<< initialState exprs1 seed
@@ -288,19 +290,25 @@ runBoth listValues exprs1 exprs2 expr_a expr_b seeds
       let results_b' = b `S.union` results_b
       S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
 
-    assignments = assignments' 0 where
-      assignments' n = maybe [] (: assignments' (n+1)) (assignment n)
+    assignments =
+      [ (eval_a, eval_b, seed)
+      | seed <- take 5 seeds
+      , (eval_a, eval_b) <- assign vars expr_a expr_b
+      ]
 
-      assignment n =
-        let eval_a = evalA =<< assign n expr_a varsA
-            eval_b = evalB =<< assign n expr_b varsB
-            seed = seeds `at` n
-        in (,,) <$> eval_a <*> eval_b <*> pure seed
+    assign ((var, dyns):vs) e_a e_b =
+      [ (e_a'', e_b'')
+      | dyn <- take 5 dyns
+      , Just e_a' <- [(\d -> let_ var (dynConstant "@" d) e_a) =<< coerceDyn dyn]
+      , Just e_b' <- [(\d -> let_ var (dynConstant "@" d) e_b) =<< coerceDyn dyn]
+      , (e_a'', e_b'') <- assign vs e_a' e_b'
+      ]
+    assign [] e_a e_b = maybeToList $ (,) <$> evalA e_a <*> evalB e_b
 
-      assign n = foldM (\e (var, dyns) -> let_ var (dynConstant "@" (dyns `at` n)) e)
-
-    varsA = map (second listValues) (freeVariables expr_a)
-    varsB = map (second listValues) (freeVariables expr_b)
+    vars = ordNubOn fst $
+      map (second listValues) (freeVars expr_a) ++
+      map (second listValues) (freeVars expr_b)
+    freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . freeVariables
 
     evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
     evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
@@ -313,18 +321,6 @@ runConc c =
 -- | Commute and join monads.
 commute :: Monad m => m (Maybe (m a)) -> m (Maybe a)
 commute = join . fmap (maybe (pure Nothing) (fmap Just))
-
--- | Monadic version of 'mapAccumL' specialised to lists.
-mapAccumLM :: Monad m
-           => (a -> b -> m (a, c))
-           -> a
-           -> [b]
-           -> m (a, [c])
-mapAccumLM _ s []     = pure (s, [])
-mapAccumLM f s (x:xs) = do
-  (s1, x')  <- f s x
-  (s2, xs') <- mapAccumLM f s1 xs
-  pure (s2, x' : xs')
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
 -- appropriate 'Observation' given the results of execution. The left
@@ -389,12 +385,3 @@ pairs tier g1 g2 =
   , e2 <- fromMaybe [] (getTier t    g2)
   , isSmallest (fst e2)
   ]
-
--- | Get a value from a list, with wrapping.
-at :: [a] -> Int -> a
-at [] = const (error "empty list passed to 'at'")
-at xs0 = go xs0 where
-  go [] i = go xs0 i
-  go (x:xs) i
-    | i == 0 = x
-    | otherwise = go xs (i-1)

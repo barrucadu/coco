@@ -21,6 +21,7 @@ library
                      , Test.Spec.Gen
                      , Test.Spec.List
                      , Test.Spec.Type
+                     , Test.Spec.Util
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10

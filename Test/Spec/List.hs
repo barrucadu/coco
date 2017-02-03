@@ -13,18 +13,20 @@ module Test.Spec.List where
 
 import Data.Proxy (Proxy(..))
 import qualified Data.Typeable as T
+import Data.Void (Void)
 import Test.LeanCheck (Listable, list)
 
-import Test.Spec.Type (Dynamic, TypeRep, possiblyUnsafeToDyn, rawTypeRep)
+import Test.Spec.Type (Dynamic, TypeRep, unsafeToDyn, rawTypeRep)
+import Test.Spec.Util
 
 -- | List values of types @()@, @Char@, @Double@, @Float@, @Int@,
 -- @Integer@ and @Ordering@; and [a]@, @Maybe a@, @Either a b@, and
 -- @(a,b)@, where all type variables are concrete in the first list.
-defaultListValues :: TypeRep s m -> [Dynamic s m]
+defaultListValues :: TypeRep Void Void1 -> [Dynamic Void Void1]
 defaultListValues = defaultListValues' . rawTypeRep
 
 -- | Like 'defaultListValues' but takes a normal 'T.TypeRep'.
-defaultListValues' :: T.TypeRep -> [Dynamic s m]
+defaultListValues' :: T.TypeRep -> [Dynamic Void Void1]
 defaultListValues' ty
   | ty == T.typeRep (Proxy :: Proxy ())       = dynamicListValues (Proxy :: Proxy ())
   | ty == T.typeRep (Proxy :: Proxy Char)     = dynamicListValues (Proxy :: Proxy Char)
@@ -148,9 +150,9 @@ defaultListValues' ty
   | otherwise = []
 
 -- | Produce dynamic values from a 'Listable' instance.
-dynamicListValues :: forall s m a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic s m]
-dynamicListValues p = map (possiblyUnsafeToDyn $ T.typeRep p) (list :: [a])
+dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic Void Void1]
+dynamicListValues p = map (unsafeToDyn $ T.typeRep p) (list :: [a])
 
 -- | Like 'dynamicListValues' but takes an actual value, not a proxy.
-dynamicListValues' :: forall s m a. (Listable a, T.Typeable a) => a -> [Dynamic s m]
+dynamicListValues' :: forall a. (Listable a, T.Typeable a) => a -> [Dynamic Void Void1]
 dynamicListValues' _ = dynamicListValues (Proxy :: Proxy a)

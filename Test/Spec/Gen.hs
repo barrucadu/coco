@@ -47,10 +47,10 @@ module Test.Spec.Gen
 import qualified Data.IntMap as M
 import Data.Maybe (isJust)
 import Data.Semigroup (Semigroup, (<>))
-import qualified Data.Set as S
 
 import Test.Spec.Expr
 import Test.Spec.Type (unmonad)
+import Test.Spec.Util
 
 -- | Enumerate all well-typed expressions, in size order.
 enumerate :: [Expr s m] -> [[Expr s m]]
@@ -181,11 +181,3 @@ maxTier = sofar
 -- | Merge a list of maps of lists.
 merge :: [M.IntMap [a]] -> M.IntMap [a]
 merge = M.unionsWith (++)
-
--- | Remove duplicates from a list efficiently.
-ordNubOn :: Ord b => (a -> b) -> [a] -> [a]
-ordNubOn f = go S.empty where
-  go _ [] = []
-  go s (x:xs)
-    | f x `S.member` s = go s xs
-    | otherwise = x : go (S.insert (f x) s) xs
