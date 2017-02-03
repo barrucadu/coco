@@ -37,6 +37,12 @@ resolver: lts-7.16
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
+- location:
+    git: https://github.com/barrucadu/dejafu.git
+    commit: 9e4d808d549f5b78a72d1fc2bb5e94ebabb694c0
+  subdirs:
+    - dejafu
+  extra-dep: true
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:

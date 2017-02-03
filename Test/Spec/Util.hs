@@ -11,6 +11,8 @@
 -- Utility functions.
 module Test.Spec.Util where
 
+import Data.Maybe (fromJust, isJust)
+import Data.Set (Set)
 import qualified Data.Set as S
 
 -- | A higher-kinded @Void@. This cannot be an 'Applicative' (or a 'Monad').
@@ -65,3 +67,11 @@ mapAccumLM f s (x:xs) = do
   (s1, x')  <- f s x
   (s2, xs') <- mapAccumLM f s1 xs
   pure (s2, x' : xs')
+
+-- | 'mapMaybe' over a set.
+smapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
+smapMaybe f = S.map fromJust . S.filter isJust . S.map f
+
+-- | Turn an 'Either' into a 'Maybe'.
+eitherToMaybe :: Either a b -> Maybe b
+eitherToMaybe = either (const Nothing) Just

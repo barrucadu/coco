@@ -49,8 +49,7 @@ import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
 import Control.Monad (foldM, join)
 import Control.Monad.ST (ST)
-import Data.Either (isLeft)
-import Data.Maybe (catMaybes, fromMaybe, mapMaybe, maybeToList)
+import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
@@ -58,13 +57,13 @@ import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
 import Test.DejaFu (Failure, defaultBounds, defaultMemType)
-import Test.DejaFu.Conc (ConcST)
+import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (sctBound)
 
-import Test.Spec.Expr (Expr, ($$), bind, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, unBind)
+import Test.Spec.Expr (Expr, ($$), bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, tyVariable, variable, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
 import Test.Spec.List (defaultListValues)
-import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
+import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, monadTyCon, unsafeFromDyn, unsafeFromRawTypeRep, unsafeToDyn)
 import Test.Spec.Util
 
 -- | Evaluate an expression, if it has no free variables and it is the
@@ -100,15 +99,14 @@ data Exprs s m x a = Exprs
   , observation :: Expr s m
   -- ^ The observation to make. This should be a function of type
   -- @s -> m x@. If it's not, you will get bogus results.
-  , eval :: Expr s m -> Maybe (s -> m (Maybe (m x)))
+  , eval :: Expr s m -> Maybe (s -> m (Maybe (m (Maybe Failure, x))))
   -- ^ Evaluate an expression. In practice this will just be
-  -- 'defaultEvaluate' from "Test.Spec.Expr", but it's here to make
-  -- the types work out.
+  -- 'defaultEvaluate', but it's here to make the types work out.
   }
 
 -- | Attempt to discover properties of the given set of concurrent
 -- operations.
-discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
+discover :: forall x a s1 s2 t. (Ord x, T.Typeable a, T.Typeable x)
          => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
          -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
@@ -120,7 +118,7 @@ discover listValues exprs1 exprs2 =
   in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
-discoverWithSeeds :: Ord x
+discoverWithSeeds :: (Ord x, T.Typeable x)
                   => (TypeRep Void Void1 -> [Dynamic Void Void1])
                   -> Exprs s1 (ConcST t) x a
                   -> Exprs s2 (ConcST t) x a
@@ -147,8 +145,8 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
         (results_a, results_b) <- run
 
         -- if an expression always fails, record that.
-        let g1' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) g1
-        let g2' = annotate expr_b (\ann -> ann { isFailing = all isLeft results_b }) g2
+        let g1' = annotate expr_a (\ann -> ann { isFailing = all (isJust . fst) results_a }) g1
+        let g2' = annotate expr_b (\ann -> ann { isFailing = all (isJust . fst) results_b }) g2
 
         let (g12'', obs) = mkobservation False results_a results_b g1' g2' expr_a expr_b ann_a ann_b
 
@@ -161,7 +159,7 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
+discoverSingle :: forall x a s t. (Ord x, T.Typeable a, T.Typeable x)
                => (TypeRep Void Void1 -> [Dynamic Void Void1])
                -> Exprs s (ConcST t) x a
                -> Int
@@ -172,7 +170,7 @@ discoverSingle listValues exprs =
   in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
-discoverSingleWithSeeds :: Ord x
+discoverSingleWithSeeds :: (Ord x, T.Typeable x)
                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
                         -> Exprs s (ConcST t) x a
                         -> [a]
@@ -182,7 +180,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | 'discoverSingleWithSeeds' but also returns the 'Generator'.
-discoverSingleWithSeeds' :: Ord x
+discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x a
                          -> [a]
@@ -207,8 +205,8 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
         (results_a, results_b) <- run
 
         -- if an expression always fails, record that.
-        let g' = annotate expr_a (\ann -> ann { isFailing = all isLeft results_a }) $
-                 annotate expr_b (\ann -> ann { isFailing = all isLeft results_b }) g
+        let g' = annotate expr_a (\ann -> ann { isFailing = all (isJust . fst) results_a }) $
+                 annotate expr_b (\ann -> ann { isFailing = all (isJust . fst) results_b }) g
 
         let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results_a results_b g' g' expr_a expr_b ann_a ann_b
         pure (maybe g' (either id id) g'', obs)
@@ -270,14 +268,14 @@ a ||| b = do
 -- | Run a pair of concurrent programs many times, gathering the
 -- results. Up to 5 values of every free variable (including the seed)
 -- will be tried, in all combinations.
-runBoth :: Ord x
+runBoth :: forall t s1 s2 x a. (Ord x, T.Typeable x)
         => (TypeRep Void Void1 -> [Dynamic Void Void1])
         -> Exprs s1 (ConcST t) x a
         -> Exprs s2 (ConcST t) x a
         -> Expr s1 (ConcST t)
         -> Expr s2 (ConcST t)
         -> [a]
-        -> Maybe (ST t (Set (Either Failure (Maybe x)), Set (Either Failure (Maybe x))))
+        -> Maybe (ST t (Set (Maybe Failure, x), Set (Maybe Failure, x)))
 runBoth listValues exprs1 exprs2 expr_a expr_b seeds
     | null assignments = Nothing
     | otherwise = Just $ foldM go (S.empty, S.empty) assignments
@@ -286,8 +284,8 @@ runBoth listValues exprs1 exprs2 expr_a expr_b seeds
       a <- runConc $ commute . eval_a =<< initialState exprs1 seed
       b <- runConc $ commute . eval_b =<< initialState exprs2 seed
       -- strict union, to avoid wasting memory on intermediate results.
-      let results_a' = a `S.union` results_a
-      let results_b' = b `S.union` results_b
+      let results_a' = smapMaybe (join . eitherToMaybe) a `S.union` results_a
+      let results_b' = smapMaybe (join . eitherToMaybe) b `S.union` results_b
       S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
 
     assignments =
@@ -310,8 +308,35 @@ runBoth listValues exprs1 exprs2 expr_a expr_b seeds
       map (second listValues) (freeVars expr_b)
     freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . freeVariables
 
-    evalA e = eval exprs1 =<< bind "" e =<< (observation exprs1 $$ stateVariable)
-    evalB e = eval exprs2 =<< bind "" e =<< (observation exprs2 $$ stateVariable)
+    evalA e = eval exprs1 =<< e `andObserveWith` exprs1
+    evalB e = eval exprs2 =<< e `andObserveWith` exprs2
+
+-- | Subconcurrently run an expression, and observe the state variable.
+andObserveWith :: forall s t x a. T.Typeable x => Expr s (ConcST t) -> Exprs s (ConcST t) x a -> Maybe (Expr s (ConcST t))
+andObserveWith expr exprs = do
+  let efuty = T.typeRep (Proxy :: Proxy (Either Failure ()))
+  let xty   = T.typeRep (Proxy :: Proxy x)
+  let mfxty = T.typeRep (Proxy :: Proxy (Maybe Failure, x))
+  let outty = T.mkFunTy efuty (T.mkFunTy xty (T.mkTyConApp monadTyCon [mfxty]))
+
+  let esubc = constant   "subconcurrency" (subconcurrency :: ConcST t () -> ConcST t (Either Failure ()))
+  let efvar = variable   "fvar" (Proxy :: Proxy (Either Failure ()))
+  let eovar = tyVariable "ovar" (unsafeFromRawTypeRep xty)
+  let eout  = dynConstant "out" $ unsafeToDyn outty ((\a b -> pure (either Just (const Nothing) a, b)) :: Either a b -> c -> ConcST t (Maybe a, c))
+  let evoid = constant   "void" (pure () :: ConcST t ())
+
+  -- out fvar over
+  e1 <- (eout $$ efvar) >>= ($$ eovar)
+  -- OBS :state:
+  e2 <- observation exprs $$ stateVariable
+  -- E2 >>= \ovar -> E1
+  e3 <- bind "ovar" e2 e1
+  -- EXPR >>= \_ -> pure ()
+  e4 <- bind "_" expr evoid
+  -- subconcurrency E4
+  e5 <- esubc $$ e4
+  -- E5 >>= \fvar -> E3
+  bind "fvar" e5 e3
 
 -- | Run a concurrent computation, producing the set of all results.
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
@@ -331,8 +356,8 @@ commute = join . fmap (maybe (pure Nothing) (fmap Just))
 -- the observation. Maybe better to split it up?
 mkobservation :: Ord x
               => Bool -- ^ Whether the expressions are the same type.
-              -> Set (Either Failure x) -- ^ The left results.
-              -> Set (Either Failure x) -- ^ The right results.
+              -> Set (Maybe Failure, x) -- ^ The left results.
+              -> Set (Maybe Failure, x) -- ^ The right results.
               -> Generator s1 m Ann -- ^ The left generator.
               -> Generator s2 m Ann -- ^ The right generator.
               -> Expr s1 m -- ^ The left expression.
@@ -343,8 +368,8 @@ mkobservation :: Ord x
 mkobservation same_type results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
   uninteresting_failure
-    | exprSize expr_a >= exprSize expr_b = all isLeft results_a && isFailing ann_a
-    | otherwise = all isLeft results_b && isFailing ann_b
+    | exprSize expr_a >= exprSize expr_b = all (isJust . fst) results_a && isFailing ann_a
+    | otherwise = all (isJust . fst) results_b && isFailing ann_b
 
   -- P ⊑ Q iff the results of P are a subset of the results of Q
   refines_ab = results_a `S.isSubsetOf` results_b
