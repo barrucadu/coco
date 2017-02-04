@@ -33,10 +33,12 @@ module Test.Spec.Type
   , unsafeToDyn
   , fromDyn
   , unsafeFromDyn
+  , anyFromDyn
   , coerceDyn
   , dynTypeRep
   , dynApp
   , dynMonadic
+  , unsafeWrapMonadicDyn
 
   -- * Typeable
   , HasTypeRep
@@ -109,6 +111,10 @@ unsafeFromDyn (Dynamic x ty) = case unsafeCoerce x of
   r | unsafeFromRawTypeRep (T.typeOf r) == ty -> Just r
     | otherwise -> Nothing
 
+-- | Throw away type information and get the 'Any' from a 'Dynamic'.
+anyFromDyn :: Dynamic s m -> Any
+anyFromDyn (Dynamic x _) = x
+
 -- | Get the type of a dynamic value.
 dynTypeRep :: Dynamic s m -> TypeRep s m
 dynTypeRep (Dynamic _ ty) = ty
@@ -125,6 +131,10 @@ dynMonadic :: Functor m => Dynamic s m -> Maybe (m (Dynamic s m))
 dynMonadic (Dynamic a ty) = case unmonad ty of
   Just innerTy -> Just $ (`Dynamic` innerTy) <$> unsafeCoerce a
   Nothing -> Nothing
+
+-- | Wrap a monadic value, given its type.
+unsafeWrapMonadicDyn :: Functor m => TypeRep s m -> m (Dynamic s m) -> Dynamic s m
+unsafeWrapMonadicDyn ty mdyn = Dynamic (unsafeCoerce $ fmap anyFromDyn mdyn) ty
 
 -------------------------------------------------------------------------------
 -- Typeable

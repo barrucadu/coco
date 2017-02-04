@@ -71,7 +71,7 @@ import Test.Spec.Util
 --
 -- If the outer 'Maybe' is @Nothing@, there are free variables. If the
 -- inner 'Maybe' is @Nothing@, the type is incorrect.
-defaultEvaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> m (Maybe a))
+defaultEvaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> Maybe a)
 defaultEvaluate = evaluate
 
 -------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ data Exprs s m x a = Exprs
   , observation :: Expr s m
   -- ^ The observation to make. This should be a function of type
   -- @s -> m x@. If it's not, you will get bogus results.
-  , eval :: Expr s m -> Maybe (s -> m (Maybe (m (Maybe Failure, x))))
+  , eval :: Expr s m -> Maybe (s -> Maybe (m (Maybe Failure, x)))
   -- ^ Evaluate an expression. In practice this will just be
   -- 'defaultEvaluate', but it's here to make the types work out.
   }
@@ -281,8 +281,8 @@ runBoth listValues exprs1 exprs2 expr_a expr_b seeds
     | otherwise = Just $ foldM go (S.empty, S.empty) assignments
   where
     go (results_a, results_b) (eval_a, eval_b, seed) = do
-      a <- runConc $ commute . eval_a =<< initialState exprs1 seed
-      b <- runConc $ commute . eval_b =<< initialState exprs2 seed
+      a <- runConc $ shoveMaybe . eval_a =<< initialState exprs1 seed
+      b <- runConc $ shoveMaybe . eval_b =<< initialState exprs2 seed
       -- strict union, to avoid wasting memory on intermediate results.
       let results_a' = smapMaybe (join . eitherToMaybe) a `S.union` results_a
       let results_b' = smapMaybe (join . eitherToMaybe) b `S.union` results_b
@@ -342,10 +342,6 @@ andObserveWith expr exprs = do
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
 runConc c =
   S.fromList . map fst <$> sctBound defaultMemType defaultBounds c
-
--- | Commute and join monads.
-commute :: Monad m => m (Maybe (m a)) -> m (Maybe a)
-commute = join . fmap (maybe (pure Nothing) (fmap Just))
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
 -- appropriate 'Observation' given the results of execution. The left

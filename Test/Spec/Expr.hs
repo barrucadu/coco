@@ -106,6 +106,7 @@ import Data.List ((\\), foldl', mapAccumL, nub, nubBy)
 import Data.Maybe (fromMaybe, isJust)
 
 import Test.Spec.Type
+import Test.Spec.Util
 
 -------------------------------------------------------------------------------
 -- Expressions
@@ -410,42 +411,30 @@ rename expr = go freeVars expr where
 --
 -- If the outer 'Maybe' is @Nothing@, there are free variables. If the
 -- inner 'Maybe' is @Nothing@, the type is incorrect.
-evaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> m (Maybe a))
-evaluate e = (\f -> fmap fromDyn . f) <$> evaluateDyn e
+evaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> Maybe a)
+evaluate e = (fromDyn .) <$> evaluateDyn e
 
 -- | Evaluate an expression, if it has no free variables.
-evaluateDyn :: Monad m => Expr s m -> Maybe (s -> m (Dynamic s m))
+evaluateDyn :: Monad m => Expr s m -> Maybe (s -> Dynamic s m)
 evaluateDyn expr
     | null (freeVariables expr) = Just (go [] expr)
     | otherwise = Nothing
   where
-    go _ StateVar s = pure (toDyn s)
-    go _ (Constant _ dyn) _ = pure dyn
-    go env (Variable var _) _ = case lookup var env of
-      Just dyn -> pure dyn
-      -- this should never happen, as 'evaluateDyn' first checks that
-      -- there are no free variables before calling 'go'.
-      Nothing  -> error ("unexpected free variable " ++ var ++ " in expression")
-    go env (FunAp f e _) s = do
-      f' <- go env f s
-      e' <- go env e s
-      case f' `dynApp` e' of
-        Just r -> pure r
-        -- this should never happen, as '$$' checks the application is
-        -- type-correct.
-        Nothing -> error ("can't apply function " ++ show f' ++ " to argument " ++ show e')
-    go env (Bind var e1 e2 _) s = do
-      e1' <- go env e1 s
-      case dynMonadic e1' of
-        Just mx -> do
-          x <- mx
-          go ((var, x):env) e2 s
-        -- this should never happen, as 'bind' checks the application
-        -- is type-correct.
-        Nothing -> error ("can't bind non-monadic expression " ++ show e1' ++ " to variable " ++ var ++ " in body " ++ show e2)
-    go env (Let var e1 e2 _) s = do
-      e1' <- go env e1 s
-      go ((var, e1'):env) e2 s
+    -- The various errors in this function shouldn't happen, as
+    -- @evaluateDyn@ checks there are no free variables, and the
+    -- various smart constructors check the types match.
+    go _ StateVar s = toDyn s
+    go _ (Constant _ dyn) _ = dyn
+    go env (Variable var _) _ =
+      unmaybe ("unexpected free variable " ++ var ++ " in expression") $ lookup var env
+    go env (FunAp f e _) s =
+      unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ go env f s `dynApp` go env e s
+    go env (Bind var e1 e2 ty) s =
+      let mx = unmaybe ("can't bind non-monadic expression " ++ show e1 ++ " to variable " ++ var ++ " in body " ++ show e2) $ dynMonadic (go env e1 s)
+      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e2) (dynMonadic (go ((var, x):env) e2 s))
+    go env (Let var e1 e2 _) s =
+      let e1' = go env e1 s
+      in go ((var, e1'):env) e2 s
 
 -- | Get the size of an expression.
 exprSize :: Expr s m -> Int

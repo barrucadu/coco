@@ -75,3 +75,12 @@ smapMaybe f = S.map fromJust . S.filter isJust . S.map f
 -- | Turn an 'Either' into a 'Maybe'.
 eitherToMaybe :: Either a b -> Maybe b
 eitherToMaybe = either (const Nothing) Just
+
+-- | Remove a 'Maybe', throwing the given error on @Nothing@.
+unmaybe :: String -> Maybe a -> a
+unmaybe str Nothing = error str
+unmaybe _ (Just a) = a
+
+-- | Shove a 'Maybe' into another monad.
+shoveMaybe :: Monad m => Maybe (m a) -> m (Maybe a)
+shoveMaybe = maybe (pure Nothing) (fmap Just)
