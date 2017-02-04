@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyCase #-}
 
 -- |
@@ -6,38 +7,46 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : EmptyCase
+-- Portability : DeriveGeneric, EmptyCase
 --
 -- Utility functions.
 module Test.Spec.Util where
 
+import Control.Exception (Exception)
+import Data.Data (Data(..))
+import Data.Ix (Ix(..))
 import Data.Maybe (fromJust, isJust)
+import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 -- | A higher-kinded @Void@. This cannot be an 'Applicative' (or a 'Monad').
-data Void1 a
+data Void1 a deriving Generic
 
-instance Functor Void1 where
-  fmap _ = absurd1
+instance Typeable a => Data (Void1 a) where
+  gunfold _ _ _ = error "invalid constructor"
+  toConstr = absurd1
+  dataTypeOf = absurd1
 
-instance Eq (Void1 a) where
-  _ == _ = True
+instance Ix (Void1 a) where
+  range     _ = []
+  index     _ = absurd1
+  inRange   _ = absurd1
+  rangeSize _ = 0
 
-instance Ord (Void1 a) where
-  compare _ _ = EQ
+instance Typeable a => Exception (Void1 a)
 
-instance Read (Void1 a) where
-  readsPrec _ _ = []
+instance Eq        (Void1 a) where _ == _        = True
+instance Ord       (Void1 a) where compare _ _   = EQ
+instance Read      (Void1 a) where readsPrec _ _ = []
+instance Semigroup (Void1 a) where a <> _        = a
+instance Show      (Void1 a) where show          = absurd1
 
-instance Show (Void1 a) where
-  show = absurd1
-
-instance Foldable Void1 where
-  foldMap _ = absurd1
-
-instance Traversable Void1 where
-  traverse _ = absurd1
+instance Functor     Void1 where fmap _     = absurd1
+instance Foldable    Void1 where foldMap _  = absurd1
+instance Traversable Void1 where traverse _ = absurd1
 
 -- | Since 'Void1' values don't exist, we use the same trick as for
 -- @Void@.
