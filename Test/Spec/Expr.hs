@@ -430,8 +430,8 @@ evaluateDyn expr
     go env (FunAp f e _) s =
       unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ go env f s `dynApp` go env e s
     go env (Bind var e1 e2 ty) s =
-      let mx = unmaybe ("can't bind non-monadic expression " ++ show e1 ++ " to variable " ++ var ++ " in body " ++ show e2) $ dynMonadic (go env e1 s)
-      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e2) (dynMonadic (go ((var, x):env) e2 s))
+      let mx = unmaybe ("can't bind non-monadic expression " ++ show e1 ++ " to variable " ++ var ++ " in body " ++ show e2) $ unwrapMonadicDyn (go env e1 s)
+      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e2) (unwrapMonadicDyn (go ((var, x):env) e2 s))
     go env (Let var e1 e2 _) s =
       let e1' = go env e1 s
       in go ((var, e1'):env) e2 s

@@ -30,14 +30,16 @@ module Test.Spec.Type
   ( -- * Dynamic
     Dynamic
   , toDyn
-  , unsafeToDyn
   , fromDyn
-  , unsafeFromDyn
   , anyFromDyn
-  , coerceDyn
   , dynTypeRep
   , dynApp
-  , dynMonadic
+  -- ** Type-safe coercions
+  , coerceDyn
+  , unwrapMonadicDyn
+  -- ** Unsafe operations
+  , unsafeToDyn
+  , unsafeFromDyn
   , unsafeWrapMonadicDyn
 
   -- * Typeable
@@ -46,13 +48,12 @@ module Test.Spec.Type
   , typeRep
   , typeOf
   , rawTypeRep
-  , unsafeFromRawTypeRep
-  , coerceTypeRep
   -- ** Type-safe casting
   , (:~:)(..)
   , cast
   , eqT
   , gcast
+  , coerceTypeRep
   -- ** Function types
   , funArgTys
   , funResultTy
@@ -61,6 +62,8 @@ module Test.Spec.Type
   , unmonad
   , stateTypeRep
   , monadTyCon
+  -- ** Unsafe operations
+  , unsafeFromRawTypeRep
   ) where
 
 import Data.Maybe (isJust)
@@ -85,30 +88,10 @@ instance Show (Dynamic s m) where
 toDyn :: HasTypeRep s m a => a -> Dynamic s m
 toDyn a = Dynamic (unsafeCoerce a) (typeOf a)
 
--- | Change the state and monad type parameters of a dynamic value, if
--- the contained 'TypeRep' does not reference them.
-coerceDyn :: Dynamic s1 m1 -> Maybe (Dynamic s2 m2)
-coerceDyn (Dynamic x ty) = Dynamic x <$> coerceTypeRep ty
-
--- | Convert a static value into a dynamic one, using a regular normal
--- Typeable 'T.TypeRep'. This is safe if 'HasTypeRep' would assign
--- that 'T.TypeRep', and so is unsafe if the monad or state cases
--- apply.
-unsafeToDyn :: T.TypeRep -> a -> Dynamic s m
-unsafeToDyn ty a = Dynamic (unsafeCoerce a) (TypeRep ty)
-
 -- | Try to convert a dynamic value back into a static one.
 fromDyn :: HasTypeRep s m a => Dynamic s m -> Maybe a
 fromDyn (Dynamic x ty) = case unsafeCoerce x of
   r | typeOf r == ty -> Just r
-    | otherwise -> Nothing
-
--- | Convert a dynamic value into a static one. This is safe if
--- 'HasTypeRep' would assign the same 'T.TypeRep', and so is unsafe if
--- the monad or state cases apply.
-unsafeFromDyn :: T.Typeable a => Dynamic s m -> Maybe a
-unsafeFromDyn (Dynamic x ty) = case unsafeCoerce x of
-  r | unsafeFromRawTypeRep (T.typeOf r) == ty -> Just r
     | otherwise -> Nothing
 
 -- | Throw away type information and get the 'Any' from a 'Dynamic'.
@@ -125,16 +108,45 @@ dynApp (Dynamic f t1) (Dynamic x t2) = case t1 `funResultTy` t2 of
   Just t3 -> Just (Dynamic ((unsafeCoerce f) x) t3)
   Nothing -> Nothing
 
+
+-------------------------------------------------------------------------------
+-- Type-safe coercions
+
+-- | Change the state and monad type parameters of a dynamic value, if
+-- the contained 'TypeRep' does not reference them.
+coerceDyn :: Dynamic s1 m1 -> Maybe (Dynamic s2 m2)
+coerceDyn (Dynamic x ty) = Dynamic x <$> coerceTypeRep ty
+
 -- | Take a dynamic value containing a monadic value, and turn it into
 -- a monadic value containing a dynamic value.
-dynMonadic :: Functor m => Dynamic s m -> Maybe (m (Dynamic s m))
-dynMonadic (Dynamic a ty) = case unmonad ty of
+unwrapMonadicDyn :: Functor m => Dynamic s m -> Maybe (m (Dynamic s m))
+unwrapMonadicDyn (Dynamic a ty) = case unmonad ty of
   Just innerTy -> Just $ (`Dynamic` innerTy) <$> unsafeCoerce a
   Nothing -> Nothing
+
+
+-------------------------------------------------------------------------------
+-- Unsafe operations
+
+-- | Convert a static value into a dynamic one, using a regular normal
+-- Typeable 'T.TypeRep'. This is safe if 'HasTypeRep' would assign
+-- that 'T.TypeRep', and so is unsafe if the monad or state cases
+-- apply.
+unsafeToDyn :: T.TypeRep -> a -> Dynamic s m
+unsafeToDyn ty a = Dynamic (unsafeCoerce a) (TypeRep ty)
+
+-- | Convert a dynamic value into a static one. This is safe if
+-- 'HasTypeRep' would assign the same 'T.TypeRep', and so is unsafe if
+-- the monad or state cases apply.
+unsafeFromDyn :: T.Typeable a => Dynamic s m -> Maybe a
+unsafeFromDyn (Dynamic x ty) = case unsafeCoerce x of
+  r | unsafeFromRawTypeRep (T.typeOf r) == ty -> Just r
+    | otherwise -> Nothing
 
 -- | Wrap a monadic value, given its type.
 unsafeWrapMonadicDyn :: Functor m => TypeRep s m -> m (Dynamic s m) -> Dynamic s m
 unsafeWrapMonadicDyn ty mdyn = Dynamic (unsafeCoerce $ fmap anyFromDyn mdyn) ty
+
 
 -------------------------------------------------------------------------------
 -- Typeable
@@ -170,35 +182,9 @@ data TypeRep (s :: *) (m :: * -> *) where
 instance Show (TypeRep s m) where
   show = show . rawTypeRep
 
--- | The 'TypeRep' of the state variable.
-stateTypeRep :: TypeRep s m
-stateTypeRep = TypeRep $ T.mkTyConApp (T.mkTyCon3 "" "" ":state:") []
-
--- | The 'T.Typeable' 'T.TyCon' of the monad variable.
-monadTyCon :: T.TyCon
-monadTyCon = T.mkTyCon3 "" "" ":monad:"
-
 -- | Get the underlying 'T.Typeable' 'T.TypeRep' from a 'TypeRep'.
 rawTypeRep :: TypeRep s m -> T.TypeRep
 rawTypeRep (TypeRep ty) = ty
-
--- | Turn a 'T.TypeRep' into a 'TypeRep'. This is This is safe if
--- 'HasTypeRep' would assign that 'T.TypeRep', and so is unsafe if the
--- monad or state cases apply.
-unsafeFromRawTypeRep :: T.TypeRep -> TypeRep s m
-unsafeFromRawTypeRep = TypeRep
-
--- | Change the state and monad type parameters of a 'TypeRep', if it
--- does not reference them.
-coerceTypeRep :: TypeRep s1 m1 -> Maybe (TypeRep s2 m2)
-coerceTypeRep (TypeRep ty)
-    | check ty  = Just (TypeRep ty)
-    | otherwise = Nothing
-  where
-    check raw_ty
-      | stateTypeRep == TypeRep raw_ty    = False
-      | isJust (unmonad $ TypeRep raw_ty) = False
-      | otherwise = all check . snd $ T.splitTyConApp raw_ty
 
 -- | Takes a value of type @a@ with state @s@ in some monad @m@, and
 -- returns a concrete representation of that type.
@@ -208,6 +194,10 @@ typeRep = typeRep#
 -- | Get the type of a value.
 typeOf :: forall s m a. HasTypeRep s m a => a -> TypeRep s m
 typeOf _ = typeRep @s @m @a Proxy
+
+
+-------------------------------------------------------------------------------
+-- Type-safe casting
 
 -- | The type-safe cast operation.
 cast :: forall s m a b. (HasTypeRep s m a, HasTypeRep s m b) => a -> Maybe b
@@ -222,6 +212,22 @@ eqT = if typeRep @s @m @a Proxy == typeRep @s @m @b Proxy
 -- | Cast through a type constructor.
 gcast :: forall s m a b c. (HasTypeRep s m a, HasTypeRep s m b) => c a -> Maybe (c b)
 gcast x = fmap (\Refl -> x) (eqT @s @m @a @b)
+
+-- | Change the state and monad type parameters of a 'TypeRep', if it
+-- does not reference them.
+coerceTypeRep :: TypeRep s1 m1 -> Maybe (TypeRep s2 m2)
+coerceTypeRep (TypeRep ty)
+    | check ty  = Just (TypeRep ty)
+    | otherwise = Nothing
+  where
+    check raw_ty
+      | stateTypeRep == TypeRep raw_ty    = False
+      | isJust (unmonad $ TypeRep raw_ty) = False
+      | otherwise = all check . snd $ T.splitTyConApp raw_ty
+
+
+-------------------------------------------------------------------------------
+-- Function types
 
 -- | The types of a function's arguments.
 funArgTys :: TypeRep s m -> [TypeRep s m]
@@ -240,9 +246,31 @@ typeArity = go . rawTypeRep where
 
   funTyCon = T.typeRepTyCon (T.typeRep (Proxy :: Proxy (() -> ())))
 
+
+-------------------------------------------------------------------------------
+-- Miscellaneous
+
 -- | Remove the monad type constructor from a type, if it has it.
 unmonad :: TypeRep s m -> Maybe (TypeRep s m)
 unmonad = go . rawTypeRep where
   go ty = case T.splitTyConApp ty of
     (con, [innerType]) | con == monadTyCon -> Just (TypeRep innerType)
     _ -> Nothing
+
+-- | The 'TypeRep' of the state variable.
+stateTypeRep :: TypeRep s m
+stateTypeRep = TypeRep $ T.mkTyConApp (T.mkTyCon3 "" "" ":state:") []
+
+-- | The 'T.Typeable' 'T.TyCon' of the monad variable.
+monadTyCon :: T.TyCon
+monadTyCon = T.mkTyCon3 "" "" ":monad:"
+
+
+-------------------------------------------------------------------------------
+-- Unsafe operations
+
+-- | Turn a 'T.TypeRep' into a 'TypeRep'. This is This is safe if
+-- 'HasTypeRep' would assign that 'T.TypeRep', and so is unsafe if the
+-- monad or state cases apply.
+unsafeFromRawTypeRep :: T.TypeRep -> TypeRep s m
+unsafeFromRawTypeRep = TypeRep
