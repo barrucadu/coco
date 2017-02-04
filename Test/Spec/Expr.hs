@@ -96,6 +96,7 @@ module Test.Spec.Expr
   , exprSize
   , exprTypeArity
   , exprTypeRep
+  , tree
   ) where
 
 import Control.Monad (filterM, guard)
@@ -454,6 +455,16 @@ exprSize (FunAp e1 e2 _)  = exprSize e1 + exprSize e2
 exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
 exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
 exprSize StateVar = 1
+
+-- | Print an 'Expr' as a tree.
+tree :: Expr s m -> String
+tree = go 0 where
+  go n (Constant s _) = replicate n ' ' ++ "Constant <" ++ s ++ ">"
+  go n (Variable s _) = replicate n ' ' ++ "Variable <" ++ s ++ ">"
+  go n StateVar = replicate n ' ' ++ "StateVar"
+  go n (FunAp e1 e2 _) = replicate n ' ' ++ "Ap:\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
+  go n (Bind s e1 e2 _) = replicate n ' ' ++ "Bind " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
+  go n (Let s e1 e2 _) = replicate n ' ' ++ "Let " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
 
 
 -------------------------------------------------------------------------------
