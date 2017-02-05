@@ -20,6 +20,7 @@ import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Typeable (Typeable)
+import Language.Haskell.TH.Syntax (Type(AppT))
 import GHC.Generics (Generic)
 
 -- | A higher-kinded @Void@. This cannot be an 'Applicative' (or a 'Monad').
@@ -93,3 +94,8 @@ unmaybe _ (Just a) = a
 -- | Shove a 'Maybe' into another monad.
 shoveMaybe :: Monad m => Maybe (m a) -> m (Maybe a)
 shoveMaybe = maybe (pure Nothing) (fmap Just)
+
+-- | Get the constructor of a TH type.
+constr :: Type -> Type
+constr (AppT ty _) = constr ty
+constr ty = ty
