@@ -103,9 +103,9 @@ example3 n = mapM_ print $ runST $ discover defaultListValues exprsLS exprsCAS n
 
 main :: IO ()
 main = do
-  example1 5
+  example1 7
   putStrLn ""
-  example2 5
+  example2 7
   putStrLn ""
-  -- example3 5
+  -- example3 7
   putStrLn "'discover' is broken :("
