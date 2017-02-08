@@ -39,7 +39,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/barrucadu/dejafu.git
-    commit: 9e4d808d549f5b78a72d1fc2bb5e94ebabb694c0
+    commit: df82f42d5f7e4a60f12b4936cfbe63343c782690
   subdirs:
     - dejafu
   extra-dep: true
