@@ -47,7 +47,7 @@ module Test.Spec.Concurrency
 
 import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
-import Control.Monad (foldM, join)
+import Control.Monad (join)
 import Control.Monad.ST (ST)
 import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
@@ -142,13 +142,15 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
     -- is a refinement of the other.
     check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs1 exprs2 expr_a expr_b seeds of
       Just run -> do
-        (results_a, results_b) <- run
+        results <- run
 
         -- if an expression always fails, record that.
-        let g1' = annotate expr_a (\ann -> ann { isFailing = all (isJust . fst) results_a }) g1
-        let g2' = annotate expr_b (\ann -> ann { isFailing = all (isJust . fst) results_b }) g2
+        let fails_a = all (all (isJust . fst) . fst) results
+        let fails_b = all (all (isJust . fst) . snd) results
+        let g1' = annotate expr_a (\ann -> ann { isFailing = fails_a }) g1
+        let g2' = annotate expr_b (\ann -> ann { isFailing = fails_b }) g2
 
-        let (g12'', obs) = mkobservation False results_a results_b g1' g2' expr_a expr_b ann_a ann_b
+        let (g12'', obs) = mkobservation False results g1' g2' fails_a fails_b expr_a expr_b ann_a ann_b
 
         -- get the updated generators
         let g1'' = maybe g1' (either id (const g1')) g12''
@@ -202,13 +204,15 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
     -- is a refinement of the other.
     check g ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs exprs expr_a expr_b seeds of
       Just run -> do
-        (results_a, results_b) <- run
+        results <- run
 
         -- if an expression always fails, record that.
-        let g' = annotate expr_a (\ann -> ann { isFailing = all (isJust . fst) results_a }) $
-                 annotate expr_b (\ann -> ann { isFailing = all (isJust . fst) results_b }) g
+        let fails_a = all (all (isJust . fst) . fst) results
+        let fails_b = all (all (isJust . fst) . snd) results
+        let g' = annotate expr_a (\ann -> ann { isFailing = fails_a }) $
+                 annotate expr_b (\ann -> ann { isFailing = fails_b }) g
 
-        let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results_a results_b g' g' expr_a expr_b ann_a ann_b
+        let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results g' g' fails_a fails_b expr_a expr_b ann_a ann_b
         pure (maybe g' (either id id) g'', obs)
       Nothing -> pure (g, Nothing)
 
@@ -275,18 +279,18 @@ runBoth :: forall t s1 s2 x a. (Ord x, T.Typeable x)
         -> Expr s1 (ConcST t)
         -> Expr s2 (ConcST t)
         -> [a]
-        -> Maybe (ST t (Set (Maybe Failure, x), Set (Maybe Failure, x)))
+        -> Maybe (ST t [(Set (Maybe Failure, x), Set (Maybe Failure, x))])
 runBoth listValues exprs1 exprs2 expr_a expr_b seeds
     | null assignments = Nothing
-    | otherwise = Just $ foldM go (S.empty, S.empty) assignments
+    | otherwise = Just $ mapM go assignments
   where
-    go (results_a, results_b) (eval_a, eval_b, seed) = do
+    go (eval_a, eval_b, seed) = do
       a <- runConc $ shoveMaybe . eval_a =<< initialState exprs1 seed
       b <- runConc $ shoveMaybe . eval_b =<< initialState exprs2 seed
-      -- strict union, to avoid wasting memory on intermediate results.
-      let results_a' = smapMaybe (join . eitherToMaybe) a `S.union` results_a
-      let results_b' = smapMaybe (join . eitherToMaybe) b `S.union` results_b
-      S.size results_a' `seq` S.size results_b' `seq` pure (results_a', results_b')
+      -- strictify, to avoid wasting memory on intermediate results.
+      let a' = smapMaybe (join . eitherToMaybe) a
+      let b' = smapMaybe (join . eitherToMaybe) b
+      S.size a' `seq` S.size b' `seq` pure (a', b')
 
     assignments =
       [ (eval_a, eval_b, seed)
@@ -352,24 +356,25 @@ runConc c =
 -- the observation. Maybe better to split it up?
 mkobservation :: Ord x
               => Bool -- ^ Whether the expressions are the same type.
-              -> Set (Maybe Failure, x) -- ^ The left results.
-              -> Set (Maybe Failure, x) -- ^ The right results.
+              -> [(Set (Maybe Failure, x), Set (Maybe Failure, x))] -- ^ The results. Each pair in the list has the same variable assignment.
               -> Generator s1 m Ann -- ^ The left generator.
               -> Generator s2 m Ann -- ^ The right generator.
+              -> Bool -- ^ If the left expression always fails.
+              -> Bool -- ^ If the right expression always fails.
               -> Expr s1 m -- ^ The left expression.
               -> Expr s2 m -- ^ The right expression.
               -> Ann -- ^ The original left annotation.
               -> Ann -- ^ The original right annotation.
               -> (Maybe (Either (Generator s1 m Ann) (Generator s2 m Ann)), Maybe Observation)
-mkobservation same_type results_a results_b g1 g2 expr_a expr_b ann_a ann_b = (g12', obs) where
+mkobservation same_type results g1 g2 fails_a fails_b expr_a expr_b ann_a ann_b = (g12', obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
   uninteresting_failure
-    | exprSize expr_a >= exprSize expr_b = all (isJust . fst) results_a && isFailing ann_a
-    | otherwise = all (isJust . fst) results_b && isFailing ann_b
+    | exprSize expr_a >= exprSize expr_b = fails_a && isFailing ann_a
+    | otherwise = fails_b && isFailing ann_b
 
   -- P ⊑ Q iff the results of P are a subset of the results of Q
-  refines_ab = results_a `S.isSubsetOf` results_b
-  refines_ba = results_b `S.isSubsetOf` results_a
+  refines_ab = all (uncurry       S.isSubsetOf)  results
+  refines_ba = all (uncurry (flip S.isSubsetOf)) results
 
   -- if there is a refinement, remove the larger expression from the generator
   g12'
