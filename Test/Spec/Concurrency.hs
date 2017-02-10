@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Module      : Test.Spec.Concurrency
@@ -7,7 +8,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, ScopedTypeVariables
+-- Portability : GADTs, ScopedTypeVariables, TupleSections
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -125,18 +126,18 @@ discoverWithSeeds :: (Ord x, T.Typeable x)
                   -> [a]
                   -> Int
                   -> ST t [Observation]
-discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
-    (g1, _) <- discoverSingleWithSeeds' listValues exprs1 seeds lim
-    (g2, _) <- discoverSingleWithSeeds' listValues exprs2 seeds lim
-    concat <$> findObservations 0 g1 g2
+discoverWithSeeds listValues exprs1 exprs2 seeds lim =
+    let g1 = newGenerator' [(initialAnn, e) | e <- expressions exprs1]
+        g2 = newGenerator' [(initialAnn, e) | e <- expressions exprs2]
+    in concat <$> findObservations 0 g1 g2
   where
-    -- check every pair of terms (in size order) for equality and
+    -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations tier g1 g2 = do
       ((g1', g2'), observations) <- mapAccumLM check (g1, g2) (pairs tier g1 g2)
       (catMaybes observations:) <$> if tier == lim
         then pure []
-        else findObservations (tier+1) g1' g2'
+        else findObservations (tier+1) (stepGenerator checkGenBind g1') (stepGenerator checkGenBind g2')
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
@@ -150,13 +151,8 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
         let g1' = annotate expr_a (\ann -> ann { isFailing = fails_a }) g1
         let g2' = annotate expr_b (\ann -> ann { isFailing = fails_b }) g2
 
-        let (g12'', obs) = mkobservation False results g1' g2' fails_a fails_b expr_a expr_b ann_a ann_b
-
-        -- get the updated generators
-        let g1'' = maybe g1' (either id (const g1')) g12''
-        let g2'' = maybe g2' (either (const g2') id) g12''
-
-        pure ((g1'', g2''), obs)
+        let (g12', obs) = mkobservation False results g1' g2' fails_a fails_b expr_a expr_b ann_a ann_b
+        pure (maybe (g1', g2') (either (,g2') (g1',)) g12', obs)
       Nothing -> pure (acc, Nothing)
 
 -- | Like 'discover', but only takes a single set of expressions. This
@@ -179,25 +175,15 @@ discoverSingleWithSeeds :: (Ord x, T.Typeable x)
                         -> Int
                         -> ST t [Observation]
 discoverSingleWithSeeds listValues exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
-
--- | 'discoverSingleWithSeeds' but also returns the 'Generator'.
-discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
-                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
-                         -> Exprs s (ConcST t) x a
-                         -> [a]
-                         -> Int
-                         -> ST t (Generator s (ConcST t) Ann, [Observation])
-discoverSingleWithSeeds' listValues exprs seeds lim =
     let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
-    in second concat <$> findObservations 0 g
+    in concat <$> findObservations 0 g
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations tier g = do
       (g', observations) <- mapAccumLM check g (pairs tier g g)
-      second (catMaybes observations:) <$> if tier == lim
-        then pure (g', [])
+      (catMaybes observations:) <$> if tier == lim
+        then pure []
         else findObservations (tier+1) (stepGenerator checkGenBind g')
 
     -- check if a pair of terms are observationally equal, or if one
@@ -215,11 +201,6 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
         let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results g' g' fails_a fails_b expr_a expr_b ann_a ann_b
         pure (maybe g' (either id id) g'', obs)
       Nothing -> pure (g, Nothing)
-
-    checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
-      Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
-      Just _ -> isSmallest ann2
-      _ -> True
 
 
 -------------------------------------------------------------------------------
@@ -411,3 +392,11 @@ pairs tier g1 g2 =
   , e2 <- fromMaybe [] (getTier t    g2)
   , isSmallest (fst e2)
   ]
+
+-- | Filter for term generation: only generate binds out of smallest
+-- terms.
+checkGenBind :: (Ann, a) -> (Ann, b) -> (c, Expr s m) -> Bool
+checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
+  Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
+  Just _ -> isSmallest ann2
+  _ -> True
