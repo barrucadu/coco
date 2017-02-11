@@ -106,13 +106,15 @@ data Exprs s m x a = Exprs
   }
 
 -- | Attempt to discover properties of the given set of concurrent
--- operations.
+-- operations. Returns three sets of observations about, respectively:
+-- the first set of expressions; the second set of expressions; and
+-- the combination of the two.
 discover :: forall x a s1 s2 t. (Ord x, T.Typeable a, T.Typeable x)
          => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
          -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
          -> Int -- ^ Term size limit
-         -> ST t [Observation]
+         -> ST t ([Observation], [Observation], [Observation])
 discover listValues exprs1 exprs2 =
   let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
       seeds  = mapMaybe unsafeFromDyn $ listValues seedty
@@ -125,23 +127,25 @@ discoverWithSeeds :: (Ord x, T.Typeable x)
                   -> Exprs s2 (ConcST t) x a
                   -> [a]
                   -> Int
-                  -> ST t [Observation]
-discoverWithSeeds listValues exprs1 exprs2 seeds lim =
-    let g1 = newGenerator' [(initialAnn, e) | e <- expressions exprs1]
-        g2 = newGenerator' [(initialAnn, e) | e <- expressions exprs2]
-    in concat <$> findObservations 0 g1 g2
+                  -> ST t ([Observation], [Observation], [Observation])
+discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
+    (g1, obs1) <- discoverSingleWithSeeds' listValues exprs1 seeds lim
+    (g2, obs2) <- discoverSingleWithSeeds' listValues exprs2 seeds lim
+    obs3 <- concat <$> findObservations g1 g2 0
+    pure (obs1, obs2, obs3)
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
-    findObservations tier g1 g2 = do
-      ((g1', g2'), observations) <- mapAccumLM check (g1, g2) (pairs tier g1 g2)
-      (catMaybes observations:) <$> if tier == lim
-        then pure []
-        else findObservations (tier+1) (stepGenerator checkGenBind g1') (stepGenerator checkGenBind g2')
+    findObservations g1 g2 = go where
+      go tier = do
+        observations <- mapM (check g1 g2) (pairs True tier g1 g2)
+        (catMaybes observations:) <$> if tier == lim
+          then pure []
+          else go (tier+1)
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check acc@(g1, g2) ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs1 exprs2 expr_a expr_b seeds of
+    check g1 g2 ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs1 exprs2 expr_a expr_b seeds of
       Just run -> do
         results <- run
 
@@ -151,9 +155,9 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim =
         let g1' = annotate expr_a (\ann -> ann { isFailing = fails_a }) g1
         let g2' = annotate expr_b (\ann -> ann { isFailing = fails_b }) g2
 
-        let (g12', obs) = mkobservation False results g1' g2' fails_a fails_b expr_a expr_b ann_a ann_b
-        pure (maybe (g1', g2') (either (,g2') (g1',)) g12', obs)
-      Nothing -> pure (acc, Nothing)
+        let (_, obs) = mkobservation False results g1' g2' False False expr_a expr_b ann_a ann_b
+        pure obs
+      Nothing -> pure Nothing
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
@@ -175,16 +179,26 @@ discoverSingleWithSeeds :: (Ord x, T.Typeable x)
                         -> Int
                         -> ST t [Observation]
 discoverSingleWithSeeds listValues exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
+
+-- | Like 'discoverSingleWithSeeds', but returns the generator.
+discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
+                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
+                         -> Exprs s (ConcST t) x a
+                         -> [a]
+                         -> Int
+                         -> ST t (Generator s (ConcST t) Ann, [Observation])
+discoverSingleWithSeeds' listValues exprs seeds lim =
     let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
-    in concat <$> findObservations 0 g
+    in second concat <$> findObservations g 0
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
-    findObservations tier g = do
-      (g', observations) <- mapAccumLM check g (pairs tier g g)
-      (catMaybes observations:) <$> if tier == lim
-        then pure []
-        else findObservations (tier+1) (stepGenerator checkGenBind g')
+    findObservations g tier = do
+      (g', observations) <- mapAccumLM check g (pairs False tier g g)
+      second (catMaybes observations:) <$> if tier == lim
+        then pure (g', [])
+        else findObservations (stepGenerator checkGenBind g') (tier+1)
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
@@ -380,15 +394,16 @@ mkobservation same_type results g1 g2 fails_a fails_b expr_a expr_b ann_a ann_b 
 
 -- | Helper for 'discover' and 'discoverSingle': find pairs of
 -- expressions to try checking for equality and refinement.
-pairs :: Int -- ^ The current tier.
+pairs :: Bool -- ^ Whether to go up to and including the tier in the right generator.
+      -> Int -- ^ The current tier.
       -> Generator s1 m Ann -- ^ The left generator.
       -> Generator s2 m Ann -- ^ The right generator.
       -> [((Ann, Expr s1 m), (Ann, Expr s2 m))]
-pairs tier g1 g2 =
+pairs including tier g1 g2 =
   [ (e1, e2)
   | e1 <- fromMaybe [] (getTier tier g1)
   , isSmallest (fst e1)
-  , t  <- [0..tier - 1]
+  , t  <- if including then [0..tier] else [0..tier - 1]
   , e2 <- fromMaybe [] (getTier t    g2)
   , isSmallest (fst e2)
   ]
