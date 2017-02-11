@@ -92,20 +92,14 @@ exprsCAS = Exprs
 -------------------------------------------------------------------------------
 -- Examples
 
-example1 :: Int -> IO ()
-example1 n = mapM_ print $ runST $ discoverSingle defaultListValues exprsLS n
-
-example2 :: Int -> IO ()
-example2 n = mapM_ print $ runST $ discoverSingle defaultListValues exprsCAS n
-
-example3 :: Int -> IO ()
-example3 n = mapM_ print $ runST $ discover defaultListValues exprsLS exprsCAS n
+example :: Int -> IO ()
+example n = do
+  let (obs1, obs2, obs3) = runST $ discover defaultListValues exprsLS exprsCAS n
+  mapM_ print obs1
+  putStrLn ""
+  mapM_ print obs2
+  putStrLn ""
+  mapM_ print obs3
 
 main :: IO ()
-main = do
-  example1 7
-  putStrLn ""
-  example2 7
-  putStrLn ""
-  -- example3 7
-  putStrLn "'discover' is broken :("
+main = example 10
