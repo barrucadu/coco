@@ -289,13 +289,13 @@ runBoth listValues exprs1 exprs2 expr_a expr_b seeds
 
     assignments =
       [ (eval_a, eval_b, seed)
-      | seed <- take 5 seeds
+      | seed <- take numVariants seeds
       , (eval_a, eval_b) <- assign vars expr_a expr_b
       ]
 
     assign ((var, dyns):vs) e_a e_b =
       [ (e_a'', e_b'')
-      | dyn <- take 5 dyns
+      | dyn <- take numVariants dyns
       , Just e_a' <- [(\d -> let_ var (dynConstant "@" d) e_a) =<< coerceDyn dyn]
       , Just e_b' <- [(\d -> let_ var (dynConstant "@" d) e_b) =<< coerceDyn dyn]
       , (e_a'', e_b'') <- assign vs e_a' e_b'
@@ -415,3 +415,7 @@ checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
   Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
   Just _ -> isSmallest ann2
   _ -> True
+
+-- | Number of variants of a value to consider.
+numVariants :: Int
+numVariants = 10
