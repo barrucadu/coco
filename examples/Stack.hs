@@ -16,9 +16,6 @@ import Test.Spec.Expr (constant, stateVariable, variable)
 
 newtype LockStack m a = LockStack (MVar m [a])
 
-emptyLS :: MonadConc m => m (LockStack m a)
-emptyLS = fromListLS []
-
 pushLS :: MonadConc m => a -> LockStack m a -> m ()
 pushLS a (LockStack v) = modifyMVar_ v $ pure . (a:)
 
@@ -27,6 +24,26 @@ popLS (LockStack v) = modifyMVar v $ pure . (drop 1 &&& listToMaybe)
 
 peekLS :: MonadConc m => LockStack m a -> m (Maybe a)
 peekLS (LockStack v) = listToMaybe <$> readMVar v
+
+swapLS :: MonadConc m => LockStack m a -> m Bool
+swapLS (LockStack v) = modifyMVar v $ pure . go where
+  go (a:b:xs) = (b:a:xs, True)
+  go xs = (xs, False)
+
+dupLS :: MonadConc m => LockStack m a -> m Bool
+dupLS (LockStack v) = modifyMVar v $ pure . go where
+  go (a:xs) = (a:a:xs, True)
+  go xs = (xs, False)
+
+overLS :: MonadConc m => LockStack m a -> m Bool
+overLS (LockStack v) = modifyMVar v $ pure . go where
+  go (a:b:xs) = (b:a:b:xs, True)
+  go xs = (xs, False)
+
+rotLS :: MonadConc m => LockStack m a -> m Bool
+rotLS (LockStack v) = modifyMVar v $ pure . go where
+  go (a:b:c:xs) = (c:a:b:xs, True)
+  go xs = (xs, False)
 
 fromListLS :: MonadConc m => [a] -> m (LockStack m a)
 fromListLS as = LockStack <$> newMVar as
@@ -37,10 +54,14 @@ toListLS (LockStack v) = readMVar v
 exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
 exprsLS = Exprs
   { initialState = fromListLS
-  , expressions = [ constant "emptyLS" (emptyLS :: ConcST t (LockStack (ConcST t) Int))
-                  , constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
+  , expressions = [ constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
                   , constant "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
                   , constant "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+                  , constant "swapLS"  (swapLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "dupLS"   (dupLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "overLS"  (overLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "void"    (void    :: ConcST t Bool -> ConcST t ())
                   , constant "void"    (void    :: ConcST t (Maybe Int) -> ConcST t ())
                   , constant "|||"     ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
                   , variable "x"       (Proxy   :: Proxy (Maybe Int))
@@ -55,9 +76,6 @@ exprsLS = Exprs
 
 newtype CASStack m a = CASStack (CRef m [a])
 
-emptyCAS :: MonadConc m => m (CASStack m a)
-emptyCAS = fromListCAS []
-
 pushCAS :: MonadConc m => a -> CASStack m a -> m ()
 pushCAS a (CASStack r) = modifyCRefCAS_ r (a:)
 
@@ -66,6 +84,26 @@ popCAS (CASStack r) = modifyCRefCAS r (drop 1 &&& listToMaybe)
 
 peekCAS :: MonadConc m => CASStack m a -> m (Maybe a)
 peekCAS (CASStack r) = listToMaybe <$> readCRef r
+
+swapCAS :: MonadConc m => CASStack m a -> m Bool
+swapCAS (CASStack r) = modifyCRefCAS r go where
+  go (a:b:xs) = (b:a:xs, True)
+  go xs = (xs, False)
+
+dupCAS :: MonadConc m => CASStack m a -> m Bool
+dupCAS (CASStack r) = modifyCRefCAS r go where
+  go (a:xs) = (a:a:xs, True)
+  go xs = (xs, False)
+
+overCAS :: MonadConc m => CASStack m a -> m Bool
+overCAS (CASStack r) = modifyCRefCAS r go where
+  go (a:b:xs) = (b:a:b:xs, True)
+  go xs = (xs, False)
+
+rotCAS :: MonadConc m => CASStack m a -> m Bool
+rotCAS (CASStack r) = modifyCRefCAS r go where
+  go (a:b:c:xs) = (c:a:b:xs, True)
+  go xs = (xs, False)
 
 fromListCAS :: MonadConc m => [a] -> m (CASStack m a)
 fromListCAS as = CASStack <$> newCRef as
@@ -76,10 +114,14 @@ toListCAS (CASStack r) = readCRef r
 exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
 exprsCAS = Exprs
   { initialState = fromListCAS
-  , expressions = [ constant "emptyCAS" (emptyCAS :: ConcST t (CASStack (ConcST t) Int))
-                  , constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
+  , expressions = [ constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
                   , constant "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
                   , constant "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+                  , constant "swapCAS"  (swapCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "dupCAS"   (dupCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "overCAS"  (overCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "rotCAS"   (rotCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+                  , constant "void"     (void     :: ConcST t Bool -> ConcST t ())
                   , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
                   , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
                   , variable "x"        (Proxy    :: Proxy (Maybe Int))
