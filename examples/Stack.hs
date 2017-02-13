@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+module Main where
 
 import Control.Arrow ((&&&))
 import Control.Concurrent.Classy
