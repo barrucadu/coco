@@ -16,7 +16,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Test.Spec.Concurrency
+  exposed-modules:     Test.Spec.Ann
+                     , Test.Spec.Concurrency
                      , Test.Spec.Expr
                      , Test.Spec.Gen
                      , Test.Spec.List
@@ -26,7 +27,7 @@ library
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
                      , concurrency
-                     , containers >=0.5 && <0.6
+                     , containers >=0.5.8 && <0.6
                      , dejafu >=0.5 && <0.6
                      , leancheck >=0.6 && <0.7
                      , template-haskell >=2.11 && <3

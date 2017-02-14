@@ -80,8 +80,8 @@ newGenerator' baseTerms = Generator
 
 -- | Generate the next tier.
 stepGenerator :: Semigroup ann
-              => ((ann, Expr s m) -> (ann, Expr s m) -> (ann, Expr s m) -> Bool)
-              -- ^ First expr, second expr, combined expr.
+              => (ann -> ann -> Expr s m -> Bool)
+              -- ^ Annotation of first expr, annotation of second expr, combined expr.
               -> Generator s m ann -> Generator s m ann
 stepGenerator check g = Generator newTiers (sofar g + 1) where
   newTiers =
@@ -94,32 +94,32 @@ stepGenerator check g = Generator newTiers (sofar g + 1) where
 
   -- produce new terms by function application.
   funAps = mkTerms 0 $ \terms candidates ->
-    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+    [ (resAnn, resExpr) | (a1, e1) <- terms
                         , exprTypeArity e1 > 0
-                        , t2@(a2, e2) <- candidates
+                        , (a2, e2) <- candidates
                         , (resAnn, Just resExpr) <- [(a1 <> a2, e1 $$ e2)]
-                        , check t1 t2 (resAnn, resExpr)
+                        , check a1 a2 resExpr
     ]
 
   -- produce new terms by monad-binding variables.
   binds = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+    [ (resAnn, resExpr) | (a1, e1) <- terms
                         , isJust . unmonad $ exprTypeRep e1
-                        , t2@(a2, e2) <- candidates
+                        , (a2, e2) <- candidates
                         , var <- "_" : map fst (freeVariables e2)
                         , (resAnn, Just resExpr) <- [(a1 <> a2, bind var e1 e2)]
-                        , check t1 t2 (resAnn, resExpr)
+                        , check a1 a2 resExpr
     ]
 
   -- produce new terms by let-binding variables.
   lets = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | t1@(a1, e1) <- terms
+    [ (resAnn, resExpr) | (a1, e1) <- terms
                         , not (isVariable e1)
-                        , t2@(a2, e2) <- candidates
+                        , (a2, e2) <- candidates
                         , not (isVariable e2)
                         , (var,_) <- freeVariables e2
                         , (resAnn, Just resExpr) <- [(a1 <> a2, let_ var e1 e2)]
-                        , check t1 t2 (resAnn, resExpr)
+                        , check a1 a2 resExpr
     ]
 
   -- produce new terms

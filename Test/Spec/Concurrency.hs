@@ -50,9 +50,11 @@ import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
 import Control.Monad (join)
 import Control.Monad.ST (ST)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as L
+import qualified Data.Map.Strict as M
 import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
-import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Typeable as T
@@ -61,8 +63,9 @@ import Test.DejaFu (Failure, defaultBounds, defaultMemType)
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (sctBound)
 
+import Test.Spec.Ann
 import Test.Spec.Expr (Expr, ($$), bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, tyVariable, variable, unBind)
-import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, mapTier)
+import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier)
 import Test.Spec.List (defaultListValues)
 import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, monadTyCon, unsafeFromDyn, unsafeFromRawTypeRep, unsafeToDyn)
 import Test.Spec.Util
@@ -131,33 +134,23 @@ discoverWithSeeds :: (Ord x, T.Typeable x)
 discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
     (g1, obs1) <- discoverSingleWithSeeds' listValues exprs1 seeds lim
     (g2, obs2) <- discoverSingleWithSeeds' listValues exprs2 seeds lim
-    obs3 <- concat <$> findObservations g1 g2 0
+    let obs3 = concat (findObservations g1 g2 0)
     pure (obs1, obs2, obs3)
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations g1 g2 = go where
       go tier = do
-        observations <- mapM (check g1 g2) (pairs True tier g1 g2)
-        (catMaybes observations:) <$> if tier == lim
-          then pure []
+        let observations = mapMaybe (check g1 g2) (pairs True tier g1 g2)
+        (observations:) $ if tier == lim
+          then []
           else go (tier+1)
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g1 g2 ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs1 exprs2 expr_a expr_b seeds of
-      Just run -> do
-        results <- run
-
-        -- if an expression always fails, record that.
-        let fails_a = all (all (isJust . fst) . fst) results
-        let fails_b = all (all (isJust . fst) . snd) results
-        let g1' = annotate expr_a (\ann -> ann { isFailing = fails_a }) g1
-        let g2' = annotate expr_b (\ann -> ann { isFailing = fails_b }) g2
-
-        let (_, obs) = mkobservation False results g1' g2' False False expr_a expr_b ann_a ann_b
-        pure obs
-      Nothing -> pure Nothing
+    check g1 g2 ((ann_a, expr_a), (ann_b, expr_b)) = case (,) <$> allResults ann_a <*> allResults ann_b of
+      Just _  -> snd $ mkobservation False g1 g2 expr_a expr_b Nothing ann_a Nothing ann_b
+      Nothing -> Nothing
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
@@ -182,12 +175,12 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
+discoverSingleWithSeeds' :: forall s t x a. (Ord x, T.Typeable x)
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x a
                          -> [a]
                          -> Int
-                         -> ST t (Generator s (ConcST t) Ann, [Observation])
+                         -> ST t (Generator s (ConcST t) (Ann x), [Observation])
 discoverSingleWithSeeds' listValues exprs seeds lim =
     let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
     in second concat <$> findObservations g 0
@@ -202,50 +195,21 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g ((ann_a, expr_a), (ann_b, expr_b)) = case runBoth listValues exprs exprs expr_a expr_b seeds of
-      Just run -> do
-        results <- run
+    check g ((ann_a, expr_a), (ann_b, expr_b)) = do
+      ann_a' <- if isJust (allResults ann_a) then pure ann_a else (`update` ann_a) <$> run expr_a
+      ann_b' <- if isJust (allResults ann_b) then pure ann_b else (`update` ann_b) <$> run expr_b
 
-        -- if an expression always fails, record that.
-        let fails_a = all (all (isJust . fst) . fst) results
-        let fails_b = all (all (isJust . fst) . snd) results
-        let g' = annotate expr_a (\ann -> ann { isFailing = fails_a }) $
-                 annotate expr_b (\ann -> ann { isFailing = fails_b }) g
+      let g' = annotate expr_b ann_b' . annotate expr_a ann_a' $ g
 
-        let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) results g' g' fails_a fails_b expr_a expr_b ann_a ann_b
-        pure (maybe g' (either id id) g'', obs)
-      Nothing -> pure (g, Nothing)
+      case (,) <$> allResults ann_a' <*> allResults ann_b' of
+        Just _ ->
+          let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) g' g' expr_a expr_b (Just ann_a) ann_a' (Just ann_b) ann_b'
+          in pure (maybe g' (either id id) g'', obs)
+        Nothing -> pure (g', Nothing)
 
-
--------------------------------------------------------------------------------
--- Annotations
-
--- | An annotation on an expression.
---
--- The 'Semigroup' instance is very optimistic, and assumes that
--- combining two expressions will yield the smallest in its new
--- equivalence class (which means there is no unit). It is the job of
--- 'mkobservation' to crush these dreams.
-data Ann = Ann
-  { isFailing  :: Bool
-  , isSmallest :: Bool
-  }
-  deriving (Eq, Ord, Read, Show)
-
-instance Semigroup Ann where
-  ann1 <> ann2 = Ann { isFailing  = isFailing ann1 || isFailing ann2
-                     , isSmallest = True
-                     }
-
--- | The \"default\" annotation. This is not the unit of
--- 'Semigroup.<>', as it has no unit.
-initialAnn :: Ann
-initialAnn = Ann { isFailing = False, isSmallest = True }
-
--- | Annotate an expression.
-annotate :: Expr s m -> (ann -> ann) -> Generator s m ann -> Generator s m ann
-annotate expr f = mapTier go (exprSize expr) where
-  go (ann0, expr0) = (if expr0 == expr then f ann0 else ann0, expr0)
+    -- evaluate a expression.
+    run :: Expr s (ConcST t) -> ST t (Maybe (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
+    run expr = shoveMaybe (runSingle listValues exprs expr seeds)
 
 
 -------------------------------------------------------------------------------
@@ -264,51 +228,44 @@ a ||| b = do
 -------------------------------------------------------------------------------
 -- Utilities
 
--- | Run a pair of concurrent programs many times, gathering the
--- results. Up to 5 values of every free variable (including the seed)
--- will be tried, in all combinations.
-runBoth :: forall t s1 s2 x a. (Ord x, T.Typeable x)
+-- | Run a concurrent program many times, gathering the results. Up to
+-- 'numVariants' values of every free variable, including the seed,
+-- are tried in all combinations.
+runSingle :: forall t s x a. (Ord x, T.Typeable x)
         => (TypeRep Void Void1 -> [Dynamic Void Void1])
-        -> Exprs s1 (ConcST t) x a
-        -> Exprs s2 (ConcST t) x a
-        -> Expr s1 (ConcST t)
-        -> Expr s2 (ConcST t)
+        -> Exprs s (ConcST t) x a
+        -> Expr s (ConcST t)
         -> [a]
-        -> Maybe (ST t [(Set (Maybe Failure, x), Set (Maybe Failure, x))])
-runBoth listValues exprs1 exprs2 expr_a expr_b seeds
+        -> Maybe (ST t (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
+runSingle listValues exprs expr seeds
     | null assignments = Nothing
-    | otherwise = Just $ mapM go assignments
+    | otherwise = Just $ L.fromList <$> mapM go assignments
   where
-    go (eval_a, eval_b, seed) = do
-      a <- runConc $ shoveMaybe . eval_a =<< initialState exprs1 seed
-      b <- runConc $ shoveMaybe . eval_b =<< initialState exprs2 seed
+    go (varassign, eval_expr, seed) = do
+      rs <- runConc $ shoveMaybe . eval_expr =<< initialState exprs seed
       -- strictify, to avoid wasting memory on intermediate results.
-      let a' = smapMaybe (join . eitherToMaybe) a
-      let b' = smapMaybe (join . eitherToMaybe) b
-      S.size a' `seq` S.size b' `seq` pure (a', b')
+      let rs' = smapMaybe (join . eitherToMaybe) rs
+      S.size rs' `seq` pure (varassign, rs')
 
     assignments =
-      [ (eval_a, eval_b, seed)
-      | seed <- take numVariants seeds
-      , (eval_a, eval_b) <- assign vars expr_a expr_b
+      [ ((sid, M.fromList vidmap), eval_expr, seed)
+      | (sid, seed) <- take numVariants $ zip [0..] seeds
+      , (vidmap, eval_expr) <- assign vars expr
       ]
 
-    assign ((var, dyns):vs) e_a e_b =
-      [ (e_a'', e_b'')
-      | dyn <- take numVariants dyns
-      , Just e_a' <- [(\d -> let_ var (dynConstant "@" d) e_a) =<< coerceDyn dyn]
-      , Just e_b' <- [(\d -> let_ var (dynConstant "@" d) e_b) =<< coerceDyn dyn]
-      , (e_a'', e_b'') <- assign vs e_a' e_b'
+    assign :: [(String, [Dynamic Void Void1])] -> Expr s (ConcST t) -> [([(String, Int)], s -> Maybe (ConcST t (Maybe Failure, x)))]
+    assign ((var, dyns):vs) e =
+      [ ((var, vid):vidlist, eval_expr)
+      | (vid, dyn) <- take numVariants $ zip [0..] dyns
+      , Just e' <- [(\d -> let_ var (dynConstant "@" d) e) =<< coerceDyn dyn]
+      , (vidlist, eval_expr) <- assign vs e'
       ]
-    assign [] e_a e_b = maybeToList $ (,) <$> evalA e_a <*> evalB e_b
+    assign [] e = maybeToList $ (\r -> ([], r)) <$> evalAndObserve e
 
-    vars = ordNubOn fst $
-      map (second listValues) (freeVars expr_a) ++
-      map (second listValues) (freeVars expr_b)
+    vars = ordNubOn fst (map (second listValues) (freeVars expr))
     freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . freeVariables
 
-    evalA e = eval exprs1 =<< e `andObserveWith` exprs1
-    evalB e = eval exprs2 =<< e `andObserveWith` exprs2
+    evalAndObserve e = eval exprs =<< e `andObserveWith` exprs
 
 -- | Subconcurrently run an expression, and observe the state variable.
 andObserveWith :: forall s t x a. T.Typeable x => Expr s (ConcST t) -> Exprs s (ConcST t) x a -> Maybe (Expr s (ConcST t))
@@ -349,38 +306,39 @@ runConc c =
 --
 -- TODO: This is pretty messy, combining the annotation changes with
 -- the observation. Maybe better to split it up?
+
+-- mkobservation (exprtypeRep expr_a == exprTypeRep expr_b) g' g' expr_a expr_b (Just ann_a) ann_a' (Just ann_b) ann_b'
+
 mkobservation :: Ord x
               => Bool -- ^ Whether the expressions are the same type.
-              -> [(Set (Maybe Failure, x), Set (Maybe Failure, x))] -- ^ The results. Each pair in the list has the same variable assignment.
-              -> Generator s1 m Ann -- ^ The left generator.
-              -> Generator s2 m Ann -- ^ The right generator.
-              -> Bool -- ^ If the left expression always fails.
-              -> Bool -- ^ If the right expression always fails.
+              -> Generator s1 m (Ann x) -- ^ The left generator.
+              -> Generator s2 m (Ann x) -- ^ The right generator.
               -> Expr s1 m -- ^ The left expression.
               -> Expr s2 m -- ^ The right expression.
-              -> Ann -- ^ The original left annotation.
-              -> Ann -- ^ The original right annotation.
-              -> (Maybe (Either (Generator s1 m Ann) (Generator s2 m Ann)), Maybe Observation)
-mkobservation same_type results g1 g2 fails_a fails_b expr_a expr_b ann_a ann_b = (g12', obs) where
+              -> Maybe (Ann x) -- ^ The old left annotation.
+              -> Ann x -- ^ The current left annotation.
+              -> Maybe (Ann x) -- ^ The old right annotation.
+              -> Ann x -- ^ The current right annotation.
+              -> (Maybe (Either (Generator s1 m (Ann x)) (Generator s2 m (Ann x))), Maybe Observation)
+mkobservation same_type g1 g2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (g12', obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
-  uninteresting_failure
-    | exprSize expr_a >= exprSize expr_b = fails_a && isFailing ann_a
-    | otherwise = fails_b && isFailing ann_b
+  uninteresting_failure =
+    (maybe False isFailing old_ann_a && isFailing ann_a) ||
+    (maybe False isFailing old_ann_b && isFailing ann_b)
 
   -- P ⊑ Q iff the results of P are a subset of the results of Q
-  refines_ab = all (uncurry       S.isSubsetOf)  results
-  refines_ba = all (uncurry (flip S.isSubsetOf)) results
+  (refines_ab, refines_ba) = fromMaybe (False, False) (refines ann_a ann_b)
 
   -- if there is a refinement, remove the larger expression from the generator
   g12'
     | refines_ab && (not refines_ba || refines_ba && exprSize expr_b >= exprSize expr_a) =
       Just . Right $ if same_type
                      then filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
-                     else annotate expr_b (\ann -> ann { isSmallest = False }) g2
+                     else annotate expr_b (ann_b { isSmallest = False }) g2
     | refines_ba && (not refines_ab || refines_ab && exprSize expr_a >= exprSize expr_b) =
       Just . Left  $ if same_type
                      then filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
-                     else annotate expr_a (\ann -> ann { isSmallest = False }) g1
+                     else annotate expr_a (ann_a { isSmallest = False }) g1
     | otherwise = Nothing
 
   -- describe the observation
@@ -396,9 +354,9 @@ mkobservation same_type results g1 g2 fails_a fails_b expr_a expr_b ann_a ann_b 
 -- expressions to try checking for equality and refinement.
 pairs :: Bool -- ^ Whether to go up to and including the tier in the right generator.
       -> Int -- ^ The current tier.
-      -> Generator s1 m Ann -- ^ The left generator.
-      -> Generator s2 m Ann -- ^ The right generator.
-      -> [((Ann, Expr s1 m), (Ann, Expr s2 m))]
+      -> Generator s1 m (Ann x1) -- ^ The left generator.
+      -> Generator s2 m (Ann x2) -- ^ The right generator.
+      -> [((Ann x1, Expr s1 m), (Ann x2, Expr s2 m))]
 pairs including tier g1 g2 =
   [ (e1, e2)
   | e1 <- fromMaybe [] (getTier tier g1)
@@ -410,8 +368,8 @@ pairs including tier g1 g2 =
 
 -- | Filter for term generation: only generate binds out of smallest
 -- terms.
-checkGenBind :: (Ann, a) -> (Ann, b) -> (c, Expr s m) -> Bool
-checkGenBind (ann1, _) (ann2, _) (_, expr) = case unBind expr of
+checkGenBind :: Ann x -> Ann x -> Expr s m -> Bool
+checkGenBind ann1 ann2 expr = case unBind expr of
   Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
   Just _ -> isSmallest ann2
   _ -> True
