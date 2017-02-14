@@ -48,12 +48,13 @@ module Test.Spec.Concurrency
 
 import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
-import Control.Monad (join)
+import Control.Monad (foldM, join)
 import Control.Monad.ST (ST)
+import Data.List (mapAccumL)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
-import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe, maybeToList)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -140,17 +141,16 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations g1 g2 = go where
-      go tier = do
-        let observations = mapMaybe (check g1 g2) (pairs True tier g1 g2)
-        (observations:) $ if tier == lim
-          then []
-          else go (tier+1)
+      go tier =
+        let observations = mapMaybe check (pairs True tier g1 g2)
+        in (observations:) $ if tier == lim then [] else go (tier+1)
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g1 g2 ((ann_a, expr_a), (ann_b, expr_b)) = case (,) <$> allResults ann_a <*> allResults ann_b of
-      Just _  -> snd $ mkobservation False g1 g2 expr_a expr_b Nothing ann_a Nothing ann_b
-      Nothing -> Nothing
+    check (((old_ann_a, ann_a), expr_a), ((old_ann_b, ann_b), expr_b)) =
+      case (,) <$> allResults ann_a <*> allResults ann_b of
+        Just _  -> mkobservation2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b
+        Nothing -> Nothing
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
@@ -180,32 +180,32 @@ discoverSingleWithSeeds' :: forall s t x a. (Ord x, T.Typeable x)
                          -> Exprs s (ConcST t) x a
                          -> [a]
                          -> Int
-                         -> ST t (Generator s (ConcST t) (Ann x), [Observation])
+                         -> ST t (Generator s (ConcST t) (Maybe (Ann x), Ann x), [Observation])
 discoverSingleWithSeeds' listValues exprs seeds lim =
-    let g = newGenerator' [(initialAnn, e) | e <- expressions exprs]
+    let g = newGenerator' [((Nothing, initialAnn), e) | e <- expressions exprs]
     in second concat <$> findObservations g 0
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations g tier = do
-      (g', observations) <- mapAccumLM check g (pairs False tier g g)
+      g' <- foldM evalTerm g (fromMaybe [] (getTier tier g))
+      let (g'', observations) = mapAccumL check g' (pairs False tier g' g')
       second (catMaybes observations:) <$> if tier == lim
-        then pure (g', [])
-        else findObservations (stepGenerator checkGenBind g') (tier+1)
+        then pure (g'', [])
+        else findObservations (stepGenerator checkGenBind g'') (tier+1)
+
+    -- evaluate a term and store its results
+    evalTerm g ((_, ann), expr) =
+      (\rs -> annotate expr (Just ann, update rs ann) g) <$> run expr
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
-    check g ((ann_a, expr_a), (ann_b, expr_b)) = do
-      ann_a' <- if isJust (allResults ann_a) then pure ann_a else (`update` ann_a) <$> run expr_a
-      ann_b' <- if isJust (allResults ann_b) then pure ann_b else (`update` ann_b) <$> run expr_b
-
-      let g' = annotate expr_b ann_b' . annotate expr_a ann_a' $ g
-
-      case (,) <$> allResults ann_a' <*> allResults ann_b' of
+    check g (((old_ann_a, ann_a), expr_a), ((old_ann_b, ann_b), expr_b)) =
+      case (,) <$> allResults ann_a <*> allResults ann_b of
         Just _ ->
-          let (g'', obs) = mkobservation (exprTypeRep expr_a == exprTypeRep expr_b) g' g' expr_a expr_b (Just ann_a) ann_a' (Just ann_b) ann_b'
-          in pure (maybe g' (either id id) g'', obs)
-        Nothing -> pure (g', Nothing)
+          let (g', obs) = mkobservation1 g expr_a expr_b old_ann_a ann_a old_ann_b ann_b
+          in (fromMaybe g g', obs)
+        Nothing -> (g, Nothing)
 
     -- evaluate a expression.
     run :: Expr s (ConcST t) -> ST t (Maybe (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
@@ -299,28 +299,58 @@ runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
 runConc c =
   S.fromList . map fst <$> sctBound defaultMemType defaultBounds c
 
--- | Helper for 'discover' and 'discoverSingle': construct an
--- appropriate 'Observation' given the results of execution. The left
--- and right annotations may have been changed: this is used to
--- determine if a failure is interesting or not.
+-- | Helper for 'discoverSingle': construct an appropriate
+-- 'Observation' given the results of execution. The left and right
+-- annotations may have been changed: this is used to determine if a
+-- failure is interesting or not.
 --
 -- TODO: This is pretty messy, combining the annotation changes with
 -- the observation. Maybe better to split it up?
+mkobservation1 :: Ord x
+               => Generator s m (Maybe (Ann x), Ann x) -- ^ The generator.
+               -> Expr s m -- ^ The left expression.
+               -> Expr s m -- ^ The right expression.
+               -> Maybe (Ann x) -- ^ The old left annotation.
+               -> Ann x -- ^ The current left annotation.
+               -> Maybe (Ann x) -- ^ The old right annotation.
+               -> Ann x -- ^ The current right annotation.
+               -> (Maybe (Generator s m (Maybe (Ann x), Ann x)), Maybe Observation)
+mkobservation1 g expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (g', obs) where
+  -- check if either expression refines the other, and get the observation
+  (refines_ab, refines_ba, obs) = mkobservation' expr_a expr_b old_ann_a ann_a old_ann_b ann_b
 
--- mkobservation (exprtypeRep expr_a == exprTypeRep expr_b) g' g' expr_a expr_b (Just ann_a) ann_a' (Just ann_b) ann_b'
+  -- whether the expressions have the same type
+  same_type = exprTypeRep expr_a == exprTypeRep expr_b
 
-mkobservation :: Ord x
-              => Bool -- ^ Whether the expressions are the same type.
-              -> Generator s1 m (Ann x) -- ^ The left generator.
-              -> Generator s2 m (Ann x) -- ^ The right generator.
-              -> Expr s1 m -- ^ The left expression.
-              -> Expr s2 m -- ^ The right expression.
-              -> Maybe (Ann x) -- ^ The old left annotation.
-              -> Ann x -- ^ The current left annotation.
-              -> Maybe (Ann x) -- ^ The old right annotation.
-              -> Ann x -- ^ The current right annotation.
-              -> (Maybe (Either (Generator s1 m (Ann x)) (Generator s2 m (Ann x))), Maybe Observation)
-mkobservation same_type g1 g2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (g12', obs) where
+  -- if there is a refinement, remove the larger expression from the generator
+  g'
+    | refines_ab && (not refines_ba || refines_ba && exprSize expr_b >= exprSize expr_a) =
+      Just $ if same_type
+             then filterTier ((/=expr_b) . snd) (exprSize expr_b) g
+             else annotate expr_b (old_ann_b, ann_b { isSmallest = False }) g
+    | refines_ba && (not refines_ab || refines_ab && exprSize expr_a >= exprSize expr_b) =
+      Just $ if same_type
+             then filterTier ((/=expr_a) . snd) (exprSize expr_a) g
+             else annotate expr_a (old_ann_a, ann_a { isSmallest = False }) g
+    | otherwise = Nothing
+
+-- | Helper for 'discover': construct an appropriate 'Observation'
+-- given the results of execution.
+mkobservation2 :: Ord x
+               => Expr s1 m -- ^ The left expression.
+               -> Expr s2 m -- ^ The right expression.
+               -> Maybe (Ann x) -- ^ The old left annotation.
+               -> Ann x -- ^ The current left annotation.
+               -> Maybe (Ann x) -- ^ The old right annotation.
+               -> Ann x -- ^ The current right annotation.
+               -> Maybe Observation
+mkobservation2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b =
+  let (_, _, obs) = mkobservation' expr_a expr_b old_ann_a ann_a old_ann_b ann_b
+  in obs
+
+-- | Helper for 'mkobservation1' and 'mkobservation2'. Arguments are the same as 'mkobservation2'.
+mkobservation' :: Ord x => Expr s1 m -> Expr s2 m -> Maybe (Ann x) -> Ann x -> Maybe (Ann x) -> Ann x -> (Bool, Bool, Maybe Observation)
+mkobservation' expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (refines_ab, refines_ba, obs) where
   -- a failure is uninteresting if the failing term is built out of failing components
   uninteresting_failure =
     (maybe False isFailing old_ann_a && isFailing ann_a) ||
@@ -328,18 +358,6 @@ mkobservation same_type g1 g2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (g
 
   -- P ⊑ Q iff the results of P are a subset of the results of Q
   (refines_ab, refines_ba) = fromMaybe (False, False) (refines ann_a ann_b)
-
-  -- if there is a refinement, remove the larger expression from the generator
-  g12'
-    | refines_ab && (not refines_ba || refines_ba && exprSize expr_b >= exprSize expr_a) =
-      Just . Right $ if same_type
-                     then filterTier ((/=expr_b) . snd) (exprSize expr_b) g2
-                     else annotate expr_b (ann_b { isSmallest = False }) g2
-    | refines_ba && (not refines_ab || refines_ab && exprSize expr_a >= exprSize expr_b) =
-      Just . Left  $ if same_type
-                     then filterTier ((/=expr_a) . snd) (exprSize expr_a) g1
-                     else annotate expr_a (ann_a { isSmallest = False }) g1
-    | otherwise = Nothing
 
   -- describe the observation
   obs
@@ -354,22 +372,22 @@ mkobservation same_type g1 g2 expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (g
 -- expressions to try checking for equality and refinement.
 pairs :: Bool -- ^ Whether to go up to and including the tier in the right generator.
       -> Int -- ^ The current tier.
-      -> Generator s1 m (Ann x1) -- ^ The left generator.
-      -> Generator s2 m (Ann x2) -- ^ The right generator.
-      -> [((Ann x1, Expr s1 m), (Ann x2, Expr s2 m))]
+      -> Generator s1 m (Maybe (Ann x1), Ann x1) -- ^ The left generator.
+      -> Generator s2 m (Maybe (Ann x2), Ann x2) -- ^ The right generator.
+      -> [(((Maybe (Ann x1), Ann x1), Expr s1 m), ((Maybe (Ann x2), Ann x2), Expr s2 m))]
 pairs including tier g1 g2 =
   [ (e1, e2)
-  | e1 <- fromMaybe [] (getTier tier g1)
-  , isSmallest (fst e1)
+  | e1@((_, a1), _) <- fromMaybe [] (getTier tier g1)
+  , isSmallest a1
   , t  <- if including then [0..tier] else [0..tier - 1]
-  , e2 <- fromMaybe [] (getTier t    g2)
-  , isSmallest (fst e2)
+  , e2@((_, a2), _) <- fromMaybe [] (getTier t    g2)
+  , isSmallest a2
   ]
 
 -- | Filter for term generation: only generate binds out of smallest
 -- terms.
-checkGenBind :: Ann x -> Ann x -> Expr s m -> Bool
-checkGenBind ann1 ann2 expr = case unBind expr of
+checkGenBind :: (a, Ann x) -> (b, Ann x) -> Expr s m -> Bool
+checkGenBind (_, ann1) (_, ann2) expr = case unBind expr of
   Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
   Just _ -> isSmallest ann2
   _ -> True
