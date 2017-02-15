@@ -38,6 +38,7 @@ module Test.Spec.Gen
   , newGenerator'
   , stepGenerator
   , getTier
+  , getTier'
   , mapTier
   , filterTier
   , adjustTier
@@ -57,7 +58,7 @@ enumerate :: [Expr s m] -> [[Expr s m]]
 enumerate = tail . go 0 . newGenerator where
   go :: Int -> Generator s m () -> [[Expr s m]]
   go tier g =
-    maybe [] (map snd) (getTier tier g) : go (tier+1) (stepGenerator (\_ _ _ -> True) g)
+    map snd (getTier' tier g) : go (tier+1) (stepGenerator (\_ _ _ -> True) g)
 
 
 -------------------------------------------------------------------------------
@@ -147,6 +148,11 @@ getTier tier g
   -- terms.
   | tier > sofar g = Nothing
   | otherwise = M.lookup tier (tiers g)
+
+-- | Get the terms of a given size, if they have been
+-- generated. Return an empty list if they have not.
+getTier' :: Int -> Generator s m ann -> [(ann, Expr s m)]
+getTier' tier g = M.findWithDefault [] tier (tiers g)
 
 -- | Apply a function to every expression in a tier.
 --

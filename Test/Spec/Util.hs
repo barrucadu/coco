@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- |
 -- Module      : Test.Spec.Util
@@ -7,7 +8,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : DeriveGeneric, EmptyCase
+-- Portability : DeriveGeneric, EmptyCase, RankNTypes
 --
 -- Utility functions.
 module Test.Spec.Util where
@@ -87,3 +88,29 @@ shoveMaybe = maybe (pure Nothing) (fmap Just)
 constr :: Type -> Type
 constr (AppT ty _) = constr ty
 constr ty = ty
+
+-- | Church-encoded lists.
+newtype ChurchList a = CL (forall r. (a -> r -> r) -> r -> r)
+
+instance Show a => Show (ChurchList a) where
+  show = show . crun
+
+-- | @[]@ for Church-encoded lists.
+cnil :: ChurchList a
+cnil = CL (\_ n -> n)
+
+-- | @:@ for Church-encoded lists.
+ccons :: a -> ChurchList a -> ChurchList a
+ccons x (CL xs) = CL (\c n -> c x (xs c n))
+
+-- | Snoc for Church-encoded lists.
+csnoc :: ChurchList a -> a -> ChurchList a
+csnoc xs x = cappend xs (ccons x cnil)
+
+-- | @++@ for Church-encoded lists.
+cappend :: ChurchList a -> ChurchList a -> ChurchList a
+cappend (CL xs) (CL ys) = CL (\c n -> xs c (ys c n))
+
+-- | Convert a Church-encoded list to a regular list.
+crun :: ChurchList a -> [a]
+crun (CL xs) = xs (:) []
