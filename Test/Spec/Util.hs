@@ -66,18 +66,6 @@ ordNubOn f = go S.empty where
     | f x `S.member` s = go s xs
     | otherwise = x : go (S.insert (f x) s) xs
 
--- | Monadic version of 'mapAccumL' specialised to lists.
-mapAccumLM :: Monad m
-           => (a -> b -> m (a, c))
-           -> a
-           -> [b]
-           -> m (a, [c])
-mapAccumLM _ s []     = pure (s, [])
-mapAccumLM f s (x:xs) = do
-  (s1, x')  <- f s x
-  (s2, xs') <- mapAccumLM f s1 xs
-  pure (s2, x' : xs')
-
 -- | 'mapMaybe' over a set.
 smapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
 smapMaybe f = S.map fromJust . S.filter isJust . S.map f
