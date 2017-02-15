@@ -175,7 +175,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: forall s t x a. (Ord x, T.Typeable x)
+discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x a
                          -> [a]
@@ -209,7 +209,6 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
         Nothing -> (g, Nothing)
 
     -- evaluate a expression.
-    run :: Expr s (ConcST t) -> ST t (Maybe (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
     run expr = shoveMaybe (runSingle listValues exprs expr seeds)
 
 
@@ -232,7 +231,7 @@ a ||| b = do
 -- | Run a concurrent program many times, gathering the results. Up to
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
-runSingle :: forall t s x a. (Ord x, T.Typeable x)
+runSingle :: (Ord x, T.Typeable x)
         => (TypeRep Void Void1 -> [Dynamic Void Void1])
         -> Exprs s (ConcST t) x a
         -> Expr s (ConcST t)
@@ -254,7 +253,6 @@ runSingle listValues exprs expr seeds
       , (vidmap, eval_expr) <- assign vars expr
       ]
 
-    assign :: [(String, [Dynamic Void Void1])] -> Expr s (ConcST t) -> [([(String, Int)], s -> Maybe (ConcST t (Maybe Failure, x)))]
     assign ((var, dyns):vs) e =
       [ ((var, vid):vidlist, eval_expr)
       | (vid, dyn) <- take numVariants $ zip [0..] dyns
