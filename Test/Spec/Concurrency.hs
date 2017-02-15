@@ -48,7 +48,7 @@ module Test.Spec.Concurrency
 
 import Control.Arrow (second)
 import qualified Control.Concurrent.Classy as C
-import Control.Monad (foldM, join)
+import Control.Monad (join)
 import Control.Monad.ST (ST)
 import Data.List (mapAccumL)
 import Data.List.NonEmpty (NonEmpty)
@@ -66,7 +66,7 @@ import Test.DejaFu.SCT (sctBound)
 
 import Test.Spec.Ann
 import Test.Spec.Expr (Expr, ($$), bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, tyVariable, variable, unBind)
-import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier)
+import Test.Spec.Gen (Generator, newGenerator', stepGenerator, filterTier, getTier, adjustTier)
 import Test.Spec.List (defaultListValues)
 import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, monadTyCon, unsafeFromDyn, unsafeFromRawTypeRep, unsafeToDyn)
 import Test.Spec.Util
@@ -188,15 +188,16 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     findObservations g tier = do
-      g' <- foldM evalTerm g (fromMaybe [] (getTier tier g))
+      evaled <- mapM evalTerm (fromMaybe [] (getTier tier g))
+      let g' = adjustTier (const evaled) tier g
       let (g'', observations) = mapAccumL check g' (pairs False tier g' g')
       second (catMaybes observations:) <$> if tier == lim
         then pure (g'', [])
         else findObservations (stepGenerator checkGenBind g'') (tier+1)
 
     -- evaluate a term and store its results
-    evalTerm g ((_, ann), expr) =
-      (\rs -> annotate expr (Just ann, update rs ann) g) <$> run expr
+    evalTerm ((_, ann), expr) =
+      (\rs -> ((Just ann, update rs ann), expr)) <$> run expr
 
     -- check if a pair of terms are observationally equal, or if one
     -- is a refinement of the other.
