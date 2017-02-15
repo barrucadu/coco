@@ -1,6 +1,8 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- |
 -- Module      : Test.Spec.Util
@@ -27,10 +29,7 @@ import GHC.Generics (Generic)
 -- | A higher-kinded @Void@. This cannot be an 'Applicative' (or a 'Monad').
 data Void1 a deriving Generic
 
-instance Typeable a => Data (Void1 a) where
-  gunfold _ _ _ = error "invalid constructor"
-  toConstr = absurd1
-  dataTypeOf = absurd1
+deriving instance Data a => Data (Void1 a)
 
 instance Ix (Void1 a) where
   range     _ = []
