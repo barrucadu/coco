@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StrictData #-}
 
 -- |
 -- Module      : Test.Spec.Expr
@@ -6,7 +7,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs
+-- Portability : GADTs, StrictData
 --
 -- Constructing and evaluating dynamically-typed monadic expressions.
 --

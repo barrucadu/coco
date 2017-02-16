@@ -1,10 +1,12 @@
+{-# LANGUAGE StrictData #-}
+
 -- |
 -- Module      : Test.Spec.Ann
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : portable
+-- Portability : StrictData
 --
 -- Expression annotations.
 module Test.Spec.Ann where

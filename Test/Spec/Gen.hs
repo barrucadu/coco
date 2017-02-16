@@ -1,10 +1,12 @@
+{-# LANGUAGE StrictData #-}
+
 -- |
 -- Module      : Test.Spec.Gen
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : portable
+-- Portability : StrictData
 --
 -- Generating well-typed dynamic expressions from smaller components.
 --
@@ -45,7 +47,8 @@ module Test.Spec.Gen
   , maxTier
   ) where
 
-import qualified Data.IntMap as M
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as M
 import Data.Maybe (isJust)
 import Data.Semigroup (Semigroup, (<>))
 
@@ -65,8 +68,8 @@ enumerate = tail . go 0 . newGenerator where
 -- Controlled generation
 
 -- | A generator of expressions.
-data Generator s m ann = Generator { tiers :: M.IntMap [(ann, Expr s m)], sofar :: Int }
-  deriving Eq
+data Generator s m ann = Generator { tiers :: IntMap [(ann, Expr s m)], sofar :: Int }
+  deriving (Eq, Ord, Show)
 
 -- | Create a new generator from a collection of basic expressions.
 newGenerator :: Monoid ann => [Expr s m] -> Generator s m ann
@@ -185,5 +188,5 @@ maxTier = sofar
 -- Utilities
 
 -- | Merge a list of maps of lists.
-merge :: [M.IntMap [a]] -> M.IntMap [a]
+merge :: [IntMap [a]] -> IntMap [a]
 merge = M.unionsWith (++)
