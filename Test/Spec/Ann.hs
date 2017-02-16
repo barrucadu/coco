@@ -53,7 +53,10 @@ data Results x
   deriving (Eq, Ord, Show)
 
 -- | A variable assignment.
-type VarAssignment = (Int, Map String Int)
+data VarAssignment = VA
+  { seedTag :: Int
+  , varTags :: Map String Int
+  } deriving (Eq, Ord, Show)
 
 -- | The \"default\" annotation. This is not the unit of
 -- 'Semigroup.<>', as it has no unit.
@@ -95,7 +98,7 @@ refines ann_a ann_b = check <$> allResults ann_a <*> allResults ann_b where
   -- two sets of variable assignments match if every variable is
   -- either present in only one execution, or has the same value in
   -- both executions
-  checkAssigns (seed_a, vars_a) (seed_b, vars_b) =
+  checkAssigns (VA seed_a vars_a) (VA seed_b vars_b) =
     seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b == v) True vars_a
 
   pairAnd (a, b) (c, d) = (a && c, b && d)

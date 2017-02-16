@@ -265,7 +265,7 @@ runSingle listValues exprs expr seeds
       S.size rs' `seq` pure (varassign, rs')
 
     assignments =
-      [ ((sid, M.fromList vidmap), eval_expr, seed)
+      [ (VA sid (M.fromList vidmap), eval_expr, seed)
       | (sid, seed) <- take numVariants $ zip [0..] seeds
       , (vidmap, eval_expr) <- assign vars expr
       ]
