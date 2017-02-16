@@ -21,7 +21,7 @@ exprs = Exprs
                   , variable "x"        (Proxy    :: Proxy Int)
                   , stateVariable
                   ]
-  , observation = constant "tryTakeMVar" (tryTakeMVar :: MVar (ConcST t) Int -> ConcST t (Maybe Int))
+  , observation = tryTakeMVar
   , eval = defaultEvaluate
   }
 

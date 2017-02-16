@@ -68,7 +68,7 @@ exprsLS = Exprs
                   , variable "x"       (Proxy   :: Proxy (Maybe Int))
                   , stateVariable
                   ]
-  , observation = constant "toListLS" (toListLS :: LockStack (ConcST t) Int -> ConcST t [Int])
+  , observation = toListLS
   , eval = defaultEvaluate
   }
 
@@ -128,7 +128,7 @@ exprsCAS = Exprs
                   , variable "x"        (Proxy    :: Proxy (Maybe Int))
                   , stateVariable
                   ]
-  , observation = constant "toListCAS" (toListCAS :: CASStack (ConcST t) Int -> ConcST t [Int])
+  , observation = toListCAS
   , eval = defaultEvaluate
   }
 

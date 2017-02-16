@@ -59,7 +59,6 @@ module Test.Spec.Expr
   , showConstant
   , variable
   , stateVariable
-  , tyVariable
   , ($$)
   , let_
   , bind
@@ -189,14 +188,6 @@ variable s = Variable s . typeRep
 -- @exprSize stateVariable == 1@
 stateVariable :: Expr s m
 stateVariable = StateVar
-
--- | A variable with the given 'TypeRep'.
---
--- @exprSize (tyVariable "x" ty) == 1@
-tyVariable :: String -> TypeRep s m -> Expr s m
-tyVariable s ty
-  | ty == stateTypeRep = StateVar
-  | otherwise = Variable s ty
 
 -- | Apply a function, if well-typed.
 --

@@ -48,7 +48,6 @@ module Test.Spec.Concurrency
 
 import Control.Arrow (first, second)
 import qualified Control.Concurrent.Classy as C
-import Control.Monad (join)
 import Control.Monad.ST (ST)
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty)
@@ -65,10 +64,10 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (sctBound)
 
 import Test.Spec.Ann
-import Test.Spec.Expr (Expr, ($$), bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, stateVariable, tyVariable, variable, unBind)
+import Test.Spec.Expr (Expr, bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier', adjustTier)
 import Test.Spec.List (defaultListValues)
-import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, monadTyCon, unsafeFromDyn, unsafeFromRawTypeRep, unsafeToDyn)
+import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
 import Test.Spec.Util
 
 -- | Evaluate an expression, if it has no free variables and it is the
@@ -101,10 +100,9 @@ data Exprs s m x a = Exprs
   -- ^ Create a new instance of the state variable.
   , expressions :: [Expr s m]
   -- ^ The primitive expressions to use.
-  , observation :: Expr s m
-  -- ^ The observation to make. This should be a function of type
-  -- @s -> m x@. If it's not, you will get bogus results.
-  , eval :: Expr s m -> Maybe (s -> Maybe (m (Maybe Failure, x)))
+  , observation :: s -> m x
+  -- ^ The observation to make.
+  , eval :: Expr s m -> Maybe (s -> Maybe (m ()))
   -- ^ Evaluate an expression. In practice this will just be
   -- 'defaultEvaluate', but it's here to make the types work out.
   }
@@ -113,7 +111,7 @@ data Exprs s m x a = Exprs
 -- operations. Returns three sets of observations about, respectively:
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
-discover :: forall x a s1 s2 t. (Ord x, T.Typeable a, T.Typeable x)
+discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
          => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
          -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
@@ -125,7 +123,7 @@ discover listValues exprs1 exprs2 =
   in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
-discoverWithSeeds :: (Ord x, T.Typeable x)
+discoverWithSeeds :: Ord x
                   => (TypeRep Void Void1 -> [Dynamic Void Void1])
                   -> Exprs s1 (ConcST t) x a
                   -> Exprs s2 (ConcST t) x a
@@ -158,7 +156,7 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall x a s t. (Ord x, T.Typeable a, T.Typeable x)
+discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
                => (TypeRep Void Void1 -> [Dynamic Void Void1])
                -> Exprs s (ConcST t) x a
                -> Int
@@ -169,7 +167,7 @@ discoverSingle listValues exprs =
   in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
-discoverSingleWithSeeds :: (Ord x, T.Typeable x)
+discoverSingleWithSeeds :: Ord x
                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
                         -> Exprs s (ConcST t) x a
                         -> [a]
@@ -179,7 +177,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: (Ord x, T.Typeable x)
+discoverSingleWithSeeds' :: Ord x
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x a
                          -> [a]
@@ -246,20 +244,24 @@ a ||| b = do
 -- | Run a concurrent program many times, gathering the results. Up to
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
-runSingle :: (Ord x, T.Typeable x)
-        => (TypeRep Void Void1 -> [Dynamic Void Void1])
-        -> Exprs s (ConcST t) x a
-        -> Expr s (ConcST t)
-        -> [a]
-        -> Maybe (ST t (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
+runSingle :: forall s t x a. Ord x
+          => (TypeRep Void Void1 -> [Dynamic Void Void1])
+          -> Exprs s (ConcST t) x a
+          -> Expr s (ConcST t)
+          -> [a]
+          -> Maybe (ST t (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
 runSingle listValues exprs expr seeds
     | null assignments = Nothing
     | otherwise = Just $ L.fromList <$> mapM go assignments
   where
     go (varassign, eval_expr, seed) = do
-      rs <- runConc $ shoveMaybe . eval_expr =<< initialState exprs seed
+      rs <- runConc $ do
+        s <- initialState exprs seed
+        r <- subconcurrency . shoveMaybe $ eval_expr s
+        x <- observation exprs s
+        pure (either Just (const Nothing) r, x)
       -- strictify, to avoid wasting memory on intermediate results.
-      let rs' = smapMaybe (join . eitherToMaybe) rs
+      let rs' = smapMaybe eitherToMaybe rs
       S.size rs' `seq` pure (varassign, rs')
 
     assignments =
@@ -274,39 +276,12 @@ runSingle listValues exprs expr seeds
       , Just e' <- [(\d -> let_ var (dynConstant "@" d) e) =<< coerceDyn dyn]
       , (vidlist, eval_expr) <- assign vs e'
       ]
-    assign [] e = maybeToList $ (\r -> ([], r)) <$> evalAndObserve e
+    assign [] e = maybeToList $ (\r -> ([], r)) <$> (eval exprs =<< evoid e)
 
     vars = ordNubOn fst (map (second listValues) (freeVars expr))
     freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . freeVariables
 
-    evalAndObserve e = eval exprs =<< e `andObserveWith` exprs
-
--- | Subconcurrently run an expression, and observe the state variable.
-andObserveWith :: forall s t x a. T.Typeable x => Expr s (ConcST t) -> Exprs s (ConcST t) x a -> Maybe (Expr s (ConcST t))
-andObserveWith expr exprs = do
-  let efuty = T.typeRep (Proxy :: Proxy (Either Failure ()))
-  let xty   = T.typeRep (Proxy :: Proxy x)
-  let mfxty = T.typeRep (Proxy :: Proxy (Maybe Failure, x))
-  let outty = T.mkFunTy efuty (T.mkFunTy xty (T.mkTyConApp monadTyCon [mfxty]))
-
-  let esubc = constant   "subconcurrency" (subconcurrency :: ConcST t () -> ConcST t (Either Failure ()))
-  let efvar = variable   "fvar" (Proxy :: Proxy (Either Failure ()))
-  let eovar = tyVariable "ovar" (unsafeFromRawTypeRep xty)
-  let eout  = dynConstant "out" $ unsafeToDyn outty ((\a b -> pure (either Just (const Nothing) a, b)) :: Either a b -> c -> ConcST t (Maybe a, c))
-  let evoid = constant   "void" (pure () :: ConcST t ())
-
-  -- out fvar over
-  e1 <- (eout $$ efvar) >>= ($$ eovar)
-  -- OBS :state:
-  e2 <- observation exprs $$ stateVariable
-  -- E2 >>= \ovar -> E1
-  e3 <- bind "ovar" e2 e1
-  -- EXPR >>= \_ -> pure ()
-  e4 <- bind "_" expr evoid
-  -- subconcurrency E4
-  e5 <- esubc $$ e4
-  -- E5 >>= \fvar -> E3
-  bind "fvar" e5 e3
+    evoid e = bind "_" e (constant "" (pure () :: ConcST t ()))
 
 -- | Run a concurrent computation, producing the set of all results.
 runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
