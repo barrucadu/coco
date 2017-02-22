@@ -10,7 +10,7 @@ import Test.DejaFu.Conc
 import Test.Spec.Concurrency
 import Test.Spec.Expr
 
-exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int) (Maybe Int)
+exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int)
 exprs = Exprs
   { initialState = maybe newEmptyMVar newMVar
   , expressions = [ constant "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())

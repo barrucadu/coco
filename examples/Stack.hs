@@ -52,7 +52,7 @@ fromListLS as = LockStack <$> newMVar as
 toListLS :: MonadConc m => LockStack m a -> m [a]
 toListLS (LockStack v) = readMVar v
 
-exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
+exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int]
 exprsLS = Exprs
   { initialState = fromListLS
   , expressions = [ constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
@@ -112,7 +112,7 @@ fromListCAS as = CASStack <$> newCRef as
 toListCAS :: MonadConc m => CASStack m a -> m [a]
 toListCAS (CASStack r) = readCRef r
 
-exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
+exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int]
 exprsCAS = Exprs
   { initialState = fromListCAS
   , expressions = [ constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())

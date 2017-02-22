@@ -95,8 +95,8 @@ instance Show Observation where
   show (Refines a b) = show a ++ "\trefines\t"          ++ show b
 
 -- | A collection of expressions.
-data Exprs s m x a = Exprs
-  { initialState :: a -> m s
+data Exprs s m x = Exprs
+  { initialState :: x -> m s
   -- ^ Create a new instance of the state variable.
   , expressions :: [Expr s m]
   -- ^ The primitive expressions to use.
@@ -111,23 +111,23 @@ data Exprs s m x a = Exprs
 -- operations. Returns three sets of observations about, respectively:
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
-discover :: forall x a s1 s2 t. (Ord x, T.Typeable a)
+discover :: forall x s1 s2 t. (Ord x, T.Typeable x)
          => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
-         -> Exprs s1 (ConcST t) x a -- ^ A collection of expressions
-         -> Exprs s2 (ConcST t) x a -- ^ Another collection of expressions.
+         -> Exprs s1 (ConcST t) x -- ^ A collection of expressions
+         -> Exprs s2 (ConcST t) x -- ^ Another collection of expressions.
          -> Int -- ^ Term size limit
          -> ST t ([Observation], [Observation], [Observation])
 discover listValues exprs1 exprs2 =
-  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy x)
       seeds  = mapMaybe unsafeFromDyn $ listValues seedty
   in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: Ord x
                   => (TypeRep Void Void1 -> [Dynamic Void Void1])
-                  -> Exprs s1 (ConcST t) x a
-                  -> Exprs s2 (ConcST t) x a
-                  -> [a]
+                  -> Exprs s1 (ConcST t) x
+                  -> Exprs s2 (ConcST t) x
+                  -> [x]
                   -> Int
                   -> ST t ([Observation], [Observation], [Observation])
 discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
@@ -156,21 +156,21 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall x a s t. (Ord x, T.Typeable a)
+discoverSingle :: forall x s t. (Ord x, T.Typeable x)
                => (TypeRep Void Void1 -> [Dynamic Void Void1])
-               -> Exprs s (ConcST t) x a
+               -> Exprs s (ConcST t) x
                -> Int
                -> ST t [Observation]
 discoverSingle listValues exprs =
-  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy a)
+  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy x)
       seeds  = mapMaybe unsafeFromDyn $ listValues seedty
   in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: Ord x
                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
-                        -> Exprs s (ConcST t) x a
-                        -> [a]
+                        -> Exprs s (ConcST t) x
+                        -> [x]
                         -> Int
                         -> ST t [Observation]
 discoverSingleWithSeeds listValues exprs seeds lim =
@@ -179,8 +179,8 @@ discoverSingleWithSeeds listValues exprs seeds lim =
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: Ord x
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
-                         -> Exprs s (ConcST t) x a
-                         -> [a]
+                         -> Exprs s (ConcST t) x
+                         -> [x]
                          -> Int
                          -> ST t (Generator s (ConcST t) (Maybe (Ann x), Ann x), [Observation])
 discoverSingleWithSeeds' listValues exprs seeds lim =
@@ -244,11 +244,11 @@ a ||| b = do
 -- | Run a concurrent program many times, gathering the results. Up to
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
-runSingle :: forall s t x a. Ord x
+runSingle :: forall s t x. Ord x
           => (TypeRep Void Void1 -> [Dynamic Void Void1])
-          -> Exprs s (ConcST t) x a
+          -> Exprs s (ConcST t) x
           -> Expr s (ConcST t)
-          -> [a]
+          -> [x]
           -> Maybe (ST t (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
 runSingle listValues exprs expr seeds
     | null assignments = Nothing
