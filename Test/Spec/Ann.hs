@@ -33,8 +33,20 @@ import Test.Spec.Gen (Generator, mapTier)
 -- the refinement-checking to crush these dreams.
 data Ann x = Ann
   { allResults :: Maybe (Results x)
+  -- ^ Set of (assignment,results) pairs, or @Nothing@ if
+  -- untested. Only tested terms can be checked for refinement.
   , isFailing  :: Bool
+  -- ^ If every execution is a failure. Initially, it is assumed a
+  -- term is failing if either of its two subterms is, with none of
+  -- the base terms failing.
   , isSmallest :: Bool
+  -- ^ If this is the smallest observationally-equivalent
+  -- term. Initially, it is assumed a term is the smallest.
+  , isBoring   :: Bool
+  -- ^ If this term is nonfailing, atomic, and has no effect on the
+  -- state. Boring terms are all equivalent, and aren't used when
+  -- generating further terms. Initially, it is assumed a term is not
+  -- boring.
   }
   deriving (Eq, Ord, Show)
 
@@ -42,6 +54,7 @@ instance Semigroup (Ann x) where
   ann1 <> ann2 = Ann { allResults = Nothing
                      , isFailing  = isFailing ann1 || isFailing ann2
                      , isSmallest = True
+                     , isBoring   = False
                      }
 
 -- | The results of evaluating an expression.
@@ -67,6 +80,7 @@ initialAnn = Ann
   { allResults = Nothing
   , isFailing  = False
   , isSmallest = True
+  , isBoring   = False
   }
 
 -- | Annotate an expression.

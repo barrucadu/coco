@@ -196,7 +196,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
       let g' = adjustTier (const kept) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
-        else findObservations (stepGenerator checkGenBind g') (tier+1)
+        else findObservations (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate a term and store its results
     evalTerm ((_, ann), expr) =
@@ -316,13 +316,15 @@ mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b = (refines_ab, refin
     | refines_ba = Just (Refines expr_b expr_a)
     | otherwise = Nothing
 
--- | Filter for term generation: only generate binds out of smallest
--- terms.
-checkGenBind :: (a, Ann x) -> (b, Ann x) -> Expr s m -> Bool
-checkGenBind (_, ann1) (_, ann2) expr = case unBind expr of
-  Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
-  Just _ -> isSmallest ann2
-  _ -> True
+-- | Filter for term generation: only generate out of non-boring
+-- terms; and only generate binds out of smallest terms.
+checkNewTerm :: (a, Ann x) -> (b, Ann x) -> Expr s m -> Bool
+checkNewTerm (_, ann1) (_, ann2) expr
+  | isBoring ann1 || isBoring ann2 = False
+  | otherwise = case unBind expr of
+      Just ("_", _, _) -> isSmallest ann1 && isSmallest ann2
+      Just _ -> isSmallest ann2
+      _ -> True
 
 -- | Number of variants of a value to consider.
 numVariants :: Int
