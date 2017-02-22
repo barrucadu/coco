@@ -16,7 +16,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -42,6 +42,9 @@ data Ann x = Ann
   , isSmallest :: Bool
   -- ^ If this is the smallest observationally-equivalent
   -- term. Initially, it is assumed a term is the smallest.
+  , isAtomic   :: Bool
+  -- ^ If executing the term is atomic. Initially, it is assumed a
+  -- term is not atomic.
   , isBoring   :: Bool
   -- ^ If this term is nonfailing, atomic, and has no effect on the
   -- state. Boring terms are all equivalent, and aren't used when
@@ -54,12 +57,13 @@ instance Semigroup (Ann x) where
   ann1 <> ann2 = Ann { allResults = Nothing
                      , isFailing  = isFailing ann1 || isFailing ann2
                      , isSmallest = True
+                     , isAtomic   = False
                      , isBoring   = False
                      }
 
 -- | The results of evaluating an expression.
 data Results x
-  = Some (NonEmpty (VarAssignment, Set (Maybe Failure, x)))
+  = Some (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
   -- ^ The expression has some results, with the given variable
   -- assignments.
   | None
@@ -68,8 +72,8 @@ data Results x
   deriving (Eq, Ord, Show)
 
 -- | A variable assignment.
-data VarAssignment = VA
-  { seedTag :: Int
+data VarAssignment x = VA
+  { seedVal :: x
   , varTags :: Map String Int
   } deriving (Eq, Ord, Show)
 
@@ -80,6 +84,7 @@ initialAnn = Ann
   { allResults = Nothing
   , isFailing  = False
   , isSmallest = True
+  , isAtomic   = False
   , isBoring   = False
   }
 
@@ -89,12 +94,23 @@ annotate expr ann = mapTier go (exprSize expr) where
   go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
 
 -- | Update an annotation with expression-evaluation results.
-update :: Maybe (NonEmpty (VarAssignment, Set (Maybe Failure, x))) -> Ann x -> Ann x
-update Nothing ann = ann { allResults = Just None }
-update (Just results) ann = ann
+update :: Eq x => Bool -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x))) -> Ann x -> Ann x
+update atomic Nothing ann = ann { allResults = Just None, isAtomic = atomic }
+update atomic (Just results) ann = ann
   { allResults  = Just (Some results)
-  , isFailing   = all (all (isJust . fst) . snd) results
+  , isFailing   = checkIsFailing results
+  , isAtomic    = atomic
+  , isBoring    = checkIsBoring atomic results
   }
+
+-- | Check if a set of results corresponds to a failing term.
+checkIsFailing :: NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
+checkIsFailing = all (all (isJust . fst) . snd)
+
+-- | Check if a set of results corresponds to a boring term.
+checkIsBoring :: Eq x => Bool -> NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
+checkIsBoring atomic rs0 = atomic && all ch rs0 where
+  ch (va, rs) = all (\(f, x) -> isNothing f && x == seedVal va) rs
 
 -- | Check if the left expression refines the right or the right returns the left.
 --

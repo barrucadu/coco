@@ -46,7 +46,7 @@ module Test.Spec.Concurrency
   , (|||)
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.Monad.ST (ST)
 import Data.List (foldl')
@@ -59,9 +59,10 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
-import Test.DejaFu (Failure, defaultBounds, defaultMemType)
+import Test.DejaFu (Failure, defaultMemType, defaultWay)
+import Test.DejaFu.Common (ThreadAction(Subconcurrency, StopSubconcurrency))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
-import Test.DejaFu.SCT (sctBound)
+import Test.DejaFu.SCT (runSCT)
 
 import Test.Spec.Ann
 import Test.Spec.Expr (Expr, bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, unBind)
@@ -177,7 +178,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: Ord x
+discoverSingleWithSeeds' :: forall s t x. Ord x
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x
                          -> [x]
@@ -199,8 +200,11 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
         else findObservations (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate a term and store its results
-    evalTerm ((_, ann), expr) =
-      (\rs -> ((Just ann, update rs ann), expr)) <$> run expr
+    evalTerm ((_, ann), expr) = do
+      mrs <- run expr
+      pure $ case mrs of
+        Just (atomic, rs) -> if atomic then error ("atomic:  " ++ show expr) else ((Just ann, update atomic (Just rs) ann), expr)
+        Nothing -> ((Just ann, update False Nothing ann), expr)
 
     -- find observations and either annotate a term or throw it away.
     check smallers (ckept, cobs) a@((old_ann_a, ann_a), expr_a)
@@ -222,6 +226,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
           in (final_ann', maybe id (flip csnoc) ob obs)
 
     -- evaluate a expression.
+    run :: Expr s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
     run expr = shoveMaybe (runSingle listValues exprs expr seeds)
 
 
@@ -249,24 +254,29 @@ runSingle :: forall s t x. Ord x
           -> Exprs s (ConcST t) x
           -> Expr s (ConcST t)
           -> [x]
-          -> Maybe (ST t (NonEmpty (VarAssignment, Set (Maybe Failure, x))))
+          -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
 runSingle listValues exprs expr seeds
     | null assignments = Nothing
-    | otherwise = Just $ L.fromList <$> mapM go assignments
+    | otherwise = Just ((and *** L.fromList) . unzip <$> mapM go assignments)
   where
     go (varassign, eval_expr, seed) = do
-      rs <- runConc $ do
+      rs <- runSCT defaultWay defaultMemType $ do
         s <- initialState exprs seed
         r <- subconcurrency . shoveMaybe $ eval_expr s
         x <- observation exprs s
         pure (either Just (const Nothing) r, x)
+      -- very rough interpretation of atomicity: the trace has one
+      -- thing in it other than the stop!
+      let is_atomic trc =
+            let relevant = takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency) . drop 1 . dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
+            in length (relevant trc) == 1
+      let rs' = smapMaybe eitherToMaybe . S.fromList $ map fst rs
       -- strictify, to avoid wasting memory on intermediate results.
-      let rs' = smapMaybe eitherToMaybe rs
-      S.size rs' `seq` pure (varassign, rs')
+      S.size rs' `seq` pure (all (is_atomic . snd) rs, (varassign, rs'))
 
     assignments =
-      [ (VA sid (M.fromList vidmap), eval_expr, seed)
-      | (sid, seed) <- take numVariants $ zip [0..] seeds
+      [ (VA seed (M.fromList vidmap), eval_expr, seed)
+      | seed <- take numVariants seeds
       , (vidmap, eval_expr) <- assign vars expr
       ]
 
@@ -282,11 +292,6 @@ runSingle listValues exprs expr seeds
     freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . freeVariables
 
     evoid e = bind "_" e (constant "" (pure () :: ConcST t ()))
-
--- | Run a concurrent computation, producing the set of all results.
-runConc :: Ord a => ConcST t a -> ST t (Set (Either Failure a))
-runConc c =
-  S.fromList . map fst <$> sctBound defaultMemType defaultBounds c
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
 -- appropriate 'Observation' given the results of execution.
