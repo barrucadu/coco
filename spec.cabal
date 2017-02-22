@@ -28,7 +28,7 @@ library
   build-depends:       base >=4.9 && <4.10
                      , concurrency
                      , containers >=0.5.8 && <0.6
-                     , dejafu >=0.5 && <0.6
+                     , dejafu >=0.5.0.2 && <0.6
                      , leancheck >=0.6 && <0.7
                      , template-haskell >=2.11 && <3
   -- hs-source-dirs:      
