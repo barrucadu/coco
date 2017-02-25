@@ -30,4 +30,4 @@ example :: Int -> IO ()
 example n = mapM_ print $ runST $ discoverSingle defaultListValues exprs n
 
 main :: IO ()
-main = example 5
+main = example 10

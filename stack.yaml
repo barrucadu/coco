@@ -42,7 +42,7 @@ packages:
 extra-deps:
 - concurrency-1.1.0.0
 - containers-0.5.10.1
-- dejafu-0.5.1.0
+- dejafu-0.5.1.1
 - leancheck-0.6.0
 
 # Override default flag values for local packages and extra-deps
