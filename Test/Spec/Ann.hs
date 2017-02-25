@@ -11,6 +11,7 @@
 -- Expression annotations.
 module Test.Spec.Ann where
 
+import Control.DeepSeq (NFData(..))
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
@@ -76,6 +77,9 @@ data VarAssignment x = VA
   { seedVal :: x
   , varTags :: Map String Int
   } deriving (Eq, Ord, Show)
+
+instance NFData x => NFData (VarAssignment x) where
+  rnf (VA s vs) = rnf (s, vs)
 
 -- | The \"default\" annotation. This is not the unit of
 -- 'Semigroup.<>', as it has no unit.

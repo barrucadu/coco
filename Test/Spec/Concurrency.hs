@@ -48,6 +48,7 @@ module Test.Spec.Concurrency
 
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
+import Control.DeepSeq (NFData, rnf)
 import Control.Monad.ST (ST)
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty)
@@ -62,7 +63,7 @@ import Data.Void (Void)
 import Test.DejaFu (Failure, defaultMemType, defaultWay)
 import Test.DejaFu.Common (ThreadAction(Subconcurrency, StopSubconcurrency))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
-import Test.DejaFu.SCT (runSCT)
+import Test.DejaFu.SCT (runSCT')
 
 import Test.Spec.Ann
 import Test.Spec.Expr (Expr, bind, constant, dynConstant, evaluate, exprSize, exprTypeRep, freeVariables, let_, rename, unBind)
@@ -112,7 +113,7 @@ data Exprs s m x = Exprs
 -- operations. Returns three sets of observations about, respectively:
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
-discover :: forall x s1 s2 t. (Ord x, T.Typeable x)
+discover :: forall x s1 s2 t. (Ord x, T.Typeable x, NFData x)
          => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
          -> Exprs s1 (ConcST t) x -- ^ A collection of expressions
          -> Exprs s2 (ConcST t) x -- ^ Another collection of expressions.
@@ -124,7 +125,7 @@ discover listValues exprs1 exprs2 =
   in discoverWithSeeds listValues exprs1 exprs2 seeds
 
 -- | Like 'discover', but takes a list of seeds.
-discoverWithSeeds :: Ord x
+discoverWithSeeds :: (Ord x, NFData x)
                   => (TypeRep Void Void1 -> [Dynamic Void Void1])
                   -> Exprs s1 (ConcST t) x
                   -> Exprs s2 (ConcST t) x
@@ -157,7 +158,7 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall x s t. (Ord x, T.Typeable x)
+discoverSingle :: forall x s t. (Ord x, T.Typeable x, NFData x)
                => (TypeRep Void Void1 -> [Dynamic Void Void1])
                -> Exprs s (ConcST t) x
                -> Int
@@ -168,7 +169,7 @@ discoverSingle listValues exprs =
   in discoverSingleWithSeeds listValues exprs seeds
 
 -- | Like 'discoverSingle', but takes a list of seeds.
-discoverSingleWithSeeds :: Ord x
+discoverSingleWithSeeds :: (Ord x, NFData x)
                         => (TypeRep Void Void1 -> [Dynamic Void Void1])
                         -> Exprs s (ConcST t) x
                         -> [x]
@@ -178,7 +179,7 @@ discoverSingleWithSeeds listValues exprs seeds lim =
   snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: forall s t x. Ord x
+discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
                          => (TypeRep Void Void1 -> [Dynamic Void Void1])
                          -> Exprs s (ConcST t) x
                          -> [x]
@@ -249,7 +250,7 @@ a ||| b = do
 -- | Run a concurrent program many times, gathering the results. Up to
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
-runSingle :: forall s t x. Ord x
+runSingle :: forall s t x. (Ord x, NFData x)
           => (TypeRep Void Void1 -> [Dynamic Void Void1])
           -> Exprs s (ConcST t) x
           -> Expr s (ConcST t)
@@ -257,10 +258,12 @@ runSingle :: forall s t x. Ord x
           -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
 runSingle listValues exprs expr seeds
     | null assignments = Nothing
-    | otherwise = Just ((and *** L.fromList) . unzip <$> mapM go assignments)
+    | otherwise = Just $ do
+        out <- (and *** L.fromList) . unzip <$> mapM go assignments
+        rnf out `seq` pure out
   where
     go (varassign, eval_expr, seed) = do
-      rs <- runSCT defaultWay defaultMemType $ do
+      rs <- runSCT' defaultWay defaultMemType $ do
         s <- initialState exprs seed
         r <- subconcurrency . shoveMaybe $ eval_expr s
         x <- observation exprs s
@@ -270,9 +273,9 @@ runSingle listValues exprs expr seeds
       let is_atomic trc =
             let relevant = takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency) . drop 1 . dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
             in length (relevant trc) == 1
-      let rs' = smapMaybe eitherToMaybe . S.fromList $ map fst rs
+      let out = (all (is_atomic . snd) rs, (varassign, smapMaybe eitherToMaybe . S.fromList $ map fst rs))
       -- strictify, to avoid wasting memory on intermediate results.
-      S.size rs' `seq` pure (all (is_atomic . snd) rs, (varassign, rs'))
+      rnf out `seq` pure out
 
     assignments =
       [ (VA seed (M.fromList vidmap), eval_expr, seed)
