@@ -204,7 +204,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
     evalTerm ((_, ann), expr) = do
       mrs <- run expr
       pure $ case mrs of
-        Just (atomic, rs) -> if atomic then error ("atomic:  " ++ show expr) else ((Just ann, update atomic (Just rs) ann), expr)
+        Just (atomic, rs) -> ((Just ann, update atomic (Just rs) ann), expr)
         Nothing -> ((Just ann, update False Nothing ann), expr)
 
     -- find observations and either annotate a term or throw it away.
