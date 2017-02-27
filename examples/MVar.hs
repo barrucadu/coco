@@ -23,6 +23,7 @@ exprs = Exprs
                   ]
   , observation = tryTakeMVar
   , eval = defaultEvaluate
+  , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   }
 
 -- | For using in GHCi

@@ -49,6 +49,7 @@ module Test.Spec.Concurrency
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
+import Control.Monad (void)
 import Control.Monad.ST (ST)
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty)
@@ -107,6 +108,10 @@ data Exprs s m x = Exprs
   , eval :: Expr s m -> Maybe (s -> Maybe (m ()))
   -- ^ Evaluate an expression. In practice this will just be
   -- 'defaultEvaluate', but it's here to make the types work out.
+  , setState :: s -> x -> m ()
+  -- ^ Set the state value. This doesn't need to be atomic, or even
+  -- guaranteed to work, its purpose is to cause interference when
+  -- evaluating other terms.
   }
 
 -- | Attempt to discover properties of the given set of concurrent
@@ -262,10 +267,12 @@ runSingle listValues exprs expr seeds
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
         rnf out `seq` pure out
   where
-    go (varassign, eval_expr, seed) = do
+    go (varassign, eval_expr) = do
       rs <- runSCT' defaultWay defaultMemType $ do
-        s <- initialState exprs seed
-        r <- subconcurrency . shoveMaybe $ eval_expr s
+        s <- initialState exprs (seedVal varassign)
+        r <- subconcurrency $ do
+          void . C.fork . setState exprs s $ seedVal varassign
+          shoveMaybe (eval_expr s)
         x <- observation exprs s
         pure (either Just (const Nothing) r, x)
       -- very rough interpretation of atomicity: the trace has one
@@ -278,7 +285,7 @@ runSingle listValues exprs expr seeds
       rnf out `seq` pure out
 
     assignments =
-      [ (VA seed (M.fromList vidmap), eval_expr, seed)
+      [ (VA seed (M.fromList vidmap), eval_expr)
       | seed <- take numVariants seeds
       , (vidmap, eval_expr) <- assign vars expr
       ]
