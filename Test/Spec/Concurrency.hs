@@ -49,9 +49,9 @@ module Test.Spec.Concurrency
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
-import Control.Monad (void, when)
+import Control.Monad (void)
 import Control.Monad.ST (ST)
-import Data.List (foldl')
+import Data.List (foldl', partition)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
@@ -62,7 +62,7 @@ import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
 import Test.DejaFu (Failure, defaultMemType, defaultWay)
-import Test.DejaFu.Common (ThreadAction(Subconcurrency, StopSubconcurrency))
+import Test.DejaFu.Common (Decision(..), ThreadAction(..))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
@@ -207,12 +207,12 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- evaluate a term and store its results
     evalTerm ((_, ann), expr) = do
-      maybe_no_interference <- run False expr
-      maybe_interference    <- run True  expr
-      let atomic          = maybe False fst maybe_no_interference
-      let no_interference = snd <$> maybe_no_interference
-      let interference    = snd <$> maybe_interference
-      pure ((Just ann, update atomic no_interference interference ann), expr)
+      mrs <- run expr
+      pure $ case mrs of
+        Just (atomic, rs) ->
+          ((Just ann, update atomic (Just rs) ann), expr)
+        Nothing ->
+          ((Just ann, update False Nothing ann), expr)
 
     -- find observations and either annotate a term or throw it away.
     check smallers (ckept, cobs) a@((old_ann_a, ann_a), expr_a)
@@ -234,8 +234,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
           in (final_ann', maybe id (flip csnoc) ob obs)
 
     -- evaluate a expression.
-    run :: Bool -> Expr s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-    run interference expr = shoveMaybe (runSingle listValues exprs interference expr seeds)
+    run expr = shoveMaybe (runSingle listValues exprs expr seeds)
 
 
 -------------------------------------------------------------------------------
@@ -260,11 +259,10 @@ a ||| b = do
 runSingle :: forall s t x. (Ord x, NFData x)
           => (TypeRep Void Void1 -> [Dynamic Void Void1])
           -> Exprs s (ConcST t) x
-          -> Bool
           -> Expr s (ConcST t)
           -> [x]
-          -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-runSingle listValues exprs interference expr seeds
+          -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x), Set (Maybe Failure, x))))
+runSingle listValues exprs expr seeds
     | null assignments = Nothing
     | otherwise = Just $ do
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
@@ -274,19 +272,46 @@ runSingle listValues exprs interference expr seeds
       rs <- runSCT' defaultWay defaultMemType $ do
         s <- initialState exprs (seedVal varassign)
         r <- subconcurrency $ do
-          when interference $
-            void . C.fork . setState exprs s $ seedVal varassign
+          void . C.fork . setState exprs s $ seedVal varassign
           shoveMaybe (eval_expr s)
         x <- observation exprs s
         pure (either Just (const Nothing) r, x)
-      -- very rough interpretation of atomicity: the trace has one
-      -- thing in it other than the stop!
-      let is_atomic trc =
-            let relevant = takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency) . drop 1 . dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
-            in length (relevant trc) == 1
-      let out = (all (is_atomic . snd) rs, (varassign, smapMaybe eitherToMaybe . S.fromList $ map fst rs))
+      let (no_interference, interference) = partition (checkInterfere . snd) rs
+      let to_results_set = smapMaybe eitherToMaybe . S.fromList . map fst
+      let out = (all (checkAtomic . snd) no_interference, (varassign, to_results_set no_interference, to_results_set interference))
       -- strictify, to avoid wasting memory on intermediate results.
       rnf out `seq` pure out
+
+    -- very rough interpretation of atomicity: the trace has one thing
+    -- in it other than the stop, and there is no interference.
+    checkAtomic = checkAtomic' (0::Int) where
+      checkAtomic' 0 ((_, _, Subconcurrency):rest) = checkAtomic' 1 rest
+      checkAtomic' 0 (_:rest) = checkAtomic' 0 rest
+      checkAtomic' 1 ((_, _, Fork _):rest) = checkAtomic' 2 rest
+      checkAtomic' 1 _ = False
+      checkAtomic' 2 ((SwitchTo _, _, _):rest) = checkAtomic' 3 rest
+      checkAtomic' 2 _ = False
+      checkAtomic' 3 ((_, _, Stop):rest) = checkAtomic' 4 rest
+      checkAtomic' 3 ((Continue, _, _):rest) = checkAtomic' 3 rest
+      checkAtomic' 3 _ = False
+      checkAtomic' 4 (_:(_,_,Stop):(_,_,StopSubconcurrency):_) = True
+      checkAtomic' 4 (_:(_,_,StopSubconcurrency):_) = True
+      checkAtomic' 4 _ = False
+      checkAtomic' _ _ = error "internal error: checkAtomic' in bad state"
+
+    -- returns true if all the interference happens before executing
+    -- the term
+    checkInterfere = checkInterfere' (0::Int) where
+      checkInterfere' 0 ((_, _, Subconcurrency):rest) = checkInterfere' 1 rest
+      checkInterfere' 0 (_:rest) = checkInterfere' 0 rest
+      checkInterfere' 1 ((_, _, Fork _):rest) = checkInterfere' 2 rest
+      checkInterfere' 1 _ = False
+      checkInterfere' 2 ((SwitchTo _, _, _):rest) = checkInterfere' 3 rest
+      checkInterfere' 2 _ = False
+      checkInterfere' 3 ((_, _, Stop):_) = True
+      checkInterfere' 3 ((Continue, _, _):rest) = checkInterfere' 3 rest
+      checkInterfere' 3 _ = False
+      checkInterfere' _ _ = error "internal error: checkInterfere' in bad state"
 
     assignments =
       [ (VA seed (M.fromList vidmap), eval_expr)

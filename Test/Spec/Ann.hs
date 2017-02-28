@@ -33,12 +33,9 @@ import Test.Spec.Gen (Generator, mapTier)
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
 data Ann x = Ann
-  { allResults :: Maybe (Results x, Results x)
+  { allResults :: Maybe (Results x)
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
-  -- untested. Only tested terms can be checked for refinement. The
-  -- first 'Results' set is the results of executing the term with no
-  -- interference, the second is the results of executing with
-  -- interference.
+  -- untested. Only tested terms can be checked for refinement.
   , isFailing  :: Bool
   -- ^ If every execution is a failure. Initially, it is assumed a
   -- term is failing if either of its two subterms is, with none of
@@ -67,9 +64,11 @@ instance Semigroup (Ann x) where
 
 -- | The results of evaluating an expression.
 data Results x
-  = Some (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
+  = Some (NonEmpty (VarAssignment x, Set (Maybe Failure, x), Set (Maybe Failure, x)))
   -- ^ The expression has some results, with the given variable
-  -- assignments.
+  -- assignments. The first set is results in the presence of no
+  -- interference, the second is results in the presence of
+  -- interference.
   | None
   -- ^ The expression has no results (eg, has a function type, has
   -- free variables).
@@ -104,26 +103,27 @@ annotate expr ann = mapTier go (exprSize expr) where
 update :: Eq x
   => Bool
   -- ^ True if the execution of the term is atomic.
-  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
-  -- ^ The results with no interference.
-  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
-  -- ^ The results with interference.
+  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x), Set (Maybe Failure, x)))
+  -- ^ The results. The first set is in the presence of no
+  -- interference, the second set is in the presence of interference.
   -> Ann x -> Ann x
-update atomic nointerfere interfere ann = ann
-  { allResults  = Just (maybe None Some nointerfere, maybe None Some interfere)
-  , isFailing   = maybe (isFailing ann) checkIsFailing nointerfere
+update atomic Nothing ann = ann { allResults = Just None, isAtomic = atomic }
+update atomic (Just results) ann = ann
+  { allResults  = Just (Some results)
+  , isFailing   = checkIsFailing results
   , isAtomic    = atomic
-  , isBoring    = maybe (isBoring ann) (checkIsBoring atomic) nointerfere
+  , isBoring    = checkIsBoring atomic results
   }
 
 -- | Check if a set of results corresponds to a failing term.
-checkIsFailing :: NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
-checkIsFailing = all (all (isJust . fst) . snd)
+checkIsFailing :: NonEmpty (VarAssignment x, Set (Maybe Failure, x), z) -> Bool
+checkIsFailing = all ch where
+  ch (_, rs, _) = all (isJust . fst) rs
 
 -- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
+checkIsBoring :: Eq x => Bool -> NonEmpty (VarAssignment x, Set (Maybe Failure, x), z) -> Bool
 checkIsBoring atomic rs0 = atomic && all ch rs0 where
-  ch (va, rs) = all (\(f, x) -> isNothing f && x == seedVal va) rs
+  ch (va, rs, _) = all (\(f, x) -> isNothing f && x == seedVal va) rs
 
 -- | Check if the left expression refines the right or the right returns the left.
 --
@@ -139,24 +139,20 @@ refines ann_a ann_b
     -- otherwise everything refines everything else: there's always
     -- one result in common, where the interference runs last and so
     -- gives the observation a constant value.
-    | are_equiv = check <$> interfere_a <*> interfere_b
+    | are_equiv = check True <$> allResults ann_a <*> allResults ann_b
     | otherwise = refines_ab_ba
   where
-    nointerfere_a = fst <$> allResults ann_a
-    nointerfere_b = fst <$> allResults ann_b
-    interfere_a   = snd <$> allResults ann_a
-    interfere_b   = snd <$> allResults ann_b
-
     are_equiv = refines_ab_ba == Just (True, True)
-    refines_ab_ba = check <$> nointerfere_a <*> nointerfere_b
+    refines_ab_ba = check False <$> allResults ann_a <*> allResults ann_b
 
-    check (Some results_a) (Some results_b) = foldl' pairAnd (True, True)
+    check interference (Some results_a) (Some results_b) = foldl' pairAnd (True, True)
       [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
-      | (ass_a, as) <- L.toList results_a
-      , (ass_b, bs) <- L.toList results_b
+      | (ass_a, as_noi, as_i) <- L.toList results_a
+      , (ass_b, bs_noi, bs_i) <- L.toList results_b
       , checkAssigns ass_a ass_b
+      , let (as, bs) = if interference then (as_i, bs_i) else (as_noi, bs_noi)
       ]
-    check _ _ = (False, False)
+    check _ _ _ = (False, False)
 
     -- two sets of variable assignments match if every variable is
     -- either present in only one execution, or has the same value in
