@@ -49,7 +49,7 @@ module Test.Spec.Concurrency
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Monad.ST (ST)
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty)
@@ -150,7 +150,7 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
         let exprs = getTier' tier g1
             smallers = map (`getTier'` g2) [0..tier]
             observations = foldl' (check smallers) cnil exprs
-        in (cappend observations) $ if tier == lim then cnil else go (tier+1)
+        in cappend observations $ if tier == lim then cnil else go (tier+1)
 
     check smallers cobs ((old_ann_a, ann_a), expr_a)
         | isJust (allResults ann_a) = cappend cobs (foldl' (foldl' go) cnil smallers)
@@ -207,10 +207,12 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- evaluate a term and store its results
     evalTerm ((_, ann), expr) = do
-      mrs <- run expr
-      pure $ case mrs of
-        Just (atomic, rs) -> ((Just ann, update atomic (Just rs) ann), expr)
-        Nothing -> ((Just ann, update False Nothing ann), expr)
+      maybe_no_interference <- run False expr
+      maybe_interference    <- run True  expr
+      let atomic          = maybe False fst maybe_no_interference
+      let no_interference = snd <$> maybe_no_interference
+      let interference    = snd <$> maybe_interference
+      pure ((Just ann, update atomic no_interference interference ann), expr)
 
     -- find observations and either annotate a term or throw it away.
     check smallers (ckept, cobs) a@((old_ann_a, ann_a), expr_a)
@@ -232,8 +234,8 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
           in (final_ann', maybe id (flip csnoc) ob obs)
 
     -- evaluate a expression.
-    run :: Expr s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-    run expr = shoveMaybe (runSingle listValues exprs expr seeds)
+    run :: Bool -> Expr s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
+    run interference expr = shoveMaybe (runSingle listValues exprs interference expr seeds)
 
 
 -------------------------------------------------------------------------------
@@ -258,10 +260,11 @@ a ||| b = do
 runSingle :: forall s t x. (Ord x, NFData x)
           => (TypeRep Void Void1 -> [Dynamic Void Void1])
           -> Exprs s (ConcST t) x
+          -> Bool
           -> Expr s (ConcST t)
           -> [x]
           -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-runSingle listValues exprs expr seeds
+runSingle listValues exprs interference expr seeds
     | null assignments = Nothing
     | otherwise = Just $ do
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
@@ -271,7 +274,8 @@ runSingle listValues exprs expr seeds
       rs <- runSCT' defaultWay defaultMemType $ do
         s <- initialState exprs (seedVal varassign)
         r <- subconcurrency $ do
-          void . C.fork . setState exprs s $ seedVal varassign
+          when interference $
+            void . C.fork . setState exprs s $ seedVal varassign
           shoveMaybe (eval_expr s)
         x <- observation exprs s
         pure (either Just (const Nothing) r, x)

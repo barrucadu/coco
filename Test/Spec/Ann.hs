@@ -33,9 +33,12 @@ import Test.Spec.Gen (Generator, mapTier)
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
 data Ann x = Ann
-  { allResults :: Maybe (Results x)
+  { allResults :: Maybe (Results x, Results x)
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
-  -- untested. Only tested terms can be checked for refinement.
+  -- untested. Only tested terms can be checked for refinement. The
+  -- first 'Results' set is the results of executing the term with no
+  -- interference, the second is the results of executing with
+  -- interference.
   , isFailing  :: Bool
   -- ^ If every execution is a failure. Initially, it is assumed a
   -- term is failing if either of its two subterms is, with none of
@@ -98,13 +101,19 @@ annotate expr ann = mapTier go (exprSize expr) where
   go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
 
 -- | Update an annotation with expression-evaluation results.
-update :: Eq x => Bool -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x))) -> Ann x -> Ann x
-update atomic Nothing ann = ann { allResults = Just None, isAtomic = atomic }
-update atomic (Just results) ann = ann
-  { allResults  = Just (Some results)
-  , isFailing   = checkIsFailing results
+update :: Eq x
+  => Bool
+  -- ^ True if the execution of the term is atomic.
+  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
+  -- ^ The results with no interference.
+  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
+  -- ^ The results with interference.
+  -> Ann x -> Ann x
+update atomic nointerfere interfere ann = ann
+  { allResults  = Just (maybe None Some nointerfere, maybe None Some interfere)
+  , isFailing   = maybe (isFailing ann) checkIsFailing nointerfere
   , isAtomic    = atomic
-  , isBoring    = checkIsBoring atomic results
+  , isBoring    = maybe (isBoring ann) (checkIsBoring atomic) nointerfere
   }
 
 -- | Check if a set of results corresponds to a failing term.
@@ -122,19 +131,37 @@ checkIsBoring atomic rs0 = atomic && all ch rs0 where
 -- either annotation has no results (which is different to missing
 -- results!), @(False, False)@ is returned.
 refines :: Ord x => Ann x -> Ann x -> Maybe (Bool, Bool)
-refines ann_a ann_b = check <$> allResults ann_a <*> allResults ann_b where
-  check (Some results_a) (Some results_b) = foldl' pairAnd (True, True)
-    [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
-    | (ass_a, as) <- L.toList results_a
-    , (ass_b, bs) <- L.toList results_b
-    , checkAssigns ass_a ass_b
-    ]
-  check _ _ = (False, False)
+refines ann_a ann_b
+    -- if the terms are equivalent, we want to distinguish a
+    -- refinement from a "false equivalence" by checking the results
+    -- in the presence of interference. we need to use the
+    -- uninterfered results to check equivalence/refinement, as
+    -- otherwise everything refines everything else: there's always
+    -- one result in common, where the interference runs last and so
+    -- gives the observation a constant value.
+    | are_equiv = check <$> interfere_a <*> interfere_b
+    | otherwise = refines_ab_ba
+  where
+    nointerfere_a = fst <$> allResults ann_a
+    nointerfere_b = fst <$> allResults ann_b
+    interfere_a   = snd <$> allResults ann_a
+    interfere_b   = snd <$> allResults ann_b
 
-  -- two sets of variable assignments match if every variable is
-  -- either present in only one execution, or has the same value in
-  -- both executions
-  checkAssigns (VA seed_a vars_a) (VA seed_b vars_b) =
-    seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b == v) True vars_a
+    are_equiv = refines_ab_ba == Just (True, True)
+    refines_ab_ba = check <$> nointerfere_a <*> nointerfere_b
 
-  pairAnd (a, b) (c, d) = (a && c, b && d)
+    check (Some results_a) (Some results_b) = foldl' pairAnd (True, True)
+      [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
+      | (ass_a, as) <- L.toList results_a
+      , (ass_b, bs) <- L.toList results_b
+      , checkAssigns ass_a ass_b
+      ]
+    check _ _ = (False, False)
+
+    -- two sets of variable assignments match if every variable is
+    -- either present in only one execution, or has the same value in
+    -- both executions
+    checkAssigns (VA seed_a vars_a) (VA seed_b vars_b) =
+      seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b == v) True vars_a
+
+    pairAnd (a, b) (c, d) = (a && c, b && d)
