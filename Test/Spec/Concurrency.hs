@@ -284,34 +284,24 @@ runSingle listValues exprs expr seeds
 
     -- very rough interpretation of atomicity: the trace has one thing
     -- in it other than the stop, and there is no interference.
-    checkAtomic = checkAtomic' (0::Int) where
-      checkAtomic' 0 ((_, _, Subconcurrency):rest) = checkAtomic' 1 rest
-      checkAtomic' 0 (_:rest) = checkAtomic' 0 rest
-      checkAtomic' 1 ((_, _, Fork _):rest) = checkAtomic' 2 rest
-      checkAtomic' 1 _ = False
-      checkAtomic' 2 ((SwitchTo _, _, _):rest) = checkAtomic' 3 rest
-      checkAtomic' 2 _ = False
-      checkAtomic' 3 ((_, _, Stop):rest) = checkAtomic' 4 rest
-      checkAtomic' 3 ((Continue, _, _):rest) = checkAtomic' 3 rest
-      checkAtomic' 3 _ = False
-      checkAtomic' 4 (_:(_,_,Stop):(_,_,StopSubconcurrency):_) = True
-      checkAtomic' 4 (_:(_,_,StopSubconcurrency):_) = True
-      checkAtomic' 4 _ = False
-      checkAtomic' _ _ = error "internal error: checkAtomic' in bad state"
+    checkAtomic trc =
+      let (noInterference, rest) = checkInterfere' (0::Int) trc
+      in case rest of
+           (_:(_,_,Stop):(_,_,StopSubconcurrency):_) -> noInterference
+           (_:(_,_,StopSubconcurrency):_) -> noInterference
+           _ -> False
 
     -- returns true if all the interference happens before executing
     -- the term
-    checkInterfere = checkInterfere' (0::Int) where
-      checkInterfere' 0 ((_, _, Subconcurrency):rest) = checkInterfere' 1 rest
-      checkInterfere' 0 (_:rest) = checkInterfere' 0 rest
-      checkInterfere' 1 ((_, _, Fork _):rest) = checkInterfere' 2 rest
-      checkInterfere' 1 _ = False
-      checkInterfere' 2 ((SwitchTo _, _, _):rest) = checkInterfere' 3 rest
-      checkInterfere' 2 _ = False
-      checkInterfere' 3 ((_, _, Stop):_) = True
-      checkInterfere' 3 ((Continue, _, _):rest) = checkInterfere' 3 rest
-      checkInterfere' 3 _ = False
-      checkInterfere' _ _ = error "internal error: checkInterfere' in bad state"
+    checkInterfere = fst . checkInterfere' (0::Int)
+    checkInterfere' 0 ((_, _, Subconcurrency):rest) = checkInterfere' 1 rest
+    checkInterfere' 0 (_:rest) = checkInterfere' 0 rest
+    checkInterfere' 1 ((_, _, Fork _):(SwitchTo _, _, _):rest) = checkInterfere' 2 rest
+    checkInterfere' 1 (_:rest) = (False, rest)
+    checkInterfere' 2 ((_, _, Stop):rest) = (True, rest)
+    checkInterfere' 2 ((Continue, _, _):rest) = checkInterfere' 2 rest
+    checkInterfere' 2 (_:rest) = (False, rest)
+    checkInterfere' _ _ = error "internal error: checkInterfere' in bad state"
 
     assignments =
       [ (VA seed (M.fromList vidmap), eval_expr)
