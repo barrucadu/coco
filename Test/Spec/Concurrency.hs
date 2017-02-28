@@ -62,7 +62,7 @@ import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
 import Test.DejaFu (Failure, defaultMemType, defaultWay)
-import Test.DejaFu.Common (Decision(..), ThreadAction(..))
+import Test.DejaFu.Common (Decision(..), ThreadAction(..), isBlock)
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
@@ -298,12 +298,25 @@ runSingle listValues exprs expr seeds
     checkInterfere = fst . checkInterfere' (0::Int)
     checkInterfere' 0 ((_, _, Subconcurrency):rest) = checkInterfere' 1 rest
     checkInterfere' 0 (_:rest) = checkInterfere' 0 rest
-    checkInterfere' 1 ((_, _, Fork _):(SwitchTo _, _, _):rest) = checkInterfere' 2 rest
+    checkInterfere' 1 ((_, _, Fork _):rest) = checkInterfere' 2 rest
     checkInterfere' 1 (_:rest) = (False, rest)
-    checkInterfere' 2 ((_, _, Stop):rest) = (True, rest)
-    checkInterfere' 2 ((Continue, _, _):rest) = checkInterfere' 2 rest
-    checkInterfere' 2 (_:rest) = (False, rest)
+    checkInterfere' 2 ((Continue,_,ta):rest)
+      | checkUninteresting ta = checkInterfere' 2 rest
+      | otherwise  = (False, rest)
+    checkInterfere' 2 ((_, _, _):rest) = checkInterfere' 3 rest
+    checkInterfere' 3 ((_, _, Stop):rest) = (True, rest)
+    checkInterfere' 3 ((Continue, _, _):rest) = checkInterfere' 3 rest
+    checkInterfere' 3 (_:rest) = (False, rest)
     checkInterfere' _ _ = error "internal error: checkInterfere' in bad state"
+
+    -- check if an action is uninteresting, from the point of view of interference
+    checkUninteresting (Fork _) = True
+    checkUninteresting MyThreadId = True
+    checkUninteresting Yield = True
+    checkUninteresting (NewMVar _) = True
+    checkUninteresting (NewCRef _) = True
+    checkUninteresting Return = True
+    checkUninteresting ta = isBlock ta
 
     assignments =
       [ (VA seed (M.fromList vidmap), eval_expr)
