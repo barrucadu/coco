@@ -281,6 +281,10 @@ runSingle listValues exprs expr seeds
       let (no_interference, interference) = partition (checkInterfere . snd) rs
       let to_results_set = smapMaybe eitherToMaybe . S.fromList . map fst
       let out = (all (checkAtomic . snd) no_interference, (varassign, to_results_set no_interference, to_results_set interference))
+      -- there must always be non-interfering results!
+      if null no_interference
+        then error ("internal error: no non-interfering results for expression: " ++ show expr ++ "\n\n" ++ foldr (\(_,trc) s -> show (map (\(x,_,y) -> (x,y)) trc) ++ "\n" ++ s) "" rs)
+        else pure ()
       -- strictify, to avoid wasting memory on intermediate results.
       rnf out `seq` pure out
 
