@@ -28,7 +28,7 @@ exprs = Exprs
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example n = mapM_ print $ runST $ discoverSingle defaultListValues exprs n
+example n = prettyPrint $ runST $ discoverSingle defaultListValues exprs n
 
 main :: IO ()
 main = example 10

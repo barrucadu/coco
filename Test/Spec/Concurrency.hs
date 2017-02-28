@@ -44,6 +44,8 @@ module Test.Spec.Concurrency
   , defaultListValues
   -- * Building blocks
   , (|||)
+  -- * Utilities
+  , prettyPrint
   ) where
 
 import Control.Arrow ((***), first, second)
@@ -51,7 +53,7 @@ import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
 import Control.Monad (void)
 import Control.Monad.ST (ST)
-import Data.List (foldl', partition)
+import Data.List (foldl', partition, sortOn)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
@@ -251,6 +253,23 @@ a ||| b = do
   C.takeMVar j1
   C.takeMVar j2
 
+
+-------------------------------------------------------------------------------
+-- Misc
+
+-- | Pretty-print a list of observations.
+prettyPrint :: [Observation] -> IO ()
+prettyPrint obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
+  obss = map go obss0 where
+    go (Equiv   e1 e2) = (show e1, "is equivalent to", show e2)
+    go (Refines e1 e2) = (show e1, "     refines    ", show e2)
+
+  cmp (e1, _, e2) = (length e1, e1, length e2, e2)
+
+  pad (e1, t, e2) =
+    replicate (maxlen - length e1) ' ' ++ e1 ++ "        " ++ t ++ "        " ++ e2
+
+  maxlen = maximum (map (\(e1, _, _) -> length e1) obss)
 
 -------------------------------------------------------------------------------
 -- Utilities

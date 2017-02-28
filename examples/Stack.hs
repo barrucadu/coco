@@ -140,11 +140,11 @@ exprsCAS = Exprs
 example :: Int -> IO ()
 example n = do
   let (obs1, obs2, obs3) = runST $ discover defaultListValues exprsLS exprsCAS n
-  mapM_ print obs1
+  prettyPrint obs1
   putStrLn ""
-  mapM_ print obs2
+  prettyPrint obs2
   putStrLn ""
-  mapM_ print obs3
+  prettyPrint obs3
 
 main :: IO ()
 main = example 10
