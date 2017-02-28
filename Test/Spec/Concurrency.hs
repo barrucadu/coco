@@ -221,17 +221,19 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
           (Nothing, obs)        -> (ckept, cappend cobs obs)
         | otherwise = (csnoc ckept a, cobs)
       where
-        go (final_ann, obs) ((old_ann_b, ann_b), expr_b) =
-          let (_, refines_ba, ob) = mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b
-              -- if B refines A then: if they are different types,
-              -- annotate A as not the smallest, otherwise throw A
-              -- away.
-              final_ann'
-                | isNothing final_ann = final_ann
-                | refines_ba && exprTypeRep expr_a == exprTypeRep expr_b = Nothing
-                | refines_ba = Just (ann_a { isSmallest = False })
-                | otherwise = final_ann
-          in (final_ann', maybe id (flip csnoc) ob obs)
+        go acc@(final_ann, obs) ((old_ann_b, ann_b), expr_b)
+          | isSmallest ann_b =
+              let (_, refines_ba, ob) = mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b
+                  -- if B refines A then: if they are different types,
+                  -- annotate A as not the smallest, otherwise throw A
+                  -- away.
+                  final_ann'
+                    | isNothing final_ann = final_ann
+                    | refines_ba && exprTypeRep expr_a == exprTypeRep expr_b = Nothing
+                    | refines_ba = Just (ann_a { isSmallest = False })
+                    | otherwise = final_ann
+              in (final_ann', maybe id (flip csnoc) ob obs)
+          | otherwise = acc
 
     -- evaluate a expression.
     run expr = shoveMaybe (runSingle listValues exprs expr seeds)
