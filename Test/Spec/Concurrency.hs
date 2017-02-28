@@ -339,6 +339,7 @@ runSingle listValues exprs expr seeds
     checkUninteresting (NewMVar _) = True
     checkUninteresting (NewCRef _) = True
     checkUninteresting Return = True
+    checkUninteresting (SetMasking _ _) = True
     checkUninteresting ta = isBlock ta
 
     assignments =
