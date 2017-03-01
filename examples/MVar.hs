@@ -13,14 +13,17 @@ import Test.Spec.Expr
 exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int)
 exprs = Exprs
   { initialState = maybe newEmptyMVar newMVar
-  , expressions = [ constant "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
-                  , constant "takeMVar" (takeMVar :: MVar (ConcST t) Int -> ConcST t Int)
-                  , constant "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
-                  , constant "void"     (void     :: ConcST t Int -> ConcST t ())
-                  , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
-                  , variable "x"        (Proxy    :: Proxy Int)
-                  , stateVariable
-                  ]
+  , expressions =
+    [ constant "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
+    , constant "takeMVar" (takeMVar :: MVar (ConcST t) Int -> ConcST t Int)
+    , constant "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
+    ]
+  , backgroundExpressions =
+    [ constant "void"     (void     :: ConcST t Int -> ConcST t ())
+    , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
+    , variable "x"        (Proxy    :: Proxy Int)
+    , stateVariable
+    ]
   , observation = tryTakeMVar
   , eval = defaultEvaluate
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi

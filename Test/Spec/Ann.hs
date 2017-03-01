@@ -39,6 +39,9 @@ data Ann x = Ann
   -- first 'Results' set is the results of executing the term with no
   -- interference, the second is the results of executing with
   -- interference.
+  , isBackground :: Bool
+  -- ^ If the term is entirely composed of background expressions or
+  -- not.
   , isFailing  :: Bool
   -- ^ If every execution is a failure. Initially, it is assumed a
   -- term is failing if either of its two subterms is, with none of
@@ -58,11 +61,12 @@ data Ann x = Ann
   deriving (Eq, Ord, Show)
 
 instance Semigroup (Ann x) where
-  ann1 <> ann2 = Ann { allResults = Nothing
-                     , isFailing  = isFailing ann1 || isFailing ann2
-                     , isSmallest = True
-                     , isAtomic   = False
-                     , isBoring   = False
+  ann1 <> ann2 = Ann { allResults   = Nothing
+                     , isBackground = isBackground ann1 && isBackground ann2
+                     , isFailing    = isFailing ann1 || isFailing ann2
+                     , isSmallest   = True
+                     , isAtomic     = False
+                     , isBoring     = False
                      }
 
 -- | The results of evaluating an expression.
@@ -84,15 +88,15 @@ data VarAssignment x = VA
 instance NFData x => NFData (VarAssignment x) where
   rnf (VA s vs) = rnf (s, vs)
 
--- | The \"default\" annotation. This is not the unit of
--- 'Semigroup.<>', as it has no unit.
-initialAnn :: Ann x
-initialAnn = Ann
-  { allResults = Nothing
-  , isFailing  = False
-  , isSmallest = True
-  , isAtomic   = False
-  , isBoring   = False
+-- | The \"default\" annotation.
+initialAnn :: Bool -> Ann x
+initialAnn background = Ann
+  { allResults   = Nothing
+  , isBackground = background
+  , isFailing    = False
+  , isSmallest   = True
+  , isAtomic     = False
+  , isBoring     = False
   }
 
 -- | Annotate an expression.

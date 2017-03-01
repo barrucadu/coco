@@ -55,19 +55,22 @@ toListLS (LockStack v) = readMVar v
 exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int]
 exprsLS = Exprs
   { initialState = fromListLS
-  , expressions = [ constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
-                  , constant "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
-                  , constant "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
-                  , constant "swapLS"  (swapLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "dupLS"   (dupLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "overLS"  (overLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "void"    (void    :: ConcST t Bool -> ConcST t ())
-                  , constant "void"    (void    :: ConcST t (Maybe Int) -> ConcST t ())
-                  , constant "|||"     ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
-                  , variable "x"       (Proxy   :: Proxy (Maybe Int))
-                  , stateVariable
-                  ]
+  , expressions =
+    [ constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
+    , constant "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , constant "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , constant "swapLS"  (swapLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , constant "dupLS"   (dupLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , constant "overLS"  (overLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , constant "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+    ]
+  , backgroundExpressions =
+    [ constant "void"    (void    :: ConcST t Bool -> ConcST t ())
+    , constant "void"    (void    :: ConcST t (Maybe Int) -> ConcST t ())
+    , constant "|||"     ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
+    , variable "x"       (Proxy   :: Proxy (Maybe Int))
+    , stateVariable
+    ]
   , observation = toListLS
   , eval = defaultEvaluate
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
@@ -116,19 +119,22 @@ toListCAS (CASStack r) = readCRef r
 exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int]
 exprsCAS = Exprs
   { initialState = fromListCAS
-  , expressions = [ constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
-                  , constant "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
-                  , constant "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
-                  , constant "swapCAS"  (swapCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "dupCAS"   (dupCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "overCAS"  (overCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "rotCAS"   (rotCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
-                  , constant "void"     (void     :: ConcST t Bool -> ConcST t ())
-                  , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
-                  , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
-                  , variable "x"        (Proxy    :: Proxy (Maybe Int))
-                  , stateVariable
-                  ]
+  , expressions =
+    [ constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
+    , constant "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , constant "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , constant "swapCAS"  (swapCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , constant "dupCAS"   (dupCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , constant "overCAS"  (overCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , constant "rotCAS"   (rotCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+    ]
+  , backgroundExpressions =
+    [ constant "void"     (void     :: ConcST t Bool -> ConcST t ())
+    , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
+    , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
+    , variable "x"        (Proxy    :: Proxy (Maybe Int))
+    , stateVariable
+    ]
   , observation = toListCAS
   , eval = defaultEvaluate
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const

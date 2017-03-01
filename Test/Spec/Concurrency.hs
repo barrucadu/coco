@@ -105,6 +105,10 @@ data Exprs s m x = Exprs
   -- ^ Create a new instance of the state variable.
   , expressions :: [Expr s m]
   -- ^ The primitive expressions to use.
+  , backgroundExpressions :: [Expr s m]
+  -- ^ Expressions to use as helpers for building new
+  -- expressions. Observations will not be reported about terms which
+  -- are entirely composed of background expressions.
   , observation :: s -> m x
   -- ^ The observation to make.
   , eval :: Expr s m -> Maybe (s -> Maybe (m ()))
@@ -155,12 +159,15 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
         in cappend observations $ if tier == lim then cnil else go (tier+1)
 
     check smallers cobs ((old_ann_a, ann_a), expr_a)
+        | isBackground ann_a = cobs
         | isJust (allResults ann_a) = cappend cobs (foldl' (foldl' go) cnil smallers)
         | otherwise = cobs
       where
-        go obs ((old_ann_b, ann_b), expr_b) =
-          let (_, _, ob) = mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b
-          in maybe id (flip csnoc) ob obs
+        go obs ((old_ann_b, ann_b), expr_b)
+          | isBackground ann_b = obs
+          | otherwise =
+            let (_, _, ob) = mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b
+            in maybe id (flip csnoc) ob obs
 
 
 -- | Like 'discover', but only takes a single set of expressions. This
@@ -193,7 +200,8 @@ discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
                          -> Int
                          -> ST t (Generator s (ConcST t) (Maybe (Ann x), Ann x), [Observation])
 discoverSingleWithSeeds' listValues exprs seeds lim =
-    let g = newGenerator' [((Nothing, initialAnn), e) | e <- expressions exprs]
+    let g = newGenerator'([((Nothing, initialAnn False), e) | e <- expressions           exprs] ++
+                          [((Nothing, initialAnn True),  e) | e <- backgroundExpressions exprs])
     in second crun <$> findObservations g 0
   where
     -- check every term on the current tier for equality and
@@ -218,13 +226,14 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- find observations and either annotate a term or throw it away.
     check smallers (ckept, cobs) a@((old_ann_a, ann_a), expr_a)
+        | isBackground ann_a = (csnoc ckept a, cobs)
         | isJust (allResults ann_a) = case foldl' (foldl' go) (Just ann_a, cnil) smallers of
           (Just final_ann, obs) -> (csnoc ckept ((old_ann_a, final_ann), expr_a), cappend cobs obs)
           (Nothing, obs)        -> (ckept, cappend cobs obs)
         | otherwise = (csnoc ckept a, cobs)
       where
         go acc@(final_ann, obs) ((old_ann_b, ann_b), expr_b)
-          | isSmallest ann_b =
+          | isSmallest ann_b && not (isBackground ann_b) =
               let (_, refines_ba, ob) = mkobservation expr_a expr_b old_ann_a ann_a old_ann_b ann_b
                   -- if B refines A then: if they are different types,
                   -- annotate A as not the smallest, otherwise throw A
