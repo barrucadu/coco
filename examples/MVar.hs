@@ -31,4 +31,4 @@ example :: Int -> IO ()
 example n = prettyPrint $ runST $ discoverSingle defaultListValues exprs n
 
 main :: IO ()
-main = example 10
+main = example 7

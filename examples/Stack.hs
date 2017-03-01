@@ -147,4 +147,4 @@ example n = do
   prettyPrint obs3
 
 main :: IO ()
-main = example 10
+main = example 7
