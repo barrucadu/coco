@@ -51,9 +51,9 @@ module Test.Spec.Concurrency
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Monad.ST (ST)
-import Data.List (foldl', partition, sortOn)
+import Data.List (foldl', sortOn)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
@@ -64,7 +64,7 @@ import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
 import Test.DejaFu (Failure, defaultMemType, defaultWay)
-import Test.DejaFu.Common (Decision(..), ThreadAction(..), isBlock)
+import Test.DejaFu.Common (ThreadAction(Subconcurrency, StopSubconcurrency))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
@@ -209,12 +209,12 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- evaluate a term and store its results
     evalTerm ((_, ann), expr) = do
-      mrs <- run expr
-      pure $ case mrs of
-        Just (atomic, rs) ->
-          ((Just ann, update atomic (Just rs) ann), expr)
-        Nothing ->
-          ((Just ann, update False Nothing ann), expr)
+      maybe_no_interference <- run False expr
+      maybe_interference    <- run True  expr
+      let atomic          = maybe False fst maybe_no_interference
+      let no_interference = snd <$> maybe_no_interference
+      let interference    = snd <$> maybe_interference
+      pure ((Just ann, update atomic no_interference interference ann), expr)
 
     -- find observations and either annotate a term or throw it away.
     check smallers (ckept, cobs) a@((old_ann_a, ann_a), expr_a)
@@ -238,7 +238,8 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
           | otherwise = acc
 
     -- evaluate a expression.
-    run expr = shoveMaybe (runSingle listValues exprs expr seeds)
+    run :: Bool -> Expr s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
+    run interference expr = shoveMaybe (runSingle listValues exprs interference expr seeds)
 
 
 -------------------------------------------------------------------------------
@@ -280,10 +281,11 @@ prettyPrint obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 runSingle :: forall s t x. (Ord x, NFData x)
           => (TypeRep Void Void1 -> [Dynamic Void Void1])
           -> Exprs s (ConcST t) x
+          -> Bool
           -> Expr s (ConcST t)
           -> [x]
-          -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x), Set (Maybe Failure, x))))
-runSingle listValues exprs expr seeds
+          -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
+runSingle listValues exprs interference expr seeds
     | null assignments = Nothing
     | otherwise = Just $ do
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
@@ -293,54 +295,19 @@ runSingle listValues exprs expr seeds
       rs <- runSCT' defaultWay defaultMemType $ do
         s <- initialState exprs (seedVal varassign)
         r <- subconcurrency $ do
-          void . C.fork . setState exprs s $ seedVal varassign
+          when interference $
+            void . C.fork . setState exprs s $ seedVal varassign
           shoveMaybe (eval_expr s)
         x <- observation exprs s
         pure (either Just (const Nothing) r, x)
-      let (no_interference, interference) = partition (checkInterfere . snd) rs
-      let to_results_set = smapMaybe eitherToMaybe . S.fromList . map fst
-      let out = (all (checkAtomic . snd) no_interference, (varassign, to_results_set no_interference, to_results_set interference))
-      -- there must always be non-interfering results!
-      if null no_interference
-        then error ("internal error: no non-interfering results for expression: " ++ show expr ++ "\n\n" ++ foldr (\(_,trc) s -> show (map (\(x,_,y) -> (x,y)) trc) ++ "\n" ++ s) "" rs)
-        else pure ()
+      -- very rough interpretation of atomicity: the trace has one
+      -- thing in it other than the stop!
+      let is_atomic trc =
+            let relevant = takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency) . drop 1 . dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
+            in length (relevant trc) == 1
+      let out = (all (is_atomic . snd) rs, (varassign, smapMaybe eitherToMaybe . S.fromList $ map fst rs))
       -- strictify, to avoid wasting memory on intermediate results.
       rnf out `seq` pure out
-
-    -- very rough interpretation of atomicity: the trace has one thing
-    -- in it other than the stop, and there is no interference.
-    checkAtomic trc =
-      let (noInterference, rest) = checkInterfere' (0::Int) trc
-      in case rest of
-           (_:(_,_,Stop):(_,_,StopSubconcurrency):_) -> noInterference
-           (_:(_,_,StopSubconcurrency):_) -> noInterference
-           _ -> False
-
-    -- returns true if all the interference happens before executing
-    -- the term
-    checkInterfere = fst . checkInterfere' (0::Int)
-    checkInterfere' 0 ((_, _, Subconcurrency):rest) = checkInterfere' 1 rest
-    checkInterfere' 0 (_:rest) = checkInterfere' 0 rest
-    checkInterfere' 1 ((_, _, Fork _):rest) = checkInterfere' 2 rest
-    checkInterfere' 1 (_:rest) = (False, rest)
-    checkInterfere' 2 ((Continue,_,ta):rest)
-      | checkUninteresting ta = checkInterfere' 2 rest
-      | otherwise  = (False, rest)
-    checkInterfere' 2 ((_, _, _):rest) = checkInterfere' 3 rest
-    checkInterfere' 3 ((_, _, Stop):rest) = (True, rest)
-    checkInterfere' 3 ((Continue, _, _):rest) = checkInterfere' 3 rest
-    checkInterfere' 3 (_:rest) = (False, rest)
-    checkInterfere' _ _ = error "internal error: checkInterfere' in bad state"
-
-    -- check if an action is uninteresting, from the point of view of interference
-    checkUninteresting (Fork _) = True
-    checkUninteresting MyThreadId = True
-    checkUninteresting Yield = True
-    checkUninteresting (NewMVar _) = True
-    checkUninteresting (NewCRef _) = True
-    checkUninteresting Return = True
-    checkUninteresting (SetMasking _ _) = True
-    checkUninteresting ta = isBlock ta
 
     assignments =
       [ (VA seed (M.fromList vidmap), eval_expr)
