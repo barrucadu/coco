@@ -1,0 +1,414 @@
+                     dupLS :state:        is equivalent to        void (dupLS :state:)
+                     dupLS :state:        is equivalent to        dupLS :state: >> peekLS :state:
+                     dupLS :state:             refines            dupLS :state: >> swapLS :state:
+                     dupLS :state:        is equivalent to        peekLS :state: >> dupLS :state:
+                     dupLS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                     dupLS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                     dupLS :state:             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+                     dupLS :state:             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+                     popLS :state:             refines            popLS :state: >> rotLS :state:
+                     popLS :state:        is equivalent to        peekLS :state: >> popLS :state:
+                     popLS :state:        is equivalent to        popLS :state: >> peekLS :state:
+                     popLS :state:             refines            void ((popLS :state:) >> (rotLS :state:))
+                     rotLS :state:        is equivalent to        void (rotLS :state:)
+                     rotLS :state:        is equivalent to        peekLS :state: >> rotLS :state:
+                     rotLS :state:        is equivalent to        rotLS :state: >> peekLS :state:
+                    overLS :state:        is equivalent to        void (overLS :state:)
+                    overLS :state:        is equivalent to        overLS :state: >> peekLS :state:
+                    overLS :state:        is equivalent to        peekLS :state: >> overLS :state:
+                    overLS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                    overLS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                    peekLS :state:             refines            dupLS :state: >> popLS :state:
+                    peekLS :state:        is equivalent to        peekLS :state: >> peekLS :state:
+                    peekLS :state:             refines            swapLS :state: >> swapLS :state:
+                    peekLS :state:             refines            pushLS x :state: >> popLS :state:
+                    peekLS :state:             refines            void ((swapLS :state:) >> (swapLS :state:))
+                    peekLS :state:             refines            (void (swapLS :state:)) ||| (void (swapLS :state:))
+                    swapLS :state:        is equivalent to        void (swapLS :state:)
+                    swapLS :state:        is equivalent to        peekLS :state: >> swapLS :state:
+                    swapLS :state:        is equivalent to        swapLS :state: >> peekLS :state:
+                  pushLS x :state:        is equivalent to        peekLS :state: >> pushLS x :state:
+                  pushLS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
+    dupLS :state: >> dupLS :state:        is equivalent to        void ((dupLS :state:) >> (dupLS :state:))
+    dupLS :state: >> dupLS :state:        is equivalent to        (void (dupLS :state:)) ||| (void (dupLS :state:))
+    dupLS :state: >> dupLS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+    dupLS :state: >> dupLS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+    dupLS :state: >> rotLS :state:        is equivalent to        void ((dupLS :state:) >> (rotLS :state:))
+    dupLS :state: >> rotLS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+    dupLS :state: >> rotLS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+    popLS :state: >> dupLS :state:        is equivalent to        void ((popLS :state:) >> (dupLS :state:))
+    rotLS :state: >> dupLS :state:        is equivalent to        void ((rotLS :state:) >> (dupLS :state:))
+    rotLS :state: >> dupLS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+    rotLS :state: >> dupLS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+    rotLS :state: >> rotLS :state:        is equivalent to        void ((rotLS :state:) >> (rotLS :state:))
+    rotLS :state: >> rotLS :state:        is equivalent to        (void (rotLS :state:)) ||| (void (rotLS :state:))
+   dupLS :state: >> overLS :state:        is equivalent to        void ((dupLS :state:) >> (overLS :state:))
+   dupLS :state: >> overLS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+   dupLS :state: >> overLS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+   overLS :state: >> dupLS :state:        is equivalent to        void ((overLS :state:) >> (dupLS :state:))
+   overLS :state: >> dupLS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+   overLS :state: >> dupLS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+   overLS :state: >> rotLS :state:        is equivalent to        void ((overLS :state:) >> (rotLS :state:))
+   overLS :state: >> rotLS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+   overLS :state: >> rotLS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+   popLS :state: >> overLS :state:        is equivalent to        void ((popLS :state:) >> (overLS :state:))
+   popLS :state: >> swapLS :state:        is equivalent to        void ((popLS :state:) >> (swapLS :state:))
+   rotLS :state: >> overLS :state:        is equivalent to        void ((rotLS :state:) >> (overLS :state:))
+   rotLS :state: >> overLS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+   rotLS :state: >> overLS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+   rotLS :state: >> swapLS :state:        is equivalent to        void ((rotLS :state:) >> (swapLS :state:))
+   rotLS :state: >> swapLS :state:             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+   rotLS :state: >> swapLS :state:             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+   swapLS :state: >> dupLS :state:        is equivalent to        void ((swapLS :state:) >> (dupLS :state:))
+   swapLS :state: >> dupLS :state:             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+   swapLS :state: >> dupLS :state:             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+   swapLS :state: >> rotLS :state:        is equivalent to        void ((swapLS :state:) >> (rotLS :state:))
+   swapLS :state: >> rotLS :state:             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+   swapLS :state: >> rotLS :state:             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+  overLS :state: >> overLS :state:        is equivalent to        void ((overLS :state:) >> (overLS :state:))
+  overLS :state: >> overLS :state:        is equivalent to        (void (overLS :state:)) ||| (void (overLS :state:))
+  overLS :state: >> swapLS :state:        is equivalent to        void ((overLS :state:) >> (swapLS :state:))
+  overLS :state: >> swapLS :state:             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+  overLS :state: >> swapLS :state:             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+  swapLS :state: >> overLS :state:        is equivalent to        void ((swapLS :state:) >> (overLS :state:))
+  swapLS :state: >> overLS :state:             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+  swapLS :state: >> overLS :state:             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+ dupLS :state: >> pushLS x :state:             refines            (pushLS x :state:) ||| (void (dupLS :state:))
+ dupLS :state: >> pushLS x :state:             refines            (void (dupLS :state:)) ||| (pushLS x :state:)
+ pushLS x :state: >> dupLS :state:        is equivalent to        void ((pushLS x :state:) >> (dupLS :state:))
+ pushLS x :state: >> dupLS :state:             refines            (pushLS x :state:) ||| (void (dupLS :state:))
+ pushLS x :state: >> dupLS :state:             refines            (void (dupLS :state:)) ||| (pushLS x :state:)
+ pushLS x :state: >> rotLS :state:        is equivalent to        void ((pushLS x :state:) >> (rotLS :state:))
+ pushLS x :state: >> rotLS :state:             refines            (pushLS x :state:) ||| (void (rotLS :state:))
+ pushLS x :state: >> rotLS :state:             refines            (void (rotLS :state:)) ||| (pushLS x :state:)
+ rotLS :state: >> pushLS x :state:             refines            (pushLS x :state:) ||| (void (rotLS :state:))
+ rotLS :state: >> pushLS x :state:             refines            (void (rotLS :state:)) ||| (pushLS x :state:)
+overLS :state: >> pushLS x :state:             refines            (pushLS x :state:) ||| (void (overLS :state:))
+overLS :state: >> pushLS x :state:             refines            (void (overLS :state:)) ||| (pushLS x :state:)
+pushLS x :state: >> overLS :state:        is equivalent to        void ((pushLS x :state:) >> (overLS :state:))
+pushLS x :state: >> overLS :state:             refines            (pushLS x :state:) ||| (void (overLS :state:))
+pushLS x :state: >> overLS :state:             refines            (void (overLS :state:)) ||| (pushLS x :state:)
+pushLS x :state: >> swapLS :state:        is equivalent to        void ((pushLS x :state:) >> (swapLS :state:))
+pushLS x :state: >> swapLS :state:             refines            (pushLS x :state:) ||| (void (swapLS :state:))
+pushLS x :state: >> swapLS :state:             refines            (void (swapLS :state:)) ||| (pushLS x :state:)
+swapLS :state: >> pushLS x :state:             refines            (pushLS x :state:) ||| (void (swapLS :state:))
+swapLS :state: >> pushLS x :state:             refines            (void (swapLS :state:)) ||| (pushLS x :state:)
+
+                      dupCAS :state:        is equivalent to        void (dupCAS :state:)
+                      dupCAS :state:        is equivalent to        dupCAS :state: >> peekCAS :state:
+                      dupCAS :state:             refines            dupCAS :state: >> swapCAS :state:
+                      dupCAS :state:        is equivalent to        peekCAS :state: >> dupCAS :state:
+                      dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (rotCAS :state:))
+                      dupCAS :state:             refines            (void (rotCAS :state:)) ||| (void (dupCAS :state:))
+                      dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (swapCAS :state:))
+                      dupCAS :state:             refines            (void (swapCAS :state:)) ||| (void (dupCAS :state:))
+                      popCAS :state:             refines            popCAS :state: >> rotCAS :state:
+                      popCAS :state:        is equivalent to        peekCAS :state: >> popCAS :state:
+                      popCAS :state:        is equivalent to        popCAS :state: >> peekCAS :state:
+                      popCAS :state:             refines            void ((popCAS :state:) >> (rotCAS :state:))
+                      rotCAS :state:        is equivalent to        void (rotCAS :state:)
+                      rotCAS :state:        is equivalent to        peekCAS :state: >> rotCAS :state:
+                      rotCAS :state:        is equivalent to        rotCAS :state: >> peekCAS :state:
+                     overCAS :state:        is equivalent to        void (overCAS :state:)
+                     overCAS :state:        is equivalent to        overCAS :state: >> peekCAS :state:
+                     overCAS :state:        is equivalent to        peekCAS :state: >> overCAS :state:
+                     overCAS :state:             refines            (void (overCAS :state:)) ||| (void (rotCAS :state:))
+                     overCAS :state:             refines            (void (rotCAS :state:)) ||| (void (overCAS :state:))
+                     peekCAS :state:             refines            dupCAS :state: >> popCAS :state:
+                     peekCAS :state:        is equivalent to        peekCAS :state: >> peekCAS :state:
+                     peekCAS :state:             refines            swapCAS :state: >> swapCAS :state:
+                     peekCAS :state:             refines            pushCAS x :state: >> popCAS :state:
+                     peekCAS :state:             refines            void ((swapCAS :state:) >> (swapCAS :state:))
+                     peekCAS :state:             refines            (void (swapCAS :state:)) ||| (void (swapCAS :state:))
+                     swapCAS :state:        is equivalent to        void (swapCAS :state:)
+                     swapCAS :state:        is equivalent to        peekCAS :state: >> swapCAS :state:
+                     swapCAS :state:        is equivalent to        swapCAS :state: >> peekCAS :state:
+                   pushCAS x :state:        is equivalent to        peekCAS :state: >> pushCAS x :state:
+                   pushCAS x :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
+    dupCAS :state: >> dupCAS :state:        is equivalent to        void ((dupCAS :state:) >> (dupCAS :state:))
+    dupCAS :state: >> dupCAS :state:        is equivalent to        (void (dupCAS :state:)) ||| (void (dupCAS :state:))
+    dupCAS :state: >> dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (overCAS :state:))
+    dupCAS :state: >> dupCAS :state:             refines            (void (overCAS :state:)) ||| (void (dupCAS :state:))
+    dupCAS :state: >> rotCAS :state:        is equivalent to        void ((dupCAS :state:) >> (rotCAS :state:))
+    dupCAS :state: >> rotCAS :state:             refines            (void (dupCAS :state:)) ||| (void (rotCAS :state:))
+    dupCAS :state: >> rotCAS :state:             refines            (void (rotCAS :state:)) ||| (void (dupCAS :state:))
+    popCAS :state: >> dupCAS :state:        is equivalent to        void ((popCAS :state:) >> (dupCAS :state:))
+    rotCAS :state: >> dupCAS :state:        is equivalent to        void ((rotCAS :state:) >> (dupCAS :state:))
+    rotCAS :state: >> dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (rotCAS :state:))
+    rotCAS :state: >> dupCAS :state:             refines            (void (rotCAS :state:)) ||| (void (dupCAS :state:))
+    rotCAS :state: >> rotCAS :state:        is equivalent to        void ((rotCAS :state:) >> (rotCAS :state:))
+    rotCAS :state: >> rotCAS :state:        is equivalent to        (void (rotCAS :state:)) ||| (void (rotCAS :state:))
+   dupCAS :state: >> overCAS :state:        is equivalent to        void ((dupCAS :state:) >> (overCAS :state:))
+   dupCAS :state: >> overCAS :state:             refines            (void (dupCAS :state:)) ||| (void (overCAS :state:))
+   dupCAS :state: >> overCAS :state:             refines            (void (overCAS :state:)) ||| (void (dupCAS :state:))
+   overCAS :state: >> dupCAS :state:        is equivalent to        void ((overCAS :state:) >> (dupCAS :state:))
+   overCAS :state: >> dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (overCAS :state:))
+   overCAS :state: >> dupCAS :state:             refines            (void (overCAS :state:)) ||| (void (dupCAS :state:))
+   overCAS :state: >> rotCAS :state:        is equivalent to        void ((overCAS :state:) >> (rotCAS :state:))
+   overCAS :state: >> rotCAS :state:             refines            (void (overCAS :state:)) ||| (void (rotCAS :state:))
+   overCAS :state: >> rotCAS :state:             refines            (void (rotCAS :state:)) ||| (void (overCAS :state:))
+   popCAS :state: >> overCAS :state:        is equivalent to        void ((popCAS :state:) >> (overCAS :state:))
+   popCAS :state: >> swapCAS :state:        is equivalent to        void ((popCAS :state:) >> (swapCAS :state:))
+   rotCAS :state: >> overCAS :state:        is equivalent to        void ((rotCAS :state:) >> (overCAS :state:))
+   rotCAS :state: >> overCAS :state:             refines            (void (overCAS :state:)) ||| (void (rotCAS :state:))
+   rotCAS :state: >> overCAS :state:             refines            (void (rotCAS :state:)) ||| (void (overCAS :state:))
+   rotCAS :state: >> swapCAS :state:        is equivalent to        void ((rotCAS :state:) >> (swapCAS :state:))
+   rotCAS :state: >> swapCAS :state:             refines            (void (rotCAS :state:)) ||| (void (swapCAS :state:))
+   rotCAS :state: >> swapCAS :state:             refines            (void (swapCAS :state:)) ||| (void (rotCAS :state:))
+   swapCAS :state: >> dupCAS :state:        is equivalent to        void ((swapCAS :state:) >> (dupCAS :state:))
+   swapCAS :state: >> dupCAS :state:             refines            (void (dupCAS :state:)) ||| (void (swapCAS :state:))
+   swapCAS :state: >> dupCAS :state:             refines            (void (swapCAS :state:)) ||| (void (dupCAS :state:))
+   swapCAS :state: >> rotCAS :state:        is equivalent to        void ((swapCAS :state:) >> (rotCAS :state:))
+   swapCAS :state: >> rotCAS :state:             refines            (void (rotCAS :state:)) ||| (void (swapCAS :state:))
+   swapCAS :state: >> rotCAS :state:             refines            (void (swapCAS :state:)) ||| (void (rotCAS :state:))
+  overCAS :state: >> overCAS :state:        is equivalent to        void ((overCAS :state:) >> (overCAS :state:))
+  overCAS :state: >> overCAS :state:        is equivalent to        (void (overCAS :state:)) ||| (void (overCAS :state:))
+  overCAS :state: >> swapCAS :state:        is equivalent to        void ((overCAS :state:) >> (swapCAS :state:))
+  overCAS :state: >> swapCAS :state:             refines            (void (overCAS :state:)) ||| (void (swapCAS :state:))
+  overCAS :state: >> swapCAS :state:             refines            (void (swapCAS :state:)) ||| (void (overCAS :state:))
+  swapCAS :state: >> overCAS :state:        is equivalent to        void ((swapCAS :state:) >> (overCAS :state:))
+  swapCAS :state: >> overCAS :state:             refines            (void (overCAS :state:)) ||| (void (swapCAS :state:))
+  swapCAS :state: >> overCAS :state:             refines            (void (swapCAS :state:)) ||| (void (overCAS :state:))
+ dupCAS :state: >> pushCAS x :state:             refines            (pushCAS x :state:) ||| (void (dupCAS :state:))
+ dupCAS :state: >> pushCAS x :state:             refines            (void (dupCAS :state:)) ||| (pushCAS x :state:)
+ pushCAS x :state: >> dupCAS :state:        is equivalent to        void ((pushCAS x :state:) >> (dupCAS :state:))
+ pushCAS x :state: >> dupCAS :state:             refines            (pushCAS x :state:) ||| (void (dupCAS :state:))
+ pushCAS x :state: >> dupCAS :state:             refines            (void (dupCAS :state:)) ||| (pushCAS x :state:)
+ pushCAS x :state: >> rotCAS :state:        is equivalent to        void ((pushCAS x :state:) >> (rotCAS :state:))
+ pushCAS x :state: >> rotCAS :state:             refines            (pushCAS x :state:) ||| (void (rotCAS :state:))
+ pushCAS x :state: >> rotCAS :state:             refines            (void (rotCAS :state:)) ||| (pushCAS x :state:)
+ rotCAS :state: >> pushCAS x :state:             refines            (pushCAS x :state:) ||| (void (rotCAS :state:))
+ rotCAS :state: >> pushCAS x :state:             refines            (void (rotCAS :state:)) ||| (pushCAS x :state:)
+overCAS :state: >> pushCAS x :state:             refines            (pushCAS x :state:) ||| (void (overCAS :state:))
+overCAS :state: >> pushCAS x :state:             refines            (void (overCAS :state:)) ||| (pushCAS x :state:)
+pushCAS x :state: >> overCAS :state:        is equivalent to        void ((pushCAS x :state:) >> (overCAS :state:))
+pushCAS x :state: >> overCAS :state:             refines            (pushCAS x :state:) ||| (void (overCAS :state:))
+pushCAS x :state: >> overCAS :state:             refines            (void (overCAS :state:)) ||| (pushCAS x :state:)
+pushCAS x :state: >> swapCAS :state:        is equivalent to        void ((pushCAS x :state:) >> (swapCAS :state:))
+pushCAS x :state: >> swapCAS :state:             refines            (pushCAS x :state:) ||| (void (swapCAS :state:))
+pushCAS x :state: >> swapCAS :state:             refines            (void (swapCAS :state:)) ||| (pushCAS x :state:)
+swapCAS :state: >> pushCAS x :state:             refines            (pushCAS x :state:) ||| (void (swapCAS :state:))
+swapCAS :state: >> pushCAS x :state:             refines            (void (swapCAS :state:)) ||| (pushCAS x :state:)
+
+                                      dupLS :state:        is equivalent to        dupCAS :state:
+                                      popLS :state:        is equivalent to        popCAS :state:
+                                      rotLS :state:        is equivalent to        rotCAS :state:
+                                     dupCAS :state:        is equivalent to        void (dupLS :state:)
+                                     dupCAS :state:        is equivalent to        dupLS :state: >> peekLS :state:
+                                     dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                                     dupCAS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                                     dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+                                     dupCAS :state:             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+                                     overLS :state:        is equivalent to        overCAS :state:
+                                     peekLS :state:        is equivalent to        peekCAS :state:
+                                     popCAS :state:             refines            popLS :state: >> rotLS :state:
+                                     popCAS :state:             refines            void ((popLS :state:) >> (rotLS :state:))
+                                     rotCAS :state:        is equivalent to        void (rotLS :state:)
+                                     rotCAS :state:        is equivalent to        rotLS :state: >> peekLS :state:
+                                     swapLS :state:        is equivalent to        swapCAS :state:
+                                    overCAS :state:        is equivalent to        void (overLS :state:)
+                                    overCAS :state:        is equivalent to        overLS :state: >> peekLS :state:
+                                    overCAS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                                    overCAS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                                    peekCAS :state:             refines            swapLS :state: >> swapLS :state:
+                                    peekCAS :state:             refines            void ((swapLS :state:) >> (swapLS :state:))
+                                    peekCAS :state:             refines            (void (swapLS :state:)) ||| (void (swapLS :state:))
+                                    swapCAS :state:        is equivalent to        void (swapLS :state:)
+                                    swapCAS :state:        is equivalent to        swapLS :state: >> peekLS :state:
+                                   pushLS x :state:        is equivalent to        pushCAS x :state:
+                                  pushCAS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
+                               void (dupLS :state:)        is equivalent to        void (dupCAS :state:)
+                               void (rotLS :state:)        is equivalent to        void (rotCAS :state:)
+                              void (dupCAS :state:)        is equivalent to        dupLS :state: >> peekLS :state:
+                              void (dupCAS :state:)             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                              void (dupCAS :state:)             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                              void (dupCAS :state:)             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+                              void (dupCAS :state:)             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+                              void (overLS :state:)        is equivalent to        void (overCAS :state:)
+                              void (rotCAS :state:)        is equivalent to        rotLS :state: >> peekLS :state:
+                              void (swapLS :state:)        is equivalent to        void (swapCAS :state:)
+                             void (overCAS :state:)        is equivalent to        overLS :state: >> peekLS :state:
+                             void (overCAS :state:)             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                             void (overCAS :state:)             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                             void (swapCAS :state:)        is equivalent to        swapLS :state: >> peekLS :state:
+                     dupLS :state: >> dupLS :state:        is equivalent to        dupCAS :state: >> dupCAS :state:
+                     dupLS :state: >> rotLS :state:        is equivalent to        dupCAS :state: >> rotCAS :state:
+                     popLS :state: >> dupLS :state:        is equivalent to        popCAS :state: >> dupCAS :state:
+                     popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
+                     popLS :state: >> rotLS :state:        is equivalent to        popCAS :state: >> rotCAS :state:
+                     rotLS :state: >> dupLS :state:        is equivalent to        rotCAS :state: >> dupCAS :state:
+                     rotLS :state: >> popLS :state:        is equivalent to        rotCAS :state: >> popCAS :state:
+                     rotLS :state: >> rotLS :state:        is equivalent to        rotCAS :state: >> rotCAS :state:
+                    dupLS :state: >> overLS :state:        is equivalent to        dupCAS :state: >> overCAS :state:
+                    dupLS :state: >> peekLS :state:        is equivalent to        dupCAS :state: >> peekCAS :state:
+                    overLS :state: >> dupLS :state:        is equivalent to        overCAS :state: >> dupCAS :state:
+                    overLS :state: >> popLS :state:        is equivalent to        overCAS :state: >> popCAS :state:
+                    overLS :state: >> rotLS :state:        is equivalent to        overCAS :state: >> rotCAS :state:
+                    popLS :state: >> overLS :state:        is equivalent to        popCAS :state: >> overCAS :state:
+                    popLS :state: >> swapLS :state:        is equivalent to        popCAS :state: >> swapCAS :state:
+                    rotLS :state: >> overLS :state:        is equivalent to        rotCAS :state: >> overCAS :state:
+                    rotLS :state: >> peekLS :state:        is equivalent to        rotCAS :state: >> peekCAS :state:
+                    rotLS :state: >> swapLS :state:        is equivalent to        rotCAS :state: >> swapCAS :state:
+                    swapLS :state: >> dupLS :state:        is equivalent to        swapCAS :state: >> dupCAS :state:
+                    swapLS :state: >> popLS :state:        is equivalent to        swapCAS :state: >> popCAS :state:
+                    swapLS :state: >> rotLS :state:        is equivalent to        swapCAS :state: >> rotCAS :state:
+                   dupCAS :state: >> dupCAS :state:        is equivalent to        void ((dupLS :state:) >> (dupLS :state:))
+                   dupCAS :state: >> dupCAS :state:        is equivalent to        (void (dupLS :state:)) ||| (void (dupLS :state:))
+                   dupCAS :state: >> dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+                   dupCAS :state: >> dupCAS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+                   dupCAS :state: >> rotCAS :state:        is equivalent to        void ((dupLS :state:) >> (rotLS :state:))
+                   dupCAS :state: >> rotCAS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                   dupCAS :state: >> rotCAS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                   overLS :state: >> overLS :state:        is equivalent to        overCAS :state: >> overCAS :state:
+                   overLS :state: >> peekLS :state:        is equivalent to        overCAS :state: >> peekCAS :state:
+                   overLS :state: >> swapLS :state:        is equivalent to        overCAS :state: >> swapCAS :state:
+                   popCAS :state: >> dupCAS :state:        is equivalent to        void ((popLS :state:) >> (dupLS :state:))
+                   popCAS :state: >> rotCAS :state:        is equivalent to        void ((popLS :state:) >> (rotLS :state:))
+                   rotCAS :state: >> dupCAS :state:        is equivalent to        void ((rotLS :state:) >> (dupLS :state:))
+                   rotCAS :state: >> dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                   rotCAS :state: >> dupCAS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                   rotCAS :state: >> rotCAS :state:        is equivalent to        void ((rotLS :state:) >> (rotLS :state:))
+                   rotCAS :state: >> rotCAS :state:        is equivalent to        (void (rotLS :state:)) ||| (void (rotLS :state:))
+                   swapLS :state: >> overLS :state:        is equivalent to        swapCAS :state: >> overCAS :state:
+                   swapLS :state: >> peekLS :state:        is equivalent to        swapCAS :state: >> peekCAS :state:
+                   swapLS :state: >> swapLS :state:        is equivalent to        swapCAS :state: >> swapCAS :state:
+                  dupCAS :state: >> overCAS :state:        is equivalent to        void ((dupLS :state:) >> (overLS :state:))
+                  dupCAS :state: >> overCAS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+                  dupCAS :state: >> overCAS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+                  dupCAS :state: >> peekCAS :state:             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+                  dupCAS :state: >> peekCAS :state:             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+                  dupCAS :state: >> peekCAS :state:             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+                  dupCAS :state: >> peekCAS :state:             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+                  dupLS :state: >> pushLS x :state:        is equivalent to        dupCAS :state: >> pushCAS x :state:
+                  overCAS :state: >> dupCAS :state:        is equivalent to        void ((overLS :state:) >> (dupLS :state:))
+                  overCAS :state: >> dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+                  overCAS :state: >> dupCAS :state:             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+                  overCAS :state: >> rotCAS :state:        is equivalent to        void ((overLS :state:) >> (rotLS :state:))
+                  overCAS :state: >> rotCAS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                  overCAS :state: >> rotCAS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                  popCAS :state: >> overCAS :state:        is equivalent to        void ((popLS :state:) >> (overLS :state:))
+                  popCAS :state: >> swapCAS :state:        is equivalent to        void ((popLS :state:) >> (swapLS :state:))
+                  popLS :state: >> pushLS x :state:        is equivalent to        popCAS :state: >> pushCAS x :state:
+                  pushLS x :state: >> dupLS :state:        is equivalent to        pushCAS x :state: >> dupCAS :state:
+                  pushLS x :state: >> rotLS :state:        is equivalent to        pushCAS x :state: >> rotCAS :state:
+                  rotCAS :state: >> overCAS :state:        is equivalent to        void ((rotLS :state:) >> (overLS :state:))
+                  rotCAS :state: >> overCAS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                  rotCAS :state: >> overCAS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                  rotCAS :state: >> swapCAS :state:        is equivalent to        void ((rotLS :state:) >> (swapLS :state:))
+                  rotCAS :state: >> swapCAS :state:             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+                  rotCAS :state: >> swapCAS :state:             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+                  rotLS :state: >> pushLS x :state:        is equivalent to        rotCAS :state: >> pushCAS x :state:
+                  swapCAS :state: >> dupCAS :state:        is equivalent to        void ((swapLS :state:) >> (dupLS :state:))
+                  swapCAS :state: >> dupCAS :state:             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+                  swapCAS :state: >> dupCAS :state:             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+                  swapCAS :state: >> rotCAS :state:        is equivalent to        void ((swapLS :state:) >> (rotLS :state:))
+                  swapCAS :state: >> rotCAS :state:             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+                  swapCAS :state: >> rotCAS :state:             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+                 overCAS :state: >> overCAS :state:        is equivalent to        void ((overLS :state:) >> (overLS :state:))
+                 overCAS :state: >> overCAS :state:        is equivalent to        (void (overLS :state:)) ||| (void (overLS :state:))
+                 overCAS :state: >> peekCAS :state:             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+                 overCAS :state: >> peekCAS :state:             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+                 overCAS :state: >> swapCAS :state:        is equivalent to        void ((overLS :state:) >> (swapLS :state:))
+                 overCAS :state: >> swapCAS :state:             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+                 overCAS :state: >> swapCAS :state:             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+                 overLS :state: >> pushLS x :state:        is equivalent to        overCAS :state: >> pushCAS x :state:
+                 pushLS x :state: >> overLS :state:        is equivalent to        pushCAS x :state: >> overCAS :state:
+                 pushLS x :state: >> peekLS :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
+                 pushLS x :state: >> swapLS :state:        is equivalent to        pushCAS x :state: >> swapCAS :state:
+                 swapCAS :state: >> overCAS :state:        is equivalent to        void ((swapLS :state:) >> (overLS :state:))
+                 swapCAS :state: >> overCAS :state:             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+                 swapCAS :state: >> overCAS :state:             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+                 swapCAS :state: >> swapCAS :state:        is equivalent to        void ((swapLS :state:) >> (swapLS :state:))
+                 swapCAS :state: >> swapCAS :state:        is equivalent to        (void (swapLS :state:)) ||| (void (swapLS :state:))
+                 swapLS :state: >> pushLS x :state:        is equivalent to        swapCAS :state: >> pushCAS x :state:
+                pushCAS x :state: >> dupCAS :state:        is equivalent to        void ((pushLS x :state:) >> (dupLS :state:))
+                pushCAS x :state: >> rotCAS :state:        is equivalent to        void ((pushLS x :state:) >> (rotLS :state:))
+               pushCAS x :state: >> overCAS :state:        is equivalent to        void ((pushLS x :state:) >> (overLS :state:))
+               pushCAS x :state: >> swapCAS :state:        is equivalent to        void ((pushLS x :state:) >> (swapLS :state:))
+               pushLS x :state: >> pushLS x :state:        is equivalent to        pushCAS x :state: >> pushCAS x :state:
+               pushLS x :state: >> pushLS x :state:        is equivalent to        (pushCAS x :state:) ||| (pushCAS x :state:)
+          (pushLS x :state:) ||| (pushLS x :state:)        is equivalent to        pushCAS x :state: >> pushCAS x :state:
+          (pushLS x :state:) ||| (pushLS x :state:)        is equivalent to        (pushCAS x :state:) ||| (pushCAS x :state:)
+          void ((dupLS :state:) >> (dupLS :state:))        is equivalent to        void ((dupCAS :state:) >> (dupCAS :state:))
+          void ((dupLS :state:) >> (rotLS :state:))        is equivalent to        void ((dupCAS :state:) >> (rotCAS :state:))
+          void ((popLS :state:) >> (dupLS :state:))        is equivalent to        void ((popCAS :state:) >> (dupCAS :state:))
+          void ((popLS :state:) >> (rotLS :state:))        is equivalent to        void ((popCAS :state:) >> (rotCAS :state:))
+          void ((rotLS :state:) >> (dupLS :state:))        is equivalent to        void ((rotCAS :state:) >> (dupCAS :state:))
+          void ((rotLS :state:) >> (rotLS :state:))        is equivalent to        void ((rotCAS :state:) >> (rotCAS :state:))
+         void ((dupLS :state:) >> (overLS :state:))        is equivalent to        void ((dupCAS :state:) >> (overCAS :state:))
+         void ((overLS :state:) >> (dupLS :state:))        is equivalent to        void ((overCAS :state:) >> (dupCAS :state:))
+         void ((overLS :state:) >> (rotLS :state:))        is equivalent to        void ((overCAS :state:) >> (rotCAS :state:))
+         void ((popLS :state:) >> (overLS :state:))        is equivalent to        void ((popCAS :state:) >> (overCAS :state:))
+         void ((popLS :state:) >> (swapLS :state:))        is equivalent to        void ((popCAS :state:) >> (swapCAS :state:))
+         void ((rotLS :state:) >> (overLS :state:))        is equivalent to        void ((rotCAS :state:) >> (overCAS :state:))
+         void ((rotLS :state:) >> (swapLS :state:))        is equivalent to        void ((rotCAS :state:) >> (swapCAS :state:))
+         void ((swapLS :state:) >> (dupLS :state:))        is equivalent to        void ((swapCAS :state:) >> (dupCAS :state:))
+         void ((swapLS :state:) >> (rotLS :state:))        is equivalent to        void ((swapCAS :state:) >> (rotCAS :state:))
+        void ((dupCAS :state:) >> (dupCAS :state:))        is equivalent to        (void (dupLS :state:)) ||| (void (dupLS :state:))
+        void ((dupCAS :state:) >> (dupCAS :state:))             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+        void ((dupCAS :state:) >> (dupCAS :state:))             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+        void ((dupCAS :state:) >> (rotCAS :state:))             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+        void ((dupCAS :state:) >> (rotCAS :state:))             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+        void ((overLS :state:) >> (overLS :state:))        is equivalent to        void ((overCAS :state:) >> (overCAS :state:))
+        void ((overLS :state:) >> (swapLS :state:))        is equivalent to        void ((overCAS :state:) >> (swapCAS :state:))
+        void ((rotCAS :state:) >> (dupCAS :state:))             refines            (void (dupLS :state:)) ||| (void (rotLS :state:))
+        void ((rotCAS :state:) >> (dupCAS :state:))             refines            (void (rotLS :state:)) ||| (void (dupLS :state:))
+        void ((rotCAS :state:) >> (rotCAS :state:))        is equivalent to        (void (rotLS :state:)) ||| (void (rotLS :state:))
+        void ((swapLS :state:) >> (overLS :state:))        is equivalent to        void ((swapCAS :state:) >> (overCAS :state:))
+        void ((swapLS :state:) >> (swapLS :state:))        is equivalent to        void ((swapCAS :state:) >> (swapCAS :state:))
+       void ((dupCAS :state:) >> (overCAS :state:))             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+       void ((dupCAS :state:) >> (overCAS :state:))             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+       void ((overCAS :state:) >> (dupCAS :state:))             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+       void ((overCAS :state:) >> (dupCAS :state:))             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+       void ((overCAS :state:) >> (rotCAS :state:))             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+       void ((overCAS :state:) >> (rotCAS :state:))             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+       void ((pushLS x :state:) >> (dupLS :state:))        is equivalent to        void ((pushCAS x :state:) >> (dupCAS :state:))
+       void ((pushLS x :state:) >> (rotLS :state:))        is equivalent to        void ((pushCAS x :state:) >> (rotCAS :state:))
+       void ((rotCAS :state:) >> (overCAS :state:))             refines            (void (overLS :state:)) ||| (void (rotLS :state:))
+       void ((rotCAS :state:) >> (overCAS :state:))             refines            (void (rotLS :state:)) ||| (void (overLS :state:))
+       void ((rotCAS :state:) >> (swapCAS :state:))             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+       void ((rotCAS :state:) >> (swapCAS :state:))             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+       void ((swapCAS :state:) >> (dupCAS :state:))             refines            (void (dupLS :state:)) ||| (void (swapLS :state:))
+       void ((swapCAS :state:) >> (dupCAS :state:))             refines            (void (swapLS :state:)) ||| (void (dupLS :state:))
+       void ((swapCAS :state:) >> (rotCAS :state:))             refines            (void (rotLS :state:)) ||| (void (swapLS :state:))
+       void ((swapCAS :state:) >> (rotCAS :state:))             refines            (void (swapLS :state:)) ||| (void (rotLS :state:))
+      void ((overCAS :state:) >> (overCAS :state:))        is equivalent to        (void (overLS :state:)) ||| (void (overLS :state:))
+      void ((overCAS :state:) >> (swapCAS :state:))             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+      void ((overCAS :state:) >> (swapCAS :state:))             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+      void ((pushLS x :state:) >> (overLS :state:))        is equivalent to        void ((pushCAS x :state:) >> (overCAS :state:))
+      void ((pushLS x :state:) >> (swapLS :state:))        is equivalent to        void ((pushCAS x :state:) >> (swapCAS :state:))
+      void ((swapCAS :state:) >> (overCAS :state:))             refines            (void (overLS :state:)) ||| (void (swapLS :state:))
+      void ((swapCAS :state:) >> (overCAS :state:))             refines            (void (swapLS :state:)) ||| (void (overLS :state:))
+      void ((swapCAS :state:) >> (swapCAS :state:))        is equivalent to        (void (swapLS :state:)) ||| (void (swapLS :state:))
+  (void (dupLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (dupCAS :state:))
+  (void (dupLS :state:)) ||| (void (dupLS :state:))             refines            (void (dupCAS :state:)) ||| (void (overCAS :state:))
+  (void (dupLS :state:)) ||| (void (dupLS :state:))             refines            (void (overCAS :state:)) ||| (void (dupCAS :state:))
+  (void (dupLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (rotCAS :state:))
+  (void (dupLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (dupCAS :state:))
+  (void (rotLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (rotCAS :state:))
+  (void (rotLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (dupCAS :state:))
+  (void (rotLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (rotCAS :state:))
+ (void (dupLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (overCAS :state:))
+ (void (dupLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (dupCAS :state:))
+ (void (dupLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (swapCAS :state:))
+ (void (dupLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (dupCAS :state:))
+ (void (overLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (overCAS :state:))
+ (void (overLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (dupCAS :state:))
+ (void (overLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (rotCAS :state:))
+ (void (overLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (overCAS :state:))
+ (void (rotLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (rotCAS :state:))
+ (void (rotLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (overCAS :state:))
+ (void (rotLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (swapCAS :state:))
+ (void (rotLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (rotCAS :state:))
+ (void (swapLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (dupCAS :state:)) ||| (void (swapCAS :state:))
+ (void (swapLS :state:)) ||| (void (dupLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (dupCAS :state:))
+ (void (swapLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (rotCAS :state:)) ||| (void (swapCAS :state:))
+ (void (swapLS :state:)) ||| (void (rotLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (rotCAS :state:))
+(void (dupCAS :state:)) ||| (void (dupCAS :state:))             refines            (void (dupLS :state:)) ||| (void (overLS :state:))
+(void (dupCAS :state:)) ||| (void (dupCAS :state:))             refines            (void (overLS :state:)) ||| (void (dupLS :state:))
+(void (overLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (overCAS :state:))
+(void (overLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (swapCAS :state:))
+(void (overLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (overCAS :state:))
+(void (swapLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (overCAS :state:)) ||| (void (swapCAS :state:))
+(void (swapLS :state:)) ||| (void (overLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (overCAS :state:))
+(void (swapLS :state:)) ||| (void (swapLS :state:))        is equivalent to        (void (swapCAS :state:)) ||| (void (swapCAS :state:))

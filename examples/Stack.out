@@ -1,0 +1,25 @@
+   popLS :state:        is equivalent to        peekLS :state: >> popLS :state:
+   popLS :state:        is equivalent to        popLS :state: >> peekLS :state:
+  peekLS :state:        is equivalent to        peekLS :state: >> peekLS :state:
+  peekLS :state:             refines            pushLS x :state: >> popLS :state:
+pushLS x :state:        is equivalent to        peekLS :state: >> pushLS x :state:
+pushLS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
+
+   popCAS :state:        is equivalent to        peekCAS :state: >> popCAS :state:
+   popCAS :state:        is equivalent to        popCAS :state: >> peekCAS :state:
+  peekCAS :state:        is equivalent to        peekCAS :state: >> peekCAS :state:
+  peekCAS :state:             refines            pushCAS x :state: >> popCAS :state:
+pushCAS x :state:        is equivalent to        peekCAS :state: >> pushCAS x :state:
+pushCAS x :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
+
+                            popLS :state:        is equivalent to        popCAS :state:
+                           peekLS :state:        is equivalent to        peekCAS :state:
+                         pushLS x :state:        is equivalent to        pushCAS x :state:
+                        pushCAS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
+           popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
+        popLS :state: >> pushLS x :state:        is equivalent to        popCAS :state: >> pushCAS x :state:
+       pushLS x :state: >> peekLS :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
+     pushLS x :state: >> pushLS x :state:        is equivalent to        pushCAS x :state: >> pushCAS x :state:
+     pushLS x :state: >> pushLS x :state:        is equivalent to        (pushCAS x :state:) ||| (pushCAS x :state:)
+(pushLS x :state:) ||| (pushLS x :state:)        is equivalent to        pushCAS x :state: >> pushCAS x :state:
+(pushLS x :state:) ||| (pushLS x :state:)        is equivalent to        (pushCAS x :state:) ||| (pushCAS x :state:)
