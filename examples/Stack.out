@@ -1,27 +1,25 @@
-   popLS :state:        is equivalent to        peekLS :state: >> popLS :state:
-   popLS :state:        is equivalent to        popLS :state: >> peekLS :state:
-  peekLS :state:        is equivalent to        peekLS :state: >> peekLS :state:
-  peekLS :state:             refines            pushLS x :state: >> popLS :state:
-pushLS x :state:        is equivalent to        peekLS :state: >> pushLS x :state:
-pushLS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
-pushLS x :state:             refines            (pushLS x :state:) ||| (pushLS x :state:)
+            popLS :state:        is equivalent to        peekLS :state: >> popLS :state:
+            popLS :state:        is equivalent to        popLS :state: >> peekLS :state:
+           peekLS :state:        is equivalent to        peekLS :state: >> peekLS :state:
+           peekLS :state:             refines            popLS :state: >>= \x' -> whenJust pushLS :state: x'
+whenJust pushLS :state: x        is equivalent to        peekLS :state: >> whenJust pushLS :state: x
+whenJust pushLS :state: x        is equivalent to        whenJust pushLS :state: x >> peekLS :state:
 
-   popCAS :state:        is equivalent to        peekCAS :state: >> popCAS :state:
-   popCAS :state:        is equivalent to        popCAS :state: >> peekCAS :state:
-  peekCAS :state:        is equivalent to        peekCAS :state: >> peekCAS :state:
-  peekCAS :state:             refines            pushCAS x :state: >> popCAS :state:
-pushCAS x :state:        is equivalent to        peekCAS :state: >> pushCAS x :state:
-pushCAS x :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
-pushCAS x :state:             refines            (pushCAS x :state:) ||| (pushCAS x :state:)
+            popCAS :state:        is equivalent to        peekCAS :state: >> popCAS :state:
+            popCAS :state:        is equivalent to        popCAS :state: >> peekCAS :state:
+           peekCAS :state:        is equivalent to        peekCAS :state: >> peekCAS :state:
+           peekCAS :state:             refines            popCAS :state: >>= \x' -> whenJust pushCAS :state: x'
+whenJust pushCAS :state: x        is equivalent to        peekCAS :state: >> whenJust pushCAS :state: x
+whenJust pushCAS :state: x        is equivalent to        whenJust pushCAS :state: x >> peekCAS :state:
 
-                            popLS :state:        is equivalent to        popCAS :state:
-                           peekLS :state:        is equivalent to        peekCAS :state:
-                         pushLS x :state:        is equivalent to        pushCAS x :state:
-                        pushCAS x :state:        is equivalent to        pushLS x :state: >> peekLS :state:
-           popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
-        popLS :state: >> pushLS x :state:        is equivalent to        popCAS :state: >> pushCAS x :state:
-       pushLS x :state: >> peekLS :state:        is equivalent to        pushCAS x :state: >> peekCAS :state:
-     pushLS x :state: >> pushLS x :state:        is equivalent to        pushCAS x :state: >> pushCAS x :state:
-     pushLS x :state: >> pushLS x :state:        is equivalent to        (pushCAS x :state:) |+| (pushCAS x :state:)
-(pushLS x :state:) |+| (pushLS x :state:)        is equivalent to        pushCAS x :state: >> pushCAS x :state:
-(pushLS x :state:) |+| (pushLS x :state:)        is equivalent to        (pushCAS x :state:) |+| (pushCAS x :state:)
+                                       popLS :state:        is equivalent to        popCAS :state:
+                                      peekLS :state:        is equivalent to        peekCAS :state:
+                                     peekCAS :state:             refines            popLS :state: >>= \x' -> whenJust pushLS :state: x'
+                           whenJust pushLS :state: x        is equivalent to        whenJust pushCAS :state: x
+                          whenJust pushCAS :state: x        is equivalent to        whenJust pushLS :state: x >> peekLS :state:
+                      popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
+          popLS :state: >> whenJust pushLS :state: x        is equivalent to        popCAS :state: >> whenJust pushCAS :state: x
+          whenJust pushLS :state: x >> popLS :state:        is equivalent to        whenJust pushCAS :state: x >> popCAS :state:
+         whenJust pushLS :state: x >> peekLS :state:        is equivalent to        whenJust pushCAS :state: x >> peekCAS :state:
+ popLS :state: >>= \x' -> whenJust pushLS :state: x'        is equivalent to        popCAS :state: >>= \x' -> whenJust pushCAS :state: x'
+peekLS :state: >>= \x' -> whenJust pushLS :state: x'        is equivalent to        peekCAS :state: >>= \x' -> whenJust pushCAS :state: x'

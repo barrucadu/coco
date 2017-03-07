@@ -65,11 +65,15 @@ exprsLS = Exprs
     , constant "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
     ]
   , backgroundExpressions =
-    [ constant "void"    (void    :: ConcST t Bool -> ConcST t ())
-    , constant "void"    (void    :: ConcST t (Maybe Int) -> ConcST t ())
-    , constant "|||"     ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
-    , constant "|+|"     ((|+|)   :: ConcST t () -> ConcST t () -> ConcST t ())
-    , variable "x"       (Proxy   :: Proxy Int)
+    [ constant "void"     (void    :: ConcST t Bool -> ConcST t ())
+    , constant "void"     (void    :: ConcST t (Maybe Int) -> ConcST t ())
+    , constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
+                                                             -> LockStack (ConcST t) Int
+                                                             -> Maybe Int
+                                                             -> ConcST t ())
+    , constant "|||"      ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|+|"      ((|+|)   :: ConcST t () -> ConcST t () -> ConcST t ())
+    , variable "x"        (Proxy   :: Proxy (Maybe Int))
     , stateVariable
     ]
   , observation = toListLS
@@ -132,9 +136,13 @@ exprsCAS = Exprs
   , backgroundExpressions =
     [ constant "void"     (void     :: ConcST t Bool -> ConcST t ())
     , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
+    , constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
+                                                             -> CASStack (ConcST t) Int
+                                                             -> Maybe Int
+                                                             -> ConcST t ())
     , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
     , constant "|+|"      ((|+|)    :: ConcST t () -> ConcST t () -> ConcST t ())
-    , variable "x"        (Proxy    :: Proxy Int)
+    , variable "x"        (Proxy    :: Proxy (Maybe Int))
     , stateVariable
     ]
   , observation = toListCAS
