@@ -42,6 +42,12 @@ executable examples-stack
   build-depends: base, concurrency, dejafu, spec
   ghc-options: -Wall -fprof-auto
 
+executable examples-complexstack
+  hs-source-dirs: examples
+  main-is: ComplexStack.hs
+  build-depends: base, concurrency, dejafu, spec
+  ghc-options: -Wall -fprof-auto
+
 executable examples-mvar
   hs-source-dirs: examples
   main-is: MVar.hs
