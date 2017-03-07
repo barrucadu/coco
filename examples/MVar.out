@@ -1,18 +1,18 @@
                      readMVar :state:        is equivalent to        void (readMVar :state:)
                      readMVar :state:        is equivalent to        readMVar :state: >> readMVar :state:
                      readMVar :state:             refines            takeMVar :state: >>= \x' -> putMVar :state: x'
-                     readMVar :state:             refines            (void (readMVar :state:)) ||| (void (readMVar :state:))
+                     readMVar :state:             refines            (void (readMVar :state:)) |+| (void (readMVar :state:))
                      takeMVar :state:        is equivalent to        void (takeMVar :state:)
                      takeMVar :state:        is equivalent to        readMVar :state: >> takeMVar :state:
-                     takeMVar :state:             refines            (void (readMVar :state:)) ||| (void (takeMVar :state:))
-                     takeMVar :state:             refines            (void (takeMVar :state:)) ||| (void (readMVar :state:))
+                     takeMVar :state:             refines            (void (readMVar :state:)) |+| (void (takeMVar :state:))
+                     takeMVar :state:             refines            (void (takeMVar :state:)) |+| (void (readMVar :state:))
                     putMVar :state: x             refines            putMVar :state: x >> readMVar :state:
                     putMVar :state: x             refines            void ((putMVar :state: x) >> (readMVar :state:))
-                    putMVar :state: x             refines            (putMVar :state: x) ||| (void (readMVar :state:))
-                    putMVar :state: x             refines            (void (readMVar :state:)) ||| (putMVar :state: x)
- takeMVar :state: >> readMVar :state:             refines            (void (readMVar :state:)) ||| (void (takeMVar :state:))
- takeMVar :state: >> readMVar :state:             refines            (void (takeMVar :state:)) ||| (void (readMVar :state:))
- takeMVar :state: >> takeMVar :state:             refines            (void (readMVar :state:)) ||| (void (takeMVar :state:))
- takeMVar :state: >> takeMVar :state:             refines            (void (takeMVar :state:)) ||| (void (readMVar :state:))
- takeMVar :state: >> takeMVar :state:        is equivalent to        (void (takeMVar :state:)) ||| (void (takeMVar :state:))
+                    putMVar :state: x             refines            (putMVar :state: x) |+| (void (readMVar :state:))
+                    putMVar :state: x             refines            (void (readMVar :state:)) |+| (putMVar :state: x)
+ takeMVar :state: >> readMVar :state:             refines            (void (readMVar :state:)) |+| (void (takeMVar :state:))
+ takeMVar :state: >> readMVar :state:             refines            (void (takeMVar :state:)) |+| (void (readMVar :state:))
+ takeMVar :state: >> takeMVar :state:             refines            (void (readMVar :state:)) |+| (void (takeMVar :state:))
+ takeMVar :state: >> takeMVar :state:             refines            (void (takeMVar :state:)) |+| (void (readMVar :state:))
+ takeMVar :state: >> takeMVar :state:        is equivalent to        (void (takeMVar :state:)) |+| (void (takeMVar :state:))
 putMVar :state: x >> takeMVar :state:        is equivalent to        void ((putMVar :state: x) >> (takeMVar :state:))

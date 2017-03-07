@@ -68,6 +68,7 @@ exprsLS = Exprs
     [ constant "void"    (void    :: ConcST t Bool -> ConcST t ())
     , constant "void"    (void    :: ConcST t (Maybe Int) -> ConcST t ())
     , constant "|||"     ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|+|"     ((|+|)   :: ConcST t () -> ConcST t () -> ConcST t ())
     , variable "x"       (Proxy   :: Proxy Int)
     , stateVariable
     ]
@@ -132,6 +133,7 @@ exprsCAS = Exprs
     [ constant "void"     (void     :: ConcST t Bool -> ConcST t ())
     , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
     , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|+|"      ((|+|)    :: ConcST t () -> ConcST t () -> ConcST t ())
     , variable "x"        (Proxy    :: Proxy Int)
     , stateVariable
     ]

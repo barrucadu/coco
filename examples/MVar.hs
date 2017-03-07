@@ -21,6 +21,7 @@ exprs = Exprs
   , backgroundExpressions =
     [ constant "void"     (void     :: ConcST t Int -> ConcST t ())
     , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|+|"      ((|+|)    :: ConcST t () -> ConcST t () -> ConcST t ())
     , variable "x"        (Proxy    :: Proxy Int)
     , stateVariable
     ]
