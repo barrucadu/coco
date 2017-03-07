@@ -3,14 +3,13 @@ module Main where
 
 import Control.Arrow ((&&&))
 import Control.Concurrent.Classy
-import Control.Monad (void)
 import Control.Monad.ST (runST)
 import Data.Maybe (listToMaybe)
 import Data.Proxy (Proxy(..))
 import Test.DejaFu.Conc
 
 import Test.Spec.Concurrency
-import Test.Spec.Expr (constant, stateVariable, variable)
+import Test.Spec.Expr (Ignore, constant, stateVariable, variable)
 
 -------------------------------------------------------------------------------
 -- Lock-based stack
@@ -41,14 +40,12 @@ exprsLS = Exprs
     , constant "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
     ]
   , backgroundExpressions =
-    [ constant "void"     (void    :: ConcST t Bool -> ConcST t ())
-    , constant "void"     (void    :: ConcST t (Maybe Int) -> ConcST t ())
-    , constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
+    [ constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
                                                              -> LockStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    , constant "|||"      ((|||)   :: ConcST t () -> ConcST t () -> ConcST t ())
-    , constant "|+|"      ((|+|)   :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|||"      ((|||)   :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , constant "|+|"      ((|+|)   :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , variable "x"        (Proxy   :: Proxy (Maybe Int))
     , stateVariable
     ]
@@ -86,14 +83,12 @@ exprsCAS = Exprs
     , constant "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
     ]
   , backgroundExpressions =
-    [ constant "void"     (void     :: ConcST t Bool -> ConcST t ())
-    , constant "void"     (void     :: ConcST t (Maybe Int) -> ConcST t ())
-    , constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
+    [ constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
                                                              -> CASStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    , constant "|||"      ((|||)    :: ConcST t () -> ConcST t () -> ConcST t ())
-    , constant "|+|"      ((|+|)    :: ConcST t () -> ConcST t () -> ConcST t ())
+    , constant "|||"      ((|||)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , constant "|+|"      ((|+|)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , variable "x"        (Proxy    :: Proxy (Maybe Int))
     , stateVariable
     ]

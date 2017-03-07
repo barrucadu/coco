@@ -62,6 +62,7 @@ module Test.Spec.Type
   , unmonad
   , stateTypeRep
   , monadTyCon
+  , monadTypeRep
   -- ** Unsafe operations
   , unsafeFromRawTypeRep
   ) where
@@ -160,9 +161,9 @@ instance {-# OVERLAPPABLE #-} T.Typeable a => HasTypeRep s m a where
   typeRep# proxy = TypeRep (T.typeRep proxy)
 
 instance {-# OVERLAPPABLE #-} HasTypeRep s m a => HasTypeRep s m (m a) where
-  typeRep# _ = TypeRep $
+  typeRep# _ =
     let ty = (typeRep# :: proxy a -> TypeRep s m) Proxy
-    in T.mkTyConApp monadTyCon [rawTypeRep ty]
+    in monadTypeRep (rawTypeRep ty)
 
 instance (HasTypeRep s m a, HasTypeRep s m b) => HasTypeRep s m (a -> b) where
   typeRep# _ = TypeRep $
@@ -264,6 +265,10 @@ stateTypeRep = TypeRep $ T.mkTyConApp (T.mkTyCon3 "" "" ":state:") []
 -- | The 'T.Typeable' 'T.TyCon' of the monad variable.
 monadTyCon :: T.TyCon
 monadTyCon = T.mkTyCon3 "" "" ":monad:"
+
+-- | The 'TypeRep' of a monadic value.
+monadTypeRep :: T.TypeRep -> TypeRep s m
+monadTypeRep ty = TypeRep $ T.mkTyConApp monadTyCon [ty]
 
 
 -------------------------------------------------------------------------------

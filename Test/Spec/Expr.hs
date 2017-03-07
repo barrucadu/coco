@@ -63,6 +63,7 @@ module Test.Spec.Expr
   , ($$)
   , let_
   , bind
+  , ignore
   -- ** Constants and variables
   , constants
   , variables
@@ -84,6 +85,7 @@ module Test.Spec.Expr
   , unConstant
   , unLet
   , unVariable
+  , unIgnore
   -- ** Modification
   , saturate
   , assign
@@ -93,6 +95,7 @@ module Test.Spec.Expr
   , evaluate
   , evaluateDyn
   -- ** Miscellaneous
+  , Ignore(..)
   , exprSize
   , exprTypeArity
   , exprTypeRep
@@ -104,6 +107,7 @@ import Data.Char (isAlphaNum)
 import Data.Function (on)
 import Data.List ((\\), foldl', mapAccumL, nub, nubBy)
 import Data.Maybe (fromMaybe, isJust)
+import qualified Data.Typeable as T
 
 import Test.Spec.Type
 import Test.Spec.Util
@@ -121,12 +125,14 @@ data Expr s m where
   FunAp    :: Expr s m -> Expr s m -> TypeRep s m -> Expr s m
   Bind     :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
   Let      :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
+  EIgnore  :: Expr s m -> Expr s m
 
 instance Show (Expr s m) where
   show = go True "'" [] where
     go _ _ _ (Constant s _) = toPrefix s
     go _ _ alts (Variable s _) = toPrefix $ fromMaybe s (lookup s alts)
     go _ _ _ StateVar = ":state:"
+    go b t alts (EIgnore e) = go b t alts e
     go b t alts e =
       let inner = unwords $ case e of
             (Bind "_" binder body _) ->
@@ -193,8 +199,17 @@ stateVariable = StateVar
 -- | Apply a function, if well-typed.
 --
 -- @fmap exprSize (e1 $$ e2) == Just (exprSize e1 + exprSize e2)@
+--
+-- There is a special case for the 'Ignore' type when used in a
+-- monadic parameter, see its comment.
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
-f $$ e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
+f $$ e0 = case funArgTys (exprTypeRep f) of
+    (argty:_)
+      | argty == monadTypeRep (T.typeOf Ignore) -> mkfun =<< ignore e0
+      | otherwise -> mkfun e0
+    [] -> Nothing
+  where
+    mkfun e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
 
 -- | Bind a monadic value to a variable name, if well typed.
 --
@@ -222,6 +237,15 @@ let_ var binder body = do
   guard $ all ((==exprTypeRep binder) . snd) boundVars
   pure $ Let var binder body (exprTypeRep body)
 
+-- | Ignore the final value of a monadic expression. In less
+-- dynamically-typed land, this is just @fmap (const Ignore)@.
+--
+-- @fmap exprSize e == Just (exprSize e)@
+ignore :: Expr s m -> Maybe (Expr s m)
+ignore inner
+  | isJust (unmonad $ exprTypeRep inner) = Just (EIgnore inner)
+  | otherwise = Nothing
+
 -- | Get all constants in an expression, without repetition.
 constants :: Expr s m -> [(String, Dynamic s m)]
 constants = nubBy ((==) `on` fst) . constants'
@@ -232,6 +256,7 @@ constants' (Constant s dyn) = [(s, dyn)]
 constants' (FunAp f e _) = constants' f ++ constants' e
 constants' (Bind _ e1 e2 _) = constants' e1 ++ constants' e2
 constants' (Let _ e1 e2 _) = constants' e1 ++ constants' e2
+constants' (EIgnore e) = constants' e
 constants' _ = []
 
 -- | Get all variables in an expression, without repetition.
@@ -241,9 +266,10 @@ variables = nub . variables'
 -- | Get all variables in an expression.
 variables' :: Expr s m -> [(String, TypeRep s m)]
 variables' (Variable s ty) = [(s, ty)]
-variables' (FunAp f e _) = variables f ++ variables e
-variables' (Bind _ e1 e2 _) = variables e1 ++ variables e2
-variables' (Let _ e1 e2 _) = variables e1 ++ variables e2
+variables' (FunAp f e _) = variables' f ++ variables' e
+variables' (Bind _ e1 e2 _) = variables' e1 ++ variables' e2
+variables' (Let _ e1 e2 _) = variables' e1 ++ variables' e2
+variables' (EIgnore e) = variables' e
 variables' _ = []
 
 -- | Get all free variables in an expression, without repetition.
@@ -253,9 +279,10 @@ freeVariables = nub . freeVariables'
 -- | Get all free variables in an expression.
 freeVariables' :: Expr s m -> [(String, TypeRep s m)]
 freeVariables' (Variable s ty) = [(s, ty)]
-freeVariables' (FunAp f e _) = freeVariables f ++ freeVariables e
-freeVariables' (Bind s e1 e2 _) = freeVariables e1 ++ filter ((/=s) . fst) (freeVariables e2)
-freeVariables' (Let s e1 e2 _) = freeVariables e1 ++ filter ((/=s) . fst) (freeVariables e2)
+freeVariables' (FunAp f e _) = freeVariables' f ++ freeVariables' e
+freeVariables' (Bind s e1 e2 _) = freeVariables' e1 ++ filter ((/=s) . fst) (freeVariables' e2)
+freeVariables' (Let s e1 e2 _) = freeVariables' e1 ++ filter ((/=s) . fst) (freeVariables' e2)
+freeVariables' (EIgnore e) = freeVariables' e
 freeVariables' _ = []
 
 -- | Get all the bound variables in an expression, without repetition.
@@ -316,6 +343,11 @@ unLet :: Expr s m -> Maybe (String, Expr s m, Expr s m)
 unLet (Let s e1 e2 _) = Just (s, e1, e2)
 unLet _ = Nothing
 
+-- | Deconstruct an ignored monadic value.
+unIgnore :: Expr s m -> Maybe (Expr s m)
+unIgnore (EIgnore e) = Just e
+unIgnore _ = Nothing
+
 -- | If an expression represents an unsaturated function, introduce
 -- new variables to saturate it. These variables are free in the
 -- resultant expression.
@@ -364,6 +396,7 @@ assign s v (Bind s2 e1 e2 ty)
 assign s v (Let s2 e1 e2 ty)
   | s == s2   = Let s2 <$> assign s v e1 <*> pure e2 <*> pure ty
   | otherwise = Let s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
+assign s v (EIgnore e) = EIgnore <$> assign s v e
 assign _ _ e = Just e
 
 -- | Transform all 'let_'s into assignments.
@@ -378,6 +411,7 @@ assignLets (Let s e1 e2 _) = fromMaybe
   -- type-correct.
   (error ("can't assign variable " ++ s ++ " value " ++ show e1 ++ " in body " ++ show e2))
   (assign s (assignLets e1) e2)
+assignLets (EIgnore e) = EIgnore (assignLets e)
 assignLets e = e
 
 -- | Rename all variables canonically.
@@ -396,6 +430,7 @@ rename expr = go freeVars expr where
     let newName = show (length rs)
         r = ((s, exprTypeRep e1), newName)
     in Let newName (go rs e1) (go (r:rs) e2) ty
+  go rs (EIgnore e) = EIgnore (go rs e)
   go _ e = e
 
 -- | Evaluate an expression, if it has no free variables and it is the
@@ -427,6 +462,9 @@ evaluateDyn expr
     go env (Let var e1 e2 _) s =
       let e1' = go env e1 s
       in go ((var, e1'):env) e2 s
+    go env (EIgnore e) s =
+      let me = unmaybe ("can't ignore non-monadic expression " ++ show e) $ unwrapMonadicDyn (go env e s)
+      in unsafeToDyn (rawTypeRep ignoreTypeRep) $ const Ignore <$> me
 
 -- | Get the size of an expression.
 exprSize :: Expr s m -> Int
@@ -435,6 +473,7 @@ exprSize (Variable _ _)   = 1
 exprSize (FunAp e1 e2 _)  = exprSize e1 + exprSize e2
 exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
 exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
+exprSize (EIgnore e) = exprSize e
 exprSize StateVar = 1
 
 -- | Print an 'Expr' as a tree.
@@ -446,10 +485,20 @@ tree = go 0 where
   go n (FunAp e1 e2 _) = replicate n ' ' ++ "Ap:\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
   go n (Bind s e1 e2 _) = replicate n ' ' ++ "Bind " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
   go n (Let s e1 e2 _) = replicate n ' ' ++ "Let " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
+  go n (EIgnore e) = replicate n ' ' ++ "Ignore:\n" ++ go (n+1) e
 
 
 -------------------------------------------------------------------------------
 -- Types
+
+-- | A special type for enabling basic polymorphism.
+--
+-- A function parameter of type @m Ignore@ unifies with values of any
+-- type @m a@, where @fmap (const Ignore)@ is applied to the parameter
+-- automatically. This avoids the need to clutter expressions with
+-- calls to 'void', or some other such function.
+data Ignore = Ignore
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -- | Get the arity of an expression. Non-function types have an arity
 -- of 0.
@@ -463,6 +512,7 @@ exprTypeRep (Variable _ ty)  = ty
 exprTypeRep (FunAp _ _ ty)   = ty
 exprTypeRep (Bind _ _ _ ty)  = ty
 exprTypeRep (Let _ _ _ ty)   = ty
+exprTypeRep (EIgnore _) = ignoreTypeRep
 exprTypeRep StateVar = stateTypeRep
 
 
@@ -472,3 +522,7 @@ exprTypeRep StateVar = stateTypeRep
 -- | A list of unique names,
 names :: [String]
 names = tail $ filterM (const [False, True]) ['z','y'..'a']
+
+-- | The typerep for @m Ignore@.
+ignoreTypeRep :: TypeRep s m
+ignoreTypeRep = monadTypeRep (T.typeOf Ignore)

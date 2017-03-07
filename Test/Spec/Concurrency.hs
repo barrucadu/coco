@@ -257,7 +257,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
 -- | Concurrent composition. Waits for at least one of the two
 -- component computations to finish.
-(|||) :: ConcST t () -> ConcST t () -> ConcST t ()
+(|||) :: ConcST t a -> ConcST t b -> ConcST t ()
 a ||| b = do
   v <- C.atomically (C.newTVar False)
   _ <- C.fork (a >> C.atomically (C.writeTVar v True))
@@ -266,11 +266,11 @@ a ||| b = do
 
 -- | Concurrent composition. Waits for the two component computations
 -- to finish.
-(|+|) :: ConcST t () -> ConcST t () -> ConcST t ()
+(|+|) :: ConcST t a -> ConcST t b -> ConcST t ()
 a |+| b = do
   j <- C.spawn a
-  b
-  C.readMVar j
+  void b
+  void (C.readMVar j)
 
 
 -------------------------------------------------------------------------------
