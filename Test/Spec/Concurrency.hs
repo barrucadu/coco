@@ -65,7 +65,7 @@ import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
 import Test.DejaFu (Failure, defaultMemType, defaultWay)
-import Test.DejaFu.Common (ThreadAction(Subconcurrency, StopSubconcurrency))
+import Test.DejaFu.Common (ThreadAction(..))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
@@ -321,7 +321,10 @@ runSingle listValues exprs interference expr seeds
       -- very rough interpretation of atomicity: the trace has one
       -- thing in it other than the stop!
       let is_atomic trc =
-            let relevant = takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency) . drop 1 . dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
+            let relevant = filter (\(_,_,ta) -> ta /= Return) .
+                           takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency && ta /= Stop) .
+                           drop 1 .
+                           dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
             in length (relevant trc) == 1
       let out = (all (is_atomic . snd) rs, (varassign, smapMaybe eitherToMaybe . S.fromList $ map fst rs))
       -- strictify, to avoid wasting memory on intermediate results.
