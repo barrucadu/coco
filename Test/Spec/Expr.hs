@@ -56,6 +56,7 @@ module Test.Spec.Expr
   ( -- * Expressions
     Expr
   , constant
+  , commutativeConstant
   , dynConstant
   , showConstant
   , variable
@@ -119,17 +120,19 @@ import Test.Spec.Util
 data Expr s m where
   -- It's important that these constructors aren't exposed, so the
   -- correctness of the 'TypeRep's can be ensured.
-  Constant :: String -> Dynamic s m -> Expr s m
-  Variable :: String -> TypeRep s m -> Expr s m
-  StateVar :: Expr s m
-  FunAp    :: Expr s m -> Expr s m -> TypeRep s m -> Expr s m
-  Bind     :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
-  Let      :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
-  EIgnore  :: Expr s m -> Expr s m
+  Constant            :: String -> Dynamic s m                         -> Expr s m
+  CommutativeConstant :: String -> Dynamic s m                         -> Expr s m
+  Variable            :: String -> TypeRep s m                         -> Expr s m
+  StateVar            ::                                                  Expr s m
+  FunAp               :: Expr s m -> Expr s m -> TypeRep s m           -> Expr s m
+  Bind                :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
+  Let                 :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
+  EIgnore             :: Expr s m                                      -> Expr s m
 
 instance Show (Expr s m) where
   show = go True "'" [] where
     go _ _ _ (Constant s _) = toPrefix s
+    go _ _ _ (CommutativeConstant s _) = toPrefix s
     go _ _ alts (Variable s _) = toPrefix $ fromMaybe s (lookup s alts)
     go _ _ _ StateVar = ":state:"
     go b t alts (EIgnore e) = go b t alts e
@@ -145,6 +148,8 @@ instance Show (Expr s m) where
               in ["let", var', "=", go b t alts binder, "in", go b t' alts' body]
             (FunAp _ _ _) -> case unfoldAp e of
               [Constant s _, arg1, arg2]
+                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
+              [CommutativeConstant s _, arg1, arg2]
                 | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
               [Variable s _, arg1, arg2]
                 | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
@@ -174,6 +179,13 @@ instance Ord (Expr s m) where
 constant :: HasTypeRep s m a => String -> a -> Expr s m
 constant s a = Constant s (toDyn a)
 
+-- | A constant commutative binary function. Used to avoid
+-- redundancies in term generation.
+--
+-- @commutativeConstant "foo" foo == 1@
+commutativeConstant :: HasTypeRep s m a => String -> a -> Expr s m
+commutativeConstant s a = CommutativeConstant s (toDyn a)
+
 -- | A constant value from a dynamic value.
 dynConstant :: String -> Dynamic s m -> Expr s m
 dynConstant = Constant
@@ -200,8 +212,13 @@ stateVariable = StateVar
 --
 -- @fmap exprSize (e1 $$ e2) == Just (exprSize e1 + exprSize e2)@
 --
--- There is a special case for the 'Ignore' type when used in a
--- monadic parameter, see its comment.
+-- There are two special cases:
+--
+-- - See the comment of the 'Ignore' type for when it 'Ignore' is used
+--   in a monadic parameter
+--
+-- - Applying the second argument to a commutative function produces
+--   @Nothing@, even if well-typed, if it is @<@ the first argument.
 ($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
 f $$ e0 = case funArgTys (exprTypeRep f) of
     (argty:_)
@@ -209,7 +226,10 @@ f $$ e0 = case funArgTys (exprTypeRep f) of
       | otherwise -> mkfun e0
     [] -> Nothing
   where
-    mkfun e = FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e)
+    mkfun e = case FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e) of
+      Just (FunAp (FunAp (CommutativeConstant _ _) e1 _) e2 _)
+        | e2 < e1 -> Nothing
+      r -> r
 
 -- | Bind a monadic value to a variable name, if well typed.
 --
@@ -253,6 +273,7 @@ constants = nubBy ((==) `on` fst) . constants'
 -- | Get all constants in an expression.
 constants' :: Expr s m -> [(String, Dynamic s m)]
 constants' (Constant s dyn) = [(s, dyn)]
+constants' (CommutativeConstant s dyn) = [(s, dyn)]
 constants' (FunAp f e _) = constants' f ++ constants' e
 constants' (Bind _ e1 e2 _) = constants' e1 ++ constants' e2
 constants' (Let _ e1 e2 _) = constants' e1 ++ constants' e2
@@ -321,6 +342,7 @@ isLet = isJust . unLet
 -- | Deconstruct a constant.
 unConstant :: Expr s m -> Maybe (String, Dynamic s m)
 unConstant (Constant s dyn) = Just (s, dyn)
+unConstant (CommutativeConstant s dyn) = Just (s, dyn)
 unConstant _ = Nothing
 
 -- | Deconstruct a named variable.
@@ -452,6 +474,7 @@ evaluateDyn expr
     -- various smart constructors check the types match.
     go _ StateVar s = toDyn s
     go _ (Constant _ dyn) _ = dyn
+    go _ (CommutativeConstant _ dyn) _ = dyn
     go env (Variable var _) _ =
       unmaybe ("unexpected free variable " ++ var ++ " in expression") $ lookup var env
     go env (FunAp f e _) s =
@@ -468,18 +491,17 @@ evaluateDyn expr
 
 -- | Get the size of an expression.
 exprSize :: Expr s m -> Int
-exprSize (Constant _ _)   = 1
-exprSize (Variable _ _)   = 1
 exprSize (FunAp e1 e2 _)  = exprSize e1 + exprSize e2
 exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
 exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
 exprSize (EIgnore e) = exprSize e
-exprSize StateVar = 1
+exprSize _ = 1
 
 -- | Print an 'Expr' as a tree.
 tree :: Expr s m -> String
 tree = go 0 where
   go n (Constant s _) = replicate n ' ' ++ "Constant <" ++ s ++ ">"
+  go n (CommutativeConstant s _) = replicate n ' ' ++ "CommutativeConstant <" ++ s ++ ">"
   go n (Variable s _) = replicate n ' ' ++ "Variable <" ++ s ++ ">"
   go n StateVar = replicate n ' ' ++ "StateVar"
   go n (FunAp e1 e2 _) = replicate n ' ' ++ "Ap:\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
@@ -508,6 +530,7 @@ exprTypeArity = typeArity . exprTypeRep
 -- | Get the type of an expression.
 exprTypeRep :: Expr s m -> TypeRep s m
 exprTypeRep (Constant _ dyn) = dynTypeRep dyn
+exprTypeRep (CommutativeConstant _ dyn) = dynTypeRep dyn
 exprTypeRep (Variable _ ty)  = ty
 exprTypeRep (FunAp _ _ ty)   = ty
 exprTypeRep (Bind _ _ _ ty)  = ty

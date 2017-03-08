@@ -19,9 +19,9 @@ exprs = Exprs
     , constant "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
     ]
   , backgroundExpressions =
-    [ constant "|||"      ((|||)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , constant "|+|"      ((|+|)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x"        (Proxy    :: Proxy Int)
+    [ commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , commutativeConstant "|+|" ((|+|) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , variable "x" (Proxy :: Proxy Int)
     , stateVariable
     ]
   , observation = tryTakeMVar

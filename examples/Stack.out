@@ -1,20 +1,14 @@
             popLS :state:             refines            (popLS :state:) ||| (popLS :state:)
             popLS :state:             refines            (popLS :state:) ||| (whenJust pushLS :state: x)
-            popLS :state:             refines            (whenJust pushLS :state: x) ||| (popLS :state:)
            peekLS :state:             refines            (popLS :state:) ||| (whenJust pushLS :state: x)
-           peekLS :state:             refines            (whenJust pushLS :state: x) ||| (popLS :state:)
            peekLS :state:             refines            popLS :state: >>= \x' -> whenJust pushLS :state: x'
 whenJust pushLS :state: x             refines            (popLS :state:) ||| (whenJust pushLS :state: x)
-whenJust pushLS :state: x             refines            (whenJust pushLS :state: x) ||| (popLS :state:)
 
             popCAS :state:             refines            (popCAS :state:) ||| (popCAS :state:)
             popCAS :state:             refines            (popCAS :state:) ||| (whenJust pushCAS :state: x)
-            popCAS :state:             refines            (whenJust pushCAS :state: x) ||| (popCAS :state:)
            peekCAS :state:             refines            (popCAS :state:) ||| (whenJust pushCAS :state: x)
-           peekCAS :state:             refines            (whenJust pushCAS :state: x) ||| (popCAS :state:)
            peekCAS :state:             refines            popCAS :state: >>= \x' -> whenJust pushCAS :state: x'
 whenJust pushCAS :state: x             refines            (popCAS :state:) ||| (whenJust pushCAS :state: x)
-whenJust pushCAS :state: x             refines            (whenJust pushCAS :state: x) ||| (popCAS :state:)
 
                                       popLS :state:        is equivalent to        popCAS :state:
                                      peekLS :state:        is equivalent to        peekCAS :state:
@@ -32,16 +26,9 @@ whenJust pushCAS :state: x             refines            (whenJust pushCAS :sta
               (popCAS :state:) |+| (popCAS :state:)             refines            (popLS :state:) ||| (popLS :state:)
          popLS :state: >> whenJust pushLS :state: x        is equivalent to        popCAS :state: >> whenJust pushCAS :state: x
          popLS :state: >> whenJust pushLS :state: x             refines            (popCAS :state:) |+| (whenJust pushCAS :state: x)
-         popLS :state: >> whenJust pushLS :state: x             refines            (whenJust pushCAS :state: x) |+| (popCAS :state:)
          whenJust pushLS :state: x >> popLS :state:        is equivalent to        whenJust pushCAS :state: x >> popCAS :state:
          whenJust pushLS :state: x >> popLS :state:             refines            (popCAS :state:) |+| (whenJust pushCAS :state: x)
-         whenJust pushLS :state: x >> popLS :state:             refines            (whenJust pushCAS :state: x) |+| (popCAS :state:)
        popCAS :state: >> whenJust pushCAS :state: x             refines            (popLS :state:) |+| (whenJust pushLS :state: x)
-       popCAS :state: >> whenJust pushCAS :state: x             refines            (whenJust pushLS :state: x) |+| (popLS :state:)
        whenJust pushCAS :state: x >> popCAS :state:             refines            (popLS :state:) |+| (whenJust pushLS :state: x)
-       whenJust pushCAS :state: x >> popCAS :state:             refines            (whenJust pushLS :state: x) |+| (popLS :state:)
     (popLS :state:) |+| (whenJust pushLS :state: x)        is equivalent to        (popCAS :state:) |+| (whenJust pushCAS :state: x)
-    (popLS :state:) |+| (whenJust pushLS :state: x)        is equivalent to        (whenJust pushCAS :state: x) |+| (popCAS :state:)
-    (whenJust pushLS :state: x) |+| (popLS :state:)        is equivalent to        (popCAS :state:) |+| (whenJust pushCAS :state: x)
-    (whenJust pushLS :state: x) |+| (popLS :state:)        is equivalent to        (whenJust pushCAS :state: x) |+| (popCAS :state:)
 popLS :state: >>= \x' -> whenJust pushLS :state: x'        is equivalent to        popCAS :state: >>= \x' -> whenJust pushCAS :state: x'

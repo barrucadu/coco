@@ -9,7 +9,7 @@ import Data.Proxy (Proxy(..))
 import Test.DejaFu.Conc
 
 import Test.Spec.Concurrency
-import Test.Spec.Expr (Ignore, constant, stateVariable, variable)
+import Test.Spec.Expr
 
 -------------------------------------------------------------------------------
 -- Lock-based stack
@@ -44,9 +44,9 @@ exprsLS = Exprs
                                                              -> LockStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    , constant "|||"      ((|||)   :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , constant "|+|"      ((|+|)   :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x"        (Proxy   :: Proxy (Maybe Int))
+    , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , commutativeConstant "|+|" ((|+|) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , variable "x" (Proxy :: Proxy (Maybe Int))
     , stateVariable
     ]
   , observation = toListLS
@@ -87,9 +87,9 @@ exprsCAS = Exprs
                                                              -> CASStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    , constant "|||"      ((|||)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , constant "|+|"      ((|+|)    :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x"        (Proxy    :: Proxy (Maybe Int))
+    , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , commutativeConstant "|+|" ((|+|) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , variable "x" (Proxy :: Proxy (Maybe Int))
     , stateVariable
     ]
   , observation = toListCAS
