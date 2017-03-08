@@ -47,7 +47,6 @@ module Test.Spec.Gen
   , maxTier
   ) where
 
-import Control.Applicative ((<|>))
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
 import Data.Maybe (isJust)
@@ -102,7 +101,7 @@ stepGenerator check g = Generator newTiers (sofar g + 1) where
     [ (resAnn, resExpr) | (a1, e1) <- terms
                         , exprTypeArity e1 > 0
                         , (a2, e2) <- candidates
-                        , Just resExpr <- [(e1 $$ e2) <|> ((e1 $$) =<< ignore e2)]
+                        , Just resExpr <- [e1 $$ e2]
                         , let resAnn = a1 <> a2
                         , check a1 a2 resExpr
     ]
