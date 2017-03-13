@@ -98,7 +98,7 @@ instance Eq Observation where
 
 instance Show Observation where
   show (Equiv   a b) = show a ++ "\tis equivalent to\t" ++ show b
-  show (Refines a b) = show a ++ "\trefines\t"          ++ show b
+  show (Refines a b) = show a ++ "\tstrictly refines\t" ++ show b
 
 -- | A collection of expressions.
 data Exprs s m x = Exprs
@@ -281,7 +281,7 @@ prettyPrint :: [Observation] -> IO ()
 prettyPrint obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   obss = map go obss0 where
     go (Equiv   e1 e2) = (show e1, "is equivalent to", show e2)
-    go (Refines e1 e2) = (show e1, "     refines    ", show e2)
+    go (Refines e1 e2) = (show e1, "strictly refines", show e2)
 
   cmp (e1, _, e2) = (length e1, e1, length e2, e2)
 
