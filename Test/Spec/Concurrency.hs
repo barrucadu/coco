@@ -43,7 +43,7 @@ module Test.Spec.Concurrency
   , defaultEvaluate
   , defaultListValues
   -- * Building blocks
-  , (|+|)
+  , (|||)
   -- * Utilities
   , prettyPrint
   ) where
@@ -256,8 +256,8 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
 -- | Concurrent composition. Waits for both component computations to
 -- finish.
-(|+|) :: ConcST t a -> ConcST t b -> ConcST t ()
-a |+| b = do
+(|||) :: ConcST t a -> ConcST t b -> ConcST t ()
+a ||| b = do
   j <- C.spawn a
   void b
   void (C.readMVar j)
