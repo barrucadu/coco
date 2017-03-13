@@ -68,7 +68,6 @@ exprsLS = Exprs
                                                              -> LockStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    -- , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , commutativeConstant "|+|" ((|+|) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , variable "x" (Proxy :: Proxy (Maybe Int))
     , stateVariable
@@ -135,7 +134,6 @@ exprsCAS = Exprs
                                                              -> CASStack (ConcST t) Int
                                                              -> Maybe Int
                                                              -> ConcST t ())
-    -- , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , commutativeConstant "|+|" ((|+|) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     , variable "x" (Proxy :: Proxy (Maybe Int))
     , stateVariable

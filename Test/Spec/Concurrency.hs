@@ -43,7 +43,6 @@ module Test.Spec.Concurrency
   , defaultEvaluate
   , defaultListValues
   -- * Building blocks
-  , (|||)
   , (|+|)
   -- * Utilities
   , prettyPrint
@@ -255,17 +254,8 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 -------------------------------------------------------------------------------
 -- Building blocks
 
--- | Concurrent composition. Waits for at least one of the two
--- component computations to finish.
-(|||) :: ConcST t a -> ConcST t b -> ConcST t ()
-a ||| b = do
-  v <- C.atomically (C.newTVar False)
-  _ <- C.fork (a >> C.atomically (C.writeTVar v True))
-  _ <- C.fork (b >> C.atomically (C.writeTVar v True))
-  C.atomically (C.readTVar v >>= C.check)
-
--- | Concurrent composition. Waits for the two component computations
--- to finish.
+-- | Concurrent composition. Waits for both component computations to
+-- finish.
 (|+|) :: ConcST t a -> ConcST t b -> ConcST t ()
 a |+| b = do
   j <- C.spawn a
