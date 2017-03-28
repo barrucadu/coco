@@ -55,7 +55,7 @@ module Test.Spec.Type
   , gcast
   , coerceTypeRep
   -- ** Function types
-  , funArgTys
+  , funTys
   , funResultTy
   , typeArity
   -- ** Miscellaneous
@@ -238,9 +238,14 @@ coerceTypeRep (TypeRep ty)
 -------------------------------------------------------------------------------
 -- Function types
 
--- | The types of a function's arguments.
-funArgTys :: TypeRep s m -> [TypeRep s m]
-funArgTys = map TypeRep . snd . T.splitTyConApp . rawTypeRep
+-- | The types of a function's argument and result. Returns @Nothing@
+-- if applied to any type other than a function type.
+funTys :: TypeRep s m -> Maybe (TypeRep s m, TypeRep s m)
+funTys ty = case T.splitTyConApp . rawTypeRep $ ty of
+    (con, [argTy, resultTy]) | con == funTyCon -> Just (TypeRep argTy, TypeRep resultTy)
+    _ -> Nothing
+  where
+    funTyCon = T.typeRepTyCon (T.typeRep (Proxy :: Proxy (() -> ())))
 
 -- | Applies a type to a given function type, if the types match.
 funResultTy :: TypeRep s m -> TypeRep s m -> Maybe (TypeRep s m)
