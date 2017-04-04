@@ -19,6 +19,10 @@ newtype LockStack m a = LockStack (MVar m [a])
 pushLS :: MonadConc m => a -> LockStack m a -> m ()
 pushLS a (LockStack v) = modifyMVar_ v $ pure . (a:)
 
+-- | Incorrect function to push two values atomically.
+push2LS :: MonadConc m => a -> a -> LockStack m a -> m ()
+push2LS _ a2 (LockStack v) = modifyMVar_ v $ pure . ([a2,a2]++)
+
 popLS :: MonadConc m => LockStack m a -> m (Maybe a)
 popLS (LockStack v) = modifyMVar v $ pure . (drop 1 &&& listToMaybe)
 
@@ -36,6 +40,7 @@ exprsLS = Exprs
   { initialState = fromListLS
   , expressions =
     [ lit "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
+    , lit "push2LS" (push2LS :: Int -> Int -> LockStack (ConcST t) Int -> ConcST t ())
     , lit "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
     , lit "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
     ]
@@ -45,6 +50,7 @@ exprsLS = Exprs
                                                         -> Maybe Int
                                                         -> ConcST t ())
     , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , hole (Proxy :: Proxy Int)
     , hole (Proxy :: Proxy (Maybe Int))
     , stateVar
     ]
