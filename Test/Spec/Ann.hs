@@ -17,7 +17,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -129,10 +129,12 @@ checkIsBoring atomic results = atomic && all (all ch . fst) (M.elems results) wh
 -- | Check if the left term (defined by its results) refines the right
 -- or the right returns the left.
 refines :: Ord x
-  => (VarResults x, VarResults x)
-  -> (VarResults x, VarResults x)
+  => (VarResults x, VarResults x) -- ^ Results of left term
+  -> [(String, String)] -- ^ Variable renaming of left term.
+  -> (VarResults x, VarResults x) -- ^ Results of right term.
+  -> [(String, String)] -- ^ Variable renaming of right term.
   -> (Bool, Bool)
-refines (nointerfere_a, interfere_a) (nointerfere_b, interfere_b)
+refines (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) renaming_b
     -- if the terms are equivalent, we want to distinguish a
     -- refinement from a "false equivalence" by checking the results
     -- in the presence of interference. we need to use the
@@ -156,11 +158,10 @@ refines (nointerfere_a, interfere_a) (nointerfere_b, interfere_b)
     -- two sets of variable assignments match if every variable is
     -- either present in only one execution, or has the same value in
     -- both executions
-    --
-    -- TODO: this is way too strict currently, it should also consider
-    -- alpha-equivalent terms, as the naming of environment variables
-    -- is now very arbitrary.
     checkAssigns (VA seed_a vars_a) (VA seed_b vars_b) =
-      seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b == v) True vars_a
+      let vars_a' = rename renaming_a vars_a
+          vars_b' = rename renaming_b vars_b
+      in seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b' == v) True vars_a'
+    rename renaming = M.mapKeys (\v -> fromMaybe (error "incomplete renaming") $ lookup v renaming)
 
     pairAnd (a, b) (c, d) = (a && c, b && d)

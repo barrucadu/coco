@@ -71,6 +71,7 @@ module Test.Spec.Expr
   , envbind
   , environment
   , holes
+  , rename
   -- ** Deconstruction
   , isApplication
   , isBind
@@ -97,7 +98,7 @@ module Test.Spec.Expr
 import Data.Char (isAlphaNum)
 import Data.Function (on)
 import Data.List (groupBy, nub, sortOn)
-import Data.Maybe (fromJust, isJust, mapMaybe, maybeToList)
+import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Ord (Down(..))
 import qualified Data.Typeable as T
 import Data.Void (Void)
@@ -304,6 +305,16 @@ environment = nub . go where
   go (Let _ _ _ b e) = go b ++ go e
   go (Ap _ f e) = go f ++ go e
   go _ = []
+
+-- | Rename variables in an expression, assuming a consistent
+-- renaming.
+rename :: [(String, String)] -> Expr s m h -> Expr s m h
+rename rs = go where
+  go (Var ty (Named s)) = Var ty (Named . fromMaybe s $ lookup s rs)
+  go (Var ty v) = Var ty v
+  go (Let ty m js b e) = Let ty m js (go b) (go e)
+  go (Ap ty f e) = Ap ty (go f) (go e)
+  go e = e
 
 -- | Get all holes in an expression, tagged with their position.
 holes :: Expr s m h -> [(Int, TypeRep s m)]

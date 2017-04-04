@@ -72,9 +72,10 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
 import Test.Spec.Ann
-import Test.Spec.Expr (Schema, Term, allTerms, bind, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, unBind)
+import Test.Spec.Expr (Schema, Term, allTerms, bind, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
 import Test.Spec.List (defaultListValues)
+import Test.Spec.Rename (renamings)
 import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
 import Test.Spec.Util
 
@@ -169,7 +170,7 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
       go tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = foldl' (check (\_ _ -> False ) smallers) (cnil, cnil) exprs
+            (_, observations) = foldl' (check (varfun exprs1) (\_ _ -> False ) smallers) (cnil, cnil) exprs
         in cappend observations $ if tier == lim then cnil else go (tier+1)
 
 
@@ -212,7 +213,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
     findObservations g tier = do
       evaled <- mapM evalSchema . S.toList $ getTier tier g
       let smallers = map (`getTier` g) [0..tier-1]
-      let (kept, observations) = first crun (foldl' (check ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
+      let (kept, observations) = first crun (foldl' (check (varfun exprs) ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
       let g' = adjustTier (const (S.fromList kept)) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
@@ -244,12 +245,13 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
 -- | Find observations and either annotate a schema or throw it away.
 check :: (Foldable f, Foldable g, Ord x)
-  => (schema1 -> schema2 -> Bool)
+  => (T.TypeRep -> Char)
+  -> (schema1 -> schema2 -> Bool)
   -> f (g (schema2, (Maybe (Ann s2 m x), Ann s2 m x)))
   -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
   -> (schema1, (Maybe (Ann s m x), Ann s m x))
   -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
-check p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
+check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
     | isBackground ann_a = (csnoc ckept z, cobs)
     | isJust (allResults ann_a) = case foldl' (foldl' go) (Just ann_a, cnil) smallers of
       (Just final_ann, obs) -> (csnoc ckept (schema_a, (old_ann_a, final_ann)), cappend cobs obs)
@@ -261,10 +263,11 @@ check p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
           let
             -- TODO: only keep the "best" observation for a pair
             -- of schemas?
-            allObservations = [mkobservation a b old_ann_a ann_a old_ann_b ann_b
+            allObservations = [mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b
                               | let results x = case allResults x of { Just (Some rs) -> M.assocs rs; _ -> [] }
                               , a <- results ann_a
                               , b <- results ann_b
+                              , (r_a, r_b) <- renamings varf (fst a) (fst b)
                               ]
             go' (final_ann, obs) (_, refines_ba, ob) =
               let
@@ -374,28 +377,34 @@ runSingle listValues exprs interference expr seeds
 mkobservation :: Ord x
   => (Term s1 m, (VarResults x, VarResults x)) -- ^ The left expression and results.
   -> (Term s2 m, (VarResults x, VarResults x)) -- ^ The right expression and results.
+  -> [(String, String)] -- ^ A projection of the variable names in the left term into a consistent namespace.
+  -> [(String, String)] -- ^ A projection of the variable names in the right term into a consistent namespace.
   -> Maybe (Ann s1 m x) -- ^ The old left annotation.
   -> Ann s1 m x -- ^ The current left annotation.
   -> Maybe (Ann s2 m x) -- ^ The old right annotation.
   -> Ann s2 m x -- ^ The current right annotation.
   -> (Bool, Bool, Maybe Observation)
-mkobservation (term_a, results_a) (term_b, results_b) old_ann_a ann_a old_ann_b ann_b = (refines_ab, refines_ba, obs) where
-  -- a failure is uninteresting if the failing term is built out of failing components
-  uninteresting_failure =
-    (maybe False isFailing old_ann_a && isFailing ann_a) ||
-    (maybe False isFailing old_ann_b && isFailing ann_b)
+mkobservation (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_ann_a ann_a old_ann_b ann_b =
+    (refines_ab, refines_ba, obs)
+  where
+    -- a failure is uninteresting if the failing term is built out of failing components
+    uninteresting_failure =
+      (maybe False isFailing old_ann_a && isFailing ann_a) ||
+      (maybe False isFailing old_ann_b && isFailing ann_b)
 
-  -- P ⊑ Q iff the results of P are a subset of the results of Q
-  (refines_ab, refines_ba) = refines results_a results_b
+    -- P ⊑ Q iff the results of P are a subset of the results of Q
+    (refines_ab, refines_ba) = refines results_a renaming_a results_b renaming_b
 
-  -- describe the observation
-  obs
-    | uninteresting_failure = Nothing
-    | refines_ab && refines_ba = Just $
-      if exprSize term_a > exprSize term_b then Equiv term_b term_a else Equiv term_a term_b
-    | refines_ab = Just (Refines term_a term_b)
-    | refines_ba = Just (Refines term_b term_a)
-    | otherwise = Nothing
+    -- describe the observation
+    term_a' = rename renaming_a term_a
+    term_b' = rename renaming_b term_b
+    obs
+      | uninteresting_failure = Nothing
+      | refines_ab && refines_ba = Just $
+        if exprSize term_a > exprSize term_b then Equiv term_b' term_a' else Equiv term_a' term_b'
+      | refines_ab = Just (Refines term_a' term_b')
+      | refines_ba = Just (Refines term_b' term_a')
+      | otherwise = Nothing
 
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
