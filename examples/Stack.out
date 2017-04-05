@@ -1,12 +1,8 @@
       peekLS :state:        strictly refines        pushLS x :state: >> popLS :state:
       peekLS :state:        strictly refines        (popLS :state:) ||| (pushLS x :state:)
       peekLS :state:        strictly refines        popLS :state: >>= \m -> whenJust pushLS :state: m
-    pushLS x :state:        strictly refines        push2LS x x :state: >> popLS :state:
-    pushLS x :state:        strictly refines        (popLS :state:) ||| (push2LS x x :state:)
    pushLS x1 :state:        strictly refines        push2LS x x1 :state: >> popLS :state:
    pushLS x1 :state:        strictly refines        (popLS :state:) ||| (push2LS x x1 :state:)
- push2LS x x :state:        strictly refines        pushLS x :state: >> pushLS x :state:
- push2LS x x :state:        strictly refines        (pushLS x :state:) ||| (pushLS x :state:)
 push2LS x1 x :state:        strictly refines        pushLS x :state: >> pushLS x :state:
 push2LS x1 x :state:        strictly refines        (pushLS x :state:) ||| (pushLS x :state:)
 

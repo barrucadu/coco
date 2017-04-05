@@ -70,7 +70,7 @@ instance Semigroup (Ann s m x) where
 
 -- | The results of evaluating a schema.
 data Results s m x
-  = Some (Map (Term s m) (VarResults x, VarResults x))
+  = Some [(Term s m, (VarResults x, VarResults x))]
   -- ^ The schema has some results, with the given variable
   -- assignments. The left results have no interference. The right
   -- results have some. This is used to disambiguate between
@@ -115,15 +115,15 @@ update atomic results ann = ann
   }
 
 -- | Check if a set of results corresponds to a failing term.
-checkIsFailing :: Map (Term s m) (VarResults x, VarResults x) -> Bool
+checkIsFailing :: [(Term s m, (VarResults x, VarResults x))] -> Bool
 checkIsFailing results =
-  let term_results = M.elems results
+  let term_results = map snd results
       is_failing = isJust . fst
   in all (all (all is_failing . snd) . fst) term_results
 
 -- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> Map (Term s m) (VarResults x, VarResults x) -> Bool
-checkIsBoring atomic results = atomic && all (all ch . fst) (M.elems results) where
+checkIsBoring :: Eq x => Bool -> [(Term s m, (VarResults x, VarResults x))] -> Bool
+checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) where
   ch (va, rs) = all (\(f, x) -> isNothing f && x == seedVal va) rs
 
 -- | Check if the left term (defined by its results) refines the right

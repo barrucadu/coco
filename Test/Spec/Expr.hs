@@ -58,6 +58,7 @@ module Test.Spec.Expr
   , Term
   , toTerm
   , allTerms
+  , isInstanceOf
     -- ** Construction
   , ($$)
   , bind
@@ -183,6 +184,53 @@ allTerms nf = mapMaybe toTerm . sortOn (Down . length . environment) . go where
     [(x:ys):yss | (ys:yss) <- partitions xs]
   partitions [] = [[]]
 
+-- | Check if one expression is an instance of another (this is a
+-- partial ordering).
+--
+-- An expression is an instance of another if (a) they have the same
+-- shape, and (b) the variables of the \"lesser\" are subsumed by the
+-- \"greater\". For some intuition, consider an extreme case:
+--
+-- @
+-- f a b == g c d
+-- f a a == g c c
+-- @
+--
+-- Clearly if the first property is true, then the second will as
+-- well. The first is more general in that it imposes fewer
+-- constraints on the values of the holes. The latter is more specific
+-- as it imposes two constraints.
+--
+-- This is intended to be used infix, so the argument order is
+-- @specific `isInstanceOf` general@
+isInstanceOf :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> Bool
+isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS) where
+  (ok, envG, envS, _) = checkShape (0::Int) eG eS
+
+  checkShape i (Lit b1 s1 dyn1) (Lit b2 s2 dyn2) = (b1 == b2 && s1 == s2 && dyn1 `deq` dyn2, [], [], i)
+  checkShape i (Var ty1 (Hole  _))  (Var ty2 (Hole  _))  = (ty1 `teq` ty2, [], [], i)
+  checkShape i (Var ty1 (Named s1)) (Var ty2 (Named s2)) = (ty1 `teq` ty2, [(s1, i)], [(s2, i)], i+1)
+  checkShape i (Var ty1 (Bound i1)) (Var ty2 (Bound i2)) = (ty1 `teq` ty2 && i1 == i2, [], [], i)
+  checkShape i (Let ty1 m1 is1 b1 e1) (Let ty2 m2 is2 b2 e2) =
+    let (bok, benv1, benv2, i')  = checkShape i  b1 b2
+        (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
+    in (ty1 `teq` ty2 && m1 == m2 && is1 == is2 && bok && eok, nub (benv1++eenv1), nub (benv2++eenv2), i'')
+  checkShape i (Ap ty1 f1 e1) (Ap ty2 f2 e2) =
+    let (fok, fenv1, fenv2, i')  = checkShape i  f1 f2
+        (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
+    in (ty1 `teq` ty2 && fok && eok, nub (fenv1++eenv1), nub (fenv2++eenv2), i'')
+  checkShape i StateVar StateVar = (True, [], [], i)
+  checkShape i _ _ = (False, [], [], i)
+
+  checkEnv (as:ass) bss =
+    any (\bs -> all (`elem` bs) as) bss && checkEnv ass bss
+  checkEnv [] _ = True
+
+  deq dyn1 dyn2 = dynTypeRep dyn1 `teq` dynTypeRep dyn2
+  teq ty1  ty2  = rawTypeRep ty1   ==   rawTypeRep ty2
+
+  -- group a list of tuples by first element (the tag) and then discard it.
+  sortGroupTagged = map (map snd) . groupBy ((==) `on` fst) . sortOn fst
 
 -------------------------------------------------------------------------------
 -- Construction

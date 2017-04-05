@@ -72,7 +72,7 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
 import Test.Spec.Ann
-import Test.Spec.Expr (Schema, Term, allTerms, bind, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
+import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
 import Test.Spec.List (defaultListValues)
 import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
@@ -225,7 +225,7 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
       let new_ann = case sequence results of
             Just rs ->
               let all_atomic  = all fst rs
-                  all_results = M.fromList (map snd rs)
+                  all_results = map snd rs
               in update all_atomic (Some all_results) ann
             Nothing -> update False None ann
       pure (schema, (Just ann, new_ann))
@@ -261,21 +261,28 @@ check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
     go acc (schema_b, (old_ann_b, ann_b))
       | isSmallest ann_b && not (isBackground ann_b) =
           let
+            -- Given two equal observations, check if the second is an instance of the first.
+            equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
+              ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
+                Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+                Just (Refines t1 t2, Refines t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+                _ -> False
+
             -- Given two equal observations, check if the first has a more general naming than the right
             equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) = o1 == o2 && p1 `isMoreGeneralThan` p2
-            -- TODO: only keep the "best" observation for a pair
-            -- of schemas?
-            allObservations = concat
-              [ discardLater equalAndHasMoreGeneralNaming
+
+            -- All interestingly distinct observations
+            allObservations = discardLater equalAndIsInstanceOf $ concat
+              [ map fst $ discardLater equalAndHasMoreGeneralNaming
                 [ (mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
                 | proj <- projections (fst a) (fst b)
                 , let (r_a, r_b) = renaming varf proj
                 ]
-              | let results x = case allResults x of { Just (Some rs) -> M.assocs rs; _ -> [] }
+              | let results x = case allResults x of { Just (Some rs) -> rs; _ -> [] }
               , a <- results ann_a
               , b <- results ann_b
               ]
-            go' (final_ann, obs) ((_, refines_ba, ob), _) =
+            go' (final_ann, obs) (_, refines_ba, ob) =
               let
                 -- if B refines A then: if they are different
                 -- types, annotate A as not the smallest,
