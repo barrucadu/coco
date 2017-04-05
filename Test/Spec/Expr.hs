@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE StrictData #-}
 
 -- |
@@ -7,7 +6,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, StrictData
+-- Portability : StrictData
 --
 -- Constructing and evaluating dynamically-typed monadic expressions.
 --
@@ -55,43 +54,36 @@
 module Test.Spec.Expr
   ( -- * Expressions
     Expr
-  , constant
-  , commutativeConstant
-  , dynConstant
-  , showConstant
-  , variable
-  , stateVariable
+  , Schema
+  , Term
+  , toTerm
+  , allTerms
+  , isInstanceOf
+    -- ** Construction
   , ($$)
-  , let_
   , bind
-  , ignore
-  -- ** Constants and variables
-  , constants
-  , variables
-  , freeVariables
-  , boundVariables
-  , constants'
-  , variables'
-  , freeVariables'
-  , boundVariables'
-  -- ** Queries
+  , hole
+  , let_
+  , lit
+  , commLit
+  , showLit
+  , stateVar
+  -- ** Holes & Environment
+  , envbind
+  , environment
+  , holes
+  , rename
+  -- ** Deconstruction
   , isApplication
   , isBind
-  , isConstant
+  , isHole
   , isLet
-  , isStateVariable
-  , isVariable
+  , isLit
+  , isStateVar
   , unApplication
   , unBind
-  , unConstant
   , unLet
-  , unVariable
-  , unIgnore
-  -- ** Modification
-  , saturate
-  , assign
-  , assignLets
-  , rename
+  , unLit
   -- ** Evaluation
   , evaluate
   , evaluateDyn
@@ -100,15 +92,17 @@ module Test.Spec.Expr
   , exprSize
   , exprTypeArity
   , exprTypeRep
-  , tree
+  , eq
+  , pp
   ) where
 
-import Control.Monad (filterM, guard)
 import Data.Char (isAlphaNum)
 import Data.Function (on)
-import Data.List ((\\), foldl', mapAccumL, nub, nubBy)
-import Data.Maybe (fromMaybe, isJust)
+import Data.List (groupBy, nub, sortOn)
+import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe, maybeToList)
+import Data.Ord (Down(..))
 import qualified Data.Typeable as T
+import Data.Void (Void)
 
 import Test.Spec.Type
 import Test.Spec.Util
@@ -117,100 +111,133 @@ import Test.Spec.Util
 -- Expressions
 
 -- | An expression with effects in some monad @m@.
-data Expr s m where
+data Expr s m h
   -- It's important that these constructors aren't exposed, so the
   -- correctness of the 'TypeRep's can be ensured.
-  Constant            :: String -> Dynamic s m                         -> Expr s m
-  CommutativeConstant :: String -> Dynamic s m                         -> Expr s m
-  Variable            :: String -> TypeRep s m                         -> Expr s m
-  StateVar            ::                                                  Expr s m
-  FunAp               :: Expr s m -> Expr s m -> TypeRep s m           -> Expr s m
-  Bind                :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
-  Let                 :: String -> Expr s m -> Expr s m -> TypeRep s m -> Expr s m
-  EIgnore             :: Expr s m                                      -> Expr s m
+  = Lit Bool String (Dynamic s m)
+  -- ^ @Lit True@ is a commutative lit, which affects function
+  -- application.
+  | Var (TypeRep s m) (Var h)
+  -- ^ Holes, let-bound variables, and environment variables.
+  | Let (TypeRep s m) Bool [Int] (Expr s m h) (Expr s m h)
+  -- ^ @Let True@ is a monadic bind, which affects evaluation.
+  | Ap  (TypeRep s m) (Expr s m h) (Expr s m h)
+  -- ^ Function application.
+  | StateVar
+  -- ^ The state variable.
+  deriving (Eq, Ord, Show)
 
-instance Show (Expr s m) where
-  show = go True "'" [] where
-    go _ _ _ (Constant s _) = toPrefix s
-    go _ _ _ (CommutativeConstant s _) = toPrefix s
-    go _ _ alts (Variable s _) = toPrefix $ fromMaybe s (lookup s alts)
-    go _ _ _ StateVar = ":state:"
-    go b t alts (EIgnore e) = go b t alts e
-    go b t alts e =
-      let inner = unwords $ case e of
-            (Bind "_" binder body _) ->
-              [go b t alts binder, ">>", go b t alts body]
-            (Bind var binder body _) ->
-              let (t', var', alts') = ('\'':t, var++t, (var, var++t):alts)
-              in [go b t alts binder, ">>=", '\\':var', "->", go b t' alts' body]
-            (Let var binder body _) ->
-              let (t', var', alts') = if var == "_" then (t, var, alts) else ('\'':t, var++t, (var, var++t):alts)
-              in ["let", var', "=", go b t alts binder, "in", go b t' alts' body]
-            (FunAp _ _ _) -> case unfoldAp e of
-              [Constant s _, arg1, arg2]
-                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
-              [CommutativeConstant s _, arg1, arg2]
-                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
-              [Variable s _, arg1, arg2]
-                | isSymbolic s -> [go False t alts arg1, s, go False t alts arg2]
-              unfolded -> map (go False t alts) unfolded
-            _ -> [] -- shouldn't be reached
-      in if b then inner else "(" ++ inner ++ ")"
+-- | A hole or variable binding;
+data Var h
+  = Hole h
+  -- ^ A typed hole.
+  | Named String
+  -- ^ A named variable from the environment.
+  | Bound Int
+  -- ^ A de Bruijn index.
+  deriving (Eq, Ord, Show)
 
-    toPrefix s
-      | not (isSymbolic s) = s
-      | otherwise = "(" ++ s ++ ")"
+-- | A schema is an expression which may contain holes. One schema may
+-- correspond to many terms.
+type Schema s m = Expr s m ()
 
-    unfoldAp (FunAp f e _) = unfoldAp f ++ [e]
-    unfoldAp e = [e]
+-- | A term is an expression with no holes. Many terms may correspond to one schema.
+type Term s m = Expr s m Void
 
-    isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
+-- | Convert a 'Schema' to a 'Term' if there are no holes.
+toTerm :: Schema s m -> Maybe (Term s m)
+toTerm (Lit c s dyn) = Just (Lit c s dyn)
+toTerm (Var ty v) = case v of
+  Hole  _ -> Nothing
+  Named s -> Just (Var ty (Named s))
+  Bound i -> Just (Var ty (Bound i))
+toTerm (Let ty m is b e) = Let ty m is <$> toTerm b <*> toTerm e
+toTerm (Ap ty f e) = Ap ty <$> toTerm f <*> toTerm e
+toTerm StateVar = Just StateVar
 
--- | This is alpha-equivalence.
-instance Eq (Expr s m) where
-  e1 == e2 = show (rename e1) == show (rename e2)
-
-instance Ord (Expr s m) where
-  e1 <= e2 = show e1 <= show e2
-
--- | A constant value.
+-- | From a schema that may have holes, generate a list of terms with
+-- named variables substituted instead, ordered from most free (one
+-- hole per variable) to most constrained (multiple holes per
+-- variable).
 --
--- @exprSize (constant "foo" foo) == 1@
-constant :: HasTypeRep s m a => String -> a -> Expr s m
-constant s a = Constant s (toDyn a)
+-- This takes a function to assign a letter to each type, subsequent
+-- variables of the same type have digits appended.
+allTerms :: (T.TypeRep -> Char) -> Schema s m -> [Term s m]
+allTerms nf = mapMaybe toTerm . sortOn (Down . length . environment) . go where
+  go e0 = case hs e0 of
+    [] -> [e0]
+    (chosen:_) -> concatMap go
+      [ e | ps <- partitions chosen
+          , let (((_,tyc):_):_) = ps
+          , let tyc' = rawTypeRep tyc
+          , let vname i = if i == 0 then [nf tyc'] else nf tyc' : show (i::Int)
+          , let naming = concat $ zipWith (\i vs -> [(v, vname i) | (v,_) <- vs]) [0..] ps
+          , e <- maybeToList (envbind naming e0)
+      ]
 
--- | A constant commutative binary function. Used to avoid
--- redundancies in term generation.
+  -- holes grouped by type
+  hs = groupBy ((==) `on` snd) . sortOn snd . holes
+
+  -- all partitions of a list
+  partitions (x:xs) =
+    [[x]:p | p <- partitions xs] ++
+    [(x:ys):yss | (ys:yss) <- partitions xs]
+  partitions [] = [[]]
+
+-- | Check if one expression is an instance of another (this is a
+-- partial ordering).
 --
--- @commutativeConstant "foo" foo == 1@
-commutativeConstant :: HasTypeRep s m a => String -> a -> Expr s m
-commutativeConstant s a = CommutativeConstant s (toDyn a)
-
--- | A constant value from a dynamic value.
-dynConstant :: String -> Dynamic s m -> Expr s m
-dynConstant = Constant
-
--- | A constant value from a type which can be shown.
+-- An expression is an instance of another if (a) they have the same
+-- shape, and (b) the variables of the \"lesser\" are subsumed by the
+-- \"greater\". For some intuition, consider an extreme case:
 --
--- @exprSize (showConstant foo) == 1@
-showConstant :: (Show a, HasTypeRep s m a) => a -> Expr s m
-showConstant a = constant (show a) a
-
--- | A variable.
+-- @
+-- f a b == g c d
+-- f a a == g c c
+-- @
 --
--- @exprSize (variable "x" proxy) == 1@
-variable :: HasTypeRep s m a => String -> proxy a -> Expr s m
-variable s = Variable s . typeRep
-
--- | The state variable
+-- Clearly if the first property is true, then the second will as
+-- well. The first is more general in that it imposes fewer
+-- constraints on the values of the holes. The latter is more specific
+-- as it imposes two constraints.
 --
--- @exprSize stateVariable == 1@
-stateVariable :: Expr s m
-stateVariable = StateVar
+-- This is intended to be used infix, so the argument order is
+-- @specific `isInstanceOf` general@
+isInstanceOf :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> Bool
+isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS) where
+  (ok, envG, envS, _) = checkShape (0::Int) eG eS
+
+  checkShape i (Lit b1 s1 dyn1) (Lit b2 s2 dyn2) = (b1 == b2 && s1 == s2 && dyn1 `deq` dyn2, [], [], i)
+  checkShape i (Var ty1 (Hole  _))  (Var ty2 (Hole  _))  = (ty1 `teq` ty2, [], [], i)
+  checkShape i (Var ty1 (Named s1)) (Var ty2 (Named s2)) = (ty1 `teq` ty2, [(s1, i)], [(s2, i)], i+1)
+  checkShape i (Var ty1 (Bound i1)) (Var ty2 (Bound i2)) = (ty1 `teq` ty2 && i1 == i2, [], [], i)
+  checkShape i (Let ty1 m1 is1 b1 e1) (Let ty2 m2 is2 b2 e2) =
+    let (bok, benv1, benv2, i')  = checkShape i  b1 b2
+        (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
+    in (ty1 `teq` ty2 && m1 == m2 && is1 == is2 && bok && eok, nub (benv1++eenv1), nub (benv2++eenv2), i'')
+  checkShape i (Ap ty1 f1 e1) (Ap ty2 f2 e2) =
+    let (fok, fenv1, fenv2, i')  = checkShape i  f1 f2
+        (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
+    in (ty1 `teq` ty2 && fok && eok, nub (fenv1++eenv1), nub (fenv2++eenv2), i'')
+  checkShape i StateVar StateVar = (True, [], [], i)
+  checkShape i _ _ = (False, [], [], i)
+
+  checkEnv (as:ass) bss =
+    any (\bs -> all (`elem` bs) as) bss && checkEnv ass bss
+  checkEnv [] _ = True
+
+  deq dyn1 dyn2 = dynTypeRep dyn1 `teq` dynTypeRep dyn2
+  teq ty1  ty2  = rawTypeRep ty1   ==   rawTypeRep ty2
+
+  -- group a list of tuples by first element (the tag) and then discard it.
+  sortGroupTagged = map (map snd) . groupBy ((==) `on` fst) . sortOn fst
+
+-------------------------------------------------------------------------------
+-- Construction
 
 -- | Apply a function, if well-typed.
 --
--- @fmap exprSize (e1 $$ e2) == Just (exprSize e1 + exprSize e2)@
+-- @fmap exprSize (f $$ e) == Just (exprSize f + exprSize e)@
 --
 -- There are two special cases:
 --
@@ -219,299 +246,244 @@ stateVariable = StateVar
 --
 -- - Applying the second argument to a commutative function produces
 --   @Nothing@, even if well-typed, if it is @<@ the first argument.
-($$) :: Expr s m -> Expr s m -> Maybe (Expr s m)
-f $$ e0 = case funArgTys (exprTypeRep f) of
-    (argty:_)
-      | argty == monadTypeRep (T.typeOf Ignore) -> mkfun =<< ignore e0
-      | otherwise -> mkfun e0
-    [] -> Nothing
+($$) :: Ord h => Expr s m h -> Expr s m h -> Maybe (Expr s m h)
+f $$ e = case funTys (exprTypeRep f) of
+    Just (fArgTy, fResTy) ->
+      -- check if the formal parameter is of type @m Ignore@ and the
+      -- actual parameter is of type @m a@.
+      if fArgTy == ignoreTypeRep && isJust (unmonad $ exprTypeRep e)
+      then mkfun fResTy
+      else mkfun =<< exprTypeRep f `funResultTy` exprTypeRep e
+    Nothing -> Nothing
   where
-    mkfun e = case FunAp f e <$> (exprTypeRep f `funResultTy` exprTypeRep e) of
-      Just (FunAp (FunAp (CommutativeConstant _ _) e1 _) e2 _)
-        | e2 < e1 -> Nothing
-      r -> r
+    mkfun ty = case f of
+      Ap _ (Lit True _ _) e0 | e < e0 -> Nothing
+      _ -> Just (Ap ty f e)
 
--- | Bind a monadic value to a variable name, if well typed.
+-- | Bind a monadic value to a collection of holes, if well typed. The
+-- numbering of unbound holes may be changed by this function.
 --
--- @fmap exprSize (bind "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)@
-bind :: String   -- ^ Variable name
-     -> Expr s m -- ^ Expression to bind
-     -> Expr s m -- ^ Expression to bind variable in
-     -> Maybe (Expr s m)
-bind var binder body = do
+-- @fmap exprSize (bind is b e) == Just (1 + exprSize b + exprSize e)@
+bind :: [Int] -- ^ Holes.
+     -> Expr s m h -- ^ Expression to bind
+     -> Expr s m h -- ^ Expression to bind variable in
+     -> Maybe (Expr s m h)
+bind is binder body = do
   _ <- unmonad (exprTypeRep body)
-  let boundVars = filter ((==var) . fst) (freeVariables body)
   innerTy <- unmonad (exprTypeRep binder)
-  guard $ all ((==innerTy) . snd) boundVars
-  pure $ Bind var binder body (exprTypeRep body)
+  Let (exprTypeRep body) True is binder <$> letHelper is innerTy body
 
--- | Bind a value to a variable name, if well typed.
+-- | A typed hole.
 --
--- @fmap exprSize (let_ "x" e1 e2) == Just (1 + exprSize e1 + exprSize e2)@
-let_ :: String   -- ^ Variable name
-     -> Expr s m -- ^ Expression to bind
-     -> Expr s m -- ^ Expression to bind variable in
-     -> Maybe (Expr s m)
-let_ var binder body = do
-  let boundVars = filter ((==var) . fst) (freeVariables body)
-  guard $ all ((==exprTypeRep binder) . snd) boundVars
-  pure $ Let var binder body (exprTypeRep body)
+-- @exprSize (hole proxy) == 1@
+hole :: HasTypeRep s m a => proxy a -> Expr s m ()
+hole p = Var (typeRep p) (Hole ())
 
--- | Ignore the final value of a monadic expression. In less
--- dynamically-typed land, this is just @fmap (const Ignore)@.
+-- | Bind a value to a collection of holes, if well typed. The
+-- numbering of unbound holes may be changed by this function.
 --
--- @fmap exprSize e == Just (exprSize e)@
-ignore :: Expr s m -> Maybe (Expr s m)
-ignore inner
-  | isJust (unmonad $ exprTypeRep inner) = Just (EIgnore inner)
-  | otherwise = Nothing
+-- @fmap exprSize (let_ is b e) == Just (1 + exprSize b + exprSize e)@
+let_ :: [Int] -- ^ Holes.
+     -> Expr s m h -- ^ Expression to bind
+     -> Expr s m h -- ^ Expression to bind variable in
+     -> Maybe (Expr s m h)
+let_ is binder body =
+  Let (exprTypeRep body) False is binder <$> letHelper is (exprTypeRep binder) body
 
--- | Get all constants in an expression, without repetition.
-constants :: Expr s m -> [(String, Dynamic s m)]
-constants = nubBy ((==) `on` fst) . constants'
+-- | A literal value.
+--
+-- @exprSize (lit "foo" foo) == 1@
+lit :: HasTypeRep s m a => String -> a -> Expr s m h
+lit s a = Lit False s (toDyn a)
 
--- | Get all constants in an expression.
-constants' :: Expr s m -> [(String, Dynamic s m)]
-constants' (Constant s dyn) = [(s, dyn)]
-constants' (CommutativeConstant s dyn) = [(s, dyn)]
-constants' (FunAp f e _) = constants' f ++ constants' e
-constants' (Bind _ e1 e2 _) = constants' e1 ++ constants' e2
-constants' (Let _ e1 e2 _) = constants' e1 ++ constants' e2
-constants' (EIgnore e) = constants' e
-constants' _ = []
+-- | A commutative binary function. Used to avoid redundancies in term
+-- generation.
+--
+-- @commLit "foo" foo == 1@
+commLit :: HasTypeRep s m a => String -> a -> Expr s m h
+commLit s a = Lit True s (toDyn a)
 
--- | Get all variables in an expression, without repetition.
-variables :: Expr s m -> [(String, TypeRep s m)]
-variables = nub . variables'
+-- | A literal value from a type which can be shown.
+--
+-- @exprSize (showLit foo) == 1@
+showLit :: (Show a, HasTypeRep s m a) => a -> Expr s m h
+showLit a = lit (show a) a
 
--- | Get all variables in an expression.
-variables' :: Expr s m -> [(String, TypeRep s m)]
-variables' (Variable s ty) = [(s, ty)]
-variables' (FunAp f e _) = variables' f ++ variables' e
-variables' (Bind _ e1 e2 _) = variables' e1 ++ variables' e2
-variables' (Let _ e1 e2 _) = variables' e1 ++ variables' e2
-variables' (EIgnore e) = variables' e
-variables' _ = []
+-- | The state variable
+--
+-- @exprSize stateVar == 1@
+stateVar :: Expr s m h
+stateVar = StateVar
 
--- | Get all free variables in an expression, without repetition.
-freeVariables :: Expr s m -> [(String, TypeRep s m)]
-freeVariables = nub . freeVariables'
 
--- | Get all free variables in an expression.
-freeVariables' :: Expr s m -> [(String, TypeRep s m)]
-freeVariables' (Variable s ty) = [(s, ty)]
-freeVariables' (FunAp f e _) = freeVariables' f ++ freeVariables' e
-freeVariables' (Bind s e1 e2 _) = freeVariables' e1 ++ filter ((/=s) . fst) (freeVariables' e2)
-freeVariables' (Let s e1 e2 _) = freeVariables' e1 ++ filter ((/=s) . fst) (freeVariables' e2)
-freeVariables' (EIgnore e) = freeVariables' e
-freeVariables' _ = []
+-------------------------------------------------------------------------------
+-- Environment & Holes
 
--- | Get all the bound variables in an expression, without repetition.
-boundVariables :: Expr s m -> [(String, TypeRep s m)]
-boundVariables = nub . boundVariables'
+-- | Bind holes to environment variables, if all have the same
+-- type. The numbering of unbound holes may be changed by this
+-- function.
+envbind :: [(Int, String)] -> Expr s m h -> Maybe (Expr s m h)
+envbind is e0 = (\(e,_,_) -> e) <$> go [] 0 e0 where
+  go env i n@(Var ty (Named s)) = case lookup s env of
+    Just sty
+      | ty == sty -> Just (n, env, i)
+      | otherwise -> Nothing
+    Nothing -> Just (n, env, i)
+  go env i (Var ty (Hole h)) = case lookup i is of
+    Just s -> case lookup s env of
+      Just sty
+        | ty == sty -> Just (Var ty (Named s), env, i + 1)
+        | otherwise -> Nothing
+      Nothing -> Just (Var ty (Named s), (s,ty):env, i + 1)
+    Nothing -> Just (Var ty (Hole h), env, i + 1)
+  go env i (Let ty m js b e) = do
+    (b', env',  i')  <- go env  i  b
+    (e', env'', i'') <- go env' i' e
+    Just (Let ty m js b' e', env'', i'')
+  go env i (Ap ty f e) = do
+    (f', env',  i')  <- go env  i  f
+    (e', env'', i'') <- go env' i' e
+    Just (Ap ty f' e', env'', i'')
+  go env i e = Just (e, env, i)
 
--- | Get all the bound variables in an expression.
-boundVariables' :: Expr s m -> [(String, TypeRep s m)]
-boundVariables' expr = variables' expr \\ freeVariables' expr
+-- | Get all the environment variables in an expression.
+environment :: Expr s m h -> [(String, TypeRep s m)]
+environment = nub . go where
+  go (Var ty (Named s)) = [(s, ty)]
+  go (Let _ _ _ b e) = go b ++ go e
+  go (Ap _ f e) = go f ++ go e
+  go _ = []
 
--- | Check if an expression is a constant.
-isConstant :: Expr s m -> Bool
-isConstant = isJust . unConstant
+-- | Rename variables in an expression, assuming a consistent
+-- renaming.
+rename :: [(String, String)] -> Expr s m h -> Expr s m h
+rename rs = go where
+  go (Var ty (Named s)) = Var ty (Named . fromMaybe s $ lookup s rs)
+  go (Var ty v) = Var ty v
+  go (Let ty m js b e) = Let ty m js (go b) (go e)
+  go (Ap ty f e) = Ap ty (go f) (go e)
+  go e = e
 
--- | Check if an expression is a named variable.
-isVariable :: Expr s m -> Bool
-isVariable = isJust . unVariable
+-- | Get all holes in an expression, tagged with their position.
+holes :: Expr s m h -> [(Int, TypeRep s m)]
+holes = fst . go 0 where
+  go i (Var ty (Hole _)) = ([(i, ty)], i + 1)
+  go i (Let _ _ _ b e) =
+    let (bhs, i')  = go i  b
+        (ehs, i'') = go i' e
+    in (bhs ++ ehs, i'')
+  go i (Ap _ f e) =
+    let (fhs, i')  = go i  f
+        (ehs, i'') = go i' e
+    in (fhs ++ ehs, i'')
+  go i _ = ([], i)
 
--- | Check if an expression is the state variable.
-isStateVariable :: Expr s m -> Bool
-isStateVariable StateVar = True
-isStateVariable _ = False
+
+-------------------------------------------------------------------------------
+-- Deconstruction
 
 -- | Check if an expression is a function application.
-isApplication :: Expr s m -> Bool
+isApplication :: Expr s m h -> Bool
 isApplication = isJust . unApplication
 
 -- | Check if an expression is a monadic bind.
-isBind :: Expr s m -> Bool
+isBind :: Expr s m h -> Bool
 isBind = isJust . unBind
 
+-- | Check if an expression is a typed hole.
+isHole :: Expr s m h -> Bool
+isHole (Var _ (Hole _)) = True
+isHole _ = False
+
 -- | Check if an expression is a let binding.
-isLet :: Expr s m -> Bool
+isLet :: Expr s m h -> Bool
 isLet = isJust . unLet
 
--- | Deconstruct a constant.
-unConstant :: Expr s m -> Maybe (String, Dynamic s m)
-unConstant (Constant s dyn) = Just (s, dyn)
-unConstant (CommutativeConstant s dyn) = Just (s, dyn)
-unConstant _ = Nothing
+-- | Check if an expression is a literal.
+isLit :: Expr s m h -> Bool
+isLit = isJust . unLit
 
--- | Deconstruct a named variable.
-unVariable :: Expr s m -> Maybe (String, TypeRep s m)
-unVariable (Variable s ty) = Just (s, ty)
-unVariable _ = Nothing
+-- | Check if an expression is the state variable.
+isStateVar :: Expr s m h -> Bool
+isStateVar StateVar = True
+isStateVar _ = False
 
 -- | Deconstruct a function application.
-unApplication :: Expr s m -> Maybe (Expr s m, Expr s m)
-unApplication (FunAp e1 e2 _) = Just (e1, e2)
+unApplication :: Expr s m h -> Maybe (Expr s m h, Expr s m h)
+unApplication (Ap _ f e) = Just (f, e)
 unApplication _ = Nothing
 
 -- | Deconstruct a monadic bind.
-unBind :: Expr s m -> Maybe (String, Expr s m, Expr s m)
-unBind (Bind s e1 e2 _) = Just (s, e1, e2)
+unBind :: Expr s m h -> Maybe ([Int], Expr s m h, Expr s m h)
+unBind (Let _ True is b e) = Just (is, b, e)
 unBind _ = Nothing
 
 -- | Deconstruct a let binding.
-unLet :: Expr s m -> Maybe (String, Expr s m, Expr s m)
-unLet (Let s e1 e2 _) = Just (s, e1, e2)
+unLet :: Expr s m h -> Maybe ([Int], Expr s m h, Expr s m h)
+unLet (Let _ False is b e) = Just (is, b, e)
 unLet _ = Nothing
 
--- | Deconstruct an ignored monadic value.
-unIgnore :: Expr s m -> Maybe (Expr s m)
-unIgnore (EIgnore e) = Just e
-unIgnore _ = Nothing
+-- | Deconstruct a literal.
+unLit :: Expr s m h -> Maybe (String, Dynamic s m)
+unLit (Lit _ s dyn) = Just (s, dyn)
+unLit _ = Nothing
 
--- | If an expression represents an unsaturated function, introduce
--- new variables to saturate it. These variables are free in the
--- resultant expression.
+
+-------------------------------------------------------------------------------
+-- Evaluation
+
+-- | Evaluate an expression, if the environment is complete and it is
+-- the correct type.
 --
--- @exprSize (saturate e) == exprSize e + exprTypeArity e@
-saturate :: Expr s m -> Expr s m
-saturate expr = foldl' ($$!) expr vars where
-  -- the should never happen, as we've just constructed the list of
-  -- variables from the needed types.
-  e1 $$! e2 = fromMaybe (error "type error in 'saturate'") (e1 $$ e2)
+-- If the outer 'Maybe' is @Nothing@, the environment is
+-- incomplete. If the inner 'Maybe' is @Nothing@, the type is
+-- incorrect.
+evaluate :: (Monad m, HasTypeRep s m a) => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe a)
+evaluate e0 globals = (fromDyn .) <$> evaluateDyn e0 globals
 
-  -- the variables introduced to saturate the application
-  vars = zipWith Variable (take (length tys) varnames) tys
-
-  -- the list ["a", "b", "ba", "c", "ca", ...], sans those which are
-  -- already variables in the expression.
-  varnames = filter (`notElem` takenVars) names
-  takenVars = map fst (variables expr)
-
-  -- the types of the function arguments
-  tys = funArgTys (exprTypeRep expr)
-
--- | Plug in a value for all occurrences of a variable, if the types
--- match. A 'bind' or 'let_' of a variable of the same name is
--- actually introducing a fresh variable, so upon encountering a
--- binding with the variable name, assignment stops.
---
--- @fmap exprSize (assign "x" e1 e2) == Just (exprSize e2 + numOccurrences * (exprSize e1 - 1))@
---
--- Because 'assign' has the potential to greatly increase the size of
--- the expression, 'let_' is generally better.
-assign :: String
-       -- ^ The name of the variable.
-       -> Expr s m
-       -- ^ The new value.
-       -> Expr s m
-       -- ^ The expression being modified
-       -> Maybe (Expr s m)
-assign s v e@(Variable s2 ty)
-  | s == s2   = if exprTypeRep v == ty then Just v else Nothing
-  | otherwise = Just e
-assign s v (FunAp f e ty) = FunAp <$> assign s v f <*> assign s v e <*> pure ty
-assign s v (Bind s2 e1 e2 ty)
-  | s == s2   = Bind s2 <$> assign s v e1 <*> pure e2 <*> pure ty
-  | otherwise = Bind s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
-assign s v (Let s2 e1 e2 ty)
-  | s == s2   = Let s2 <$> assign s v e1 <*> pure e2 <*> pure ty
-  | otherwise = Let s2 <$> assign s v e1 <*> assign s v e2 <*> pure ty
-assign s v (EIgnore e) = EIgnore <$> assign s v e
-assign _ _ e = Just e
-
--- | Transform all 'let_'s into assignments.
---
--- The effect of this on the size of an expression is difficult to
--- predict.
-assignLets :: Expr s m -> Expr s m
-assignLets (FunAp e1 e2 ty) = FunAp (assignLets e1) (assignLets e2) ty
-assignLets (Bind s e1 e2 ty) = Bind s (assignLets e1) (assignLets e2) ty
-assignLets (Let s e1 e2 _) = fromMaybe
-  -- this should never happen, as 'let_' checks the binding is
-  -- type-correct.
-  (error ("can't assign variable " ++ s ++ " value " ++ show e1 ++ " in body " ++ show e2))
-  (assign s (assignLets e1) e2)
-assignLets (EIgnore e) = EIgnore (assignLets e)
-assignLets e = e
-
--- | Rename all variables canonically.
-rename :: Expr s m -> Expr s m
-rename expr = go freeVars expr where
-  freeVars = snd $ mapAccumL (\(n:ns) (s, ty) -> (ns, ((s,ty),n))) names (freeVariables expr)
-  go rs (Variable s ty) =
-    let newName = fromMaybe (error "un-renamed free variable") (lookup (s, ty) rs)
-    in Variable newName ty
-  go rs (FunAp e1 e2 ty) = FunAp (go rs e1) (go rs e2) ty
-  go rs (Bind s e1 e2 ty) =
-    let newName = show (length rs)
-        r = ((s, fromMaybe (error "non-monadic bound type") (unmonad $ exprTypeRep e1)), newName)
-    in Bind newName (go rs e1) (go (r:rs) e2) ty
-  go rs (Let s e1 e2 ty) =
-    let newName = show (length rs)
-        r = ((s, exprTypeRep e1), newName)
-    in Let newName (go rs e1) (go (r:rs) e2) ty
-  go rs (EIgnore e) = EIgnore (go rs e)
-  go _ e = e
-
--- | Evaluate an expression, if it has no free variables and it is the
--- correct type.
---
--- If the outer 'Maybe' is @Nothing@, there are free variables. If the
--- inner 'Maybe' is @Nothing@, the type is incorrect.
-evaluate :: (Monad m, HasTypeRep s m a) => Expr s m -> Maybe (s -> Maybe a)
-evaluate e = (fromDyn .) <$> evaluateDyn e
-
--- | Evaluate an expression, if it has no free variables.
-evaluateDyn :: Monad m => Expr s m -> Maybe (s -> Dynamic s m)
-evaluateDyn expr
-    | null (freeVariables expr) = Just (go [] expr)
+-- | Evaluate an expression, if the environment is complete.
+evaluateDyn :: Monad m => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Dynamic s m)
+evaluateDyn e0 globals
+    | all check (environment e0) = Just (go [] e0)
     | otherwise = Nothing
   where
     -- The various errors in this function shouldn't happen, as
     -- @evaluateDyn@ checks there are no free variables, and the
     -- various smart constructors check the types match.
+    go _ (Lit _ _ dyn) _ = dyn
+    go locals (Var _ var) _ =
+      unmaybe ("unexpected free variable " ++ show var ++ " in expression") $ env locals var
+    go locals (Let ty True _ b e) s =
+      let mx = unmaybe ("can't bind non-monadic expression " ++ show b ++ " in body " ++ show e) $ unwrapMonadicDyn (go locals b s)
+      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e) (unwrapMonadicDyn (go (x:locals) e s))
+    go locals (Let _ False _ b e) s =
+      let x = go locals b s
+      in go (x:locals) e s
+    go locals (Ap _ f e) s =
+      let f' = go locals f s
+          e' = go locals e s
+      in unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ f' `dynApp` (if ignoreArg f' then ignore e' else e')
     go _ StateVar s = toDyn s
-    go _ (Constant _ dyn) _ = dyn
-    go _ (CommutativeConstant _ dyn) _ = dyn
-    go env (Variable var _) _ =
-      unmaybe ("unexpected free variable " ++ var ++ " in expression") $ lookup var env
-    go env (FunAp f e _) s =
-      unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ go env f s `dynApp` go env e s
-    go env (Bind var e1 e2 ty) s =
-      let mx = unmaybe ("can't bind non-monadic expression " ++ show e1 ++ " to variable " ++ var ++ " in body " ++ show e2) $ unwrapMonadicDyn (go env e1 s)
-      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e2) (unwrapMonadicDyn (go ((var, x):env) e2 s))
-    go env (Let var e1 e2 _) s =
-      let e1' = go env e1 s
-      in go ((var, e1'):env) e2 s
-    go env (EIgnore e) s =
-      let me = unmaybe ("can't ignore non-monadic expression " ++ show e) $ unwrapMonadicDyn (go env e s)
-      in unsafeToDyn (rawTypeRep ignoreTypeRep) $ const Ignore <$> me
 
--- | Get the size of an expression.
-exprSize :: Expr s m -> Int
-exprSize (FunAp e1 e2 _)  = exprSize e1 + exprSize e2
-exprSize (Bind _ e1 e2 _) = 1 + exprSize e1 + exprSize e2
-exprSize (Let _ e1 e2 _)  = 1 + exprSize e1 + exprSize e2
-exprSize (EIgnore e) = exprSize e
-exprSize _ = 1
+    env locals (Bound i) = Just (locals !! i)
+    env _ (Named s) = lookup s globals
+    env _ (Hole _) = Nothing -- unreachable
 
--- | Print an 'Expr' as a tree.
-tree :: Expr s m -> String
-tree = go 0 where
-  go n (Constant s _) = replicate n ' ' ++ "Constant <" ++ s ++ ">"
-  go n (CommutativeConstant s _) = replicate n ' ' ++ "CommutativeConstant <" ++ s ++ ">"
-  go n (Variable s _) = replicate n ' ' ++ "Variable <" ++ s ++ ">"
-  go n StateVar = replicate n ' ' ++ "StateVar"
-  go n (FunAp e1 e2 _) = replicate n ' ' ++ "Ap:\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
-  go n (Bind s e1 e2 _) = replicate n ' ' ++ "Bind " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
-  go n (Let s e1 e2 _) = replicate n ' ' ++ "Let " ++ s ++ ":\n" ++ go (n+1) e1 ++ "\n" ++ go (n+1) e2
-  go n (EIgnore e) = replicate n ' ' ++ "Ignore:\n" ++ go (n+1) e
+    ignoreArg fdyn = case funTys (dynTypeRep fdyn) of
+      Just (fArgTy, _) -> fArgTy == ignoreTypeRep
+      Nothing -> error ("can't handle non-function type " ++ show fdyn)
+
+    ignore dyn = case unwrapMonadicDyn dyn of
+      Just ma -> unsafeToDyn (rawTypeRep ignoreTypeRep) (const Ignore <$> ma)
+      Nothing -> error ("can't ignore non-monadic value " ++ show dyn)
+
+    check (s, ty) = case lookup s globals of
+      Just dyn -> dynTypeRep dyn == ty
+      Nothing -> False
 
 
 -------------------------------------------------------------------------------
--- Types
+-- Misc
 
 -- | A special type for enabling basic polymorphism.
 --
@@ -524,27 +496,112 @@ data Ignore = Ignore
 
 -- | Get the arity of an expression. Non-function types have an arity
 -- of 0.
-exprTypeArity :: Expr s m -> Int
+exprTypeArity :: Expr s m h -> Int
 exprTypeArity = typeArity . exprTypeRep
 
 -- | Get the type of an expression.
-exprTypeRep :: Expr s m -> TypeRep s m
-exprTypeRep (Constant _ dyn) = dynTypeRep dyn
-exprTypeRep (CommutativeConstant _ dyn) = dynTypeRep dyn
-exprTypeRep (Variable _ ty)  = ty
-exprTypeRep (FunAp _ _ ty)   = ty
-exprTypeRep (Bind _ _ _ ty)  = ty
-exprTypeRep (Let _ _ _ ty)   = ty
-exprTypeRep (EIgnore _) = ignoreTypeRep
+exprTypeRep :: Expr s m h -> TypeRep s m
+exprTypeRep (Lit _ _ dyn) = dynTypeRep dyn
+exprTypeRep (Var ty _) = ty
+exprTypeRep (Let ty _ _ _ _) = ty
+exprTypeRep (Ap ty _ _) = ty
 exprTypeRep StateVar = stateTypeRep
 
+-- | Get the size of an expression.
+exprSize :: Expr s m h -> Int
+exprSize (Let _ _ _ b e) = 1 + exprSize b + exprSize e
+exprSize (Ap _ f e) = exprSize f + exprSize e
+exprSize _ = 1
+
+-- | Check if two expressions are equal, disregarding monad, state,
+-- and hole types.
+eq :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> Bool
+eq (Lit _ _ dyn1) (Lit _ _ dyn2) = rawTypeRep (dynTypeRep dyn1) == rawTypeRep (dynTypeRep dyn2)
+eq (Var ty1 v1) (Var ty2 v2) = rawTypeRep ty1 == rawTypeRep ty2 && case (v1, v2) of
+  (Hole _, Hole _) -> True
+  (Bound i1, Bound i2) -> i1 == i2
+  (Named s1, Named s2) -> s1 == s2
+  _ -> False
+eq (Let ty1 m1 is1 b1 e1) (Let ty2 m2 is2 b2 e2) =
+  rawTypeRep ty1 == rawTypeRep ty2 &&
+  m1  == m2  &&
+  is1 == is2 &&
+  b1 `eq` b2 &&
+  e1 `eq` e2
+eq (Ap ty1 f1 e1) (Ap ty2 f2 e2) =
+  rawTypeRep ty1 == rawTypeRep ty2 &&
+  f1 `eq` f2 &&
+  e1 `eq` e2
+eq StateVar StateVar = True
+eq _ _ = False
+
+-- | Pretty-print an expression.
+pp :: (T.TypeRep -> Char) -> Expr s m h -> String
+pp nf e0 = go [] True e0 where
+  go _ _ (Lit _ s _) = toPrefix s
+  go env top (Var ty v) = case v of
+    Hole _ -> wrap top ("_ :: " ++ show ty)
+    Bound i -> env !! i
+    Named s -> s
+  go _ _ StateVar = ":state:"
+  go env top e = wrap top . unwords $ case e of
+    Let _ True is b x ->
+      let v = fresh env (fromJust . unmonad $ exprTypeRep b)
+          sb = go env top b
+          se = go (v:env) top x
+      in if null is
+         then [sb, ">>", se]
+         else [sb, ">>=", '\\': v, "->", se]
+    Let _ False _ b x ->
+      let v = fresh env (exprTypeRep b)
+          sb = go env top b
+          se = go (v:env) top x
+      in ["let", v, "=", sb, "in", se]
+    Ap _ _ _ -> case unfoldAp e of
+      [Lit _ s _, arg1, arg2]
+        | isSymbolic s -> [go env False arg1, s, go env False arg2]
+      [Var _ (Named s), arg1, arg2]
+        | isSymbolic s -> [go env False arg1, s, go env False arg2]
+      [Var _ (Bound i), arg1, arg2]
+        | isSymbolic (env!!i) -> [go env False arg1, env!!i, go env False arg2]
+      unfolded -> map (go env False) unfolded
+    _ -> [] -- shouldn't be reached
+
+  unfoldAp (Ap _ f e) = unfoldAp f ++ [e]
+  unfoldAp e = [e]
+
+  wrap True  s = s
+  wrap False s = "(" ++ s ++ ")"
+
+  toPrefix s
+    | not (isSymbolic s) = s
+    | otherwise = "(" ++ s ++ ")"
+
+  isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
+
+  fresh env = head . dropWhile (\v -> v `elem` env || any ((==v) . fst) (environment e0)) . names
+  names ty =
+    let ty' = rawTypeRep ty
+    in [nf ty'] : [ nf ty' : show (i::Int) | i <- [1..]]
 
 -------------------------------------------------------------------------------
--- Utilities
+-- Utils
 
--- | A list of unique names,
-names :: [String]
-names = tail $ filterM (const [False, True]) ['z','y'..'a']
+-- | Helper for 'bind' and 'let_': bind holes to the top of the expression.
+letHelper :: [Int] -> TypeRep s m -> Expr s m h -> Maybe (Expr s m h)
+letHelper is boundTy e0 = fst <$> go 0 0 e0 where
+  go n i (Var ty (Hole h))
+    | i `elem` is = if boundTy == ty then Just (Var ty (Bound n), i + 1) else Nothing
+    | otherwise   = Just (Var ty (Hole h), i + 1)
+  go n i (Let ty m js b e) = do
+    (b', i')  <- go n     i  b
+    (e', i'') <- go (n+1) i' e
+    Just (Let ty m js b' e', i'')
+  go n i (Ap ty f e) = do
+    (f', i')  <- go n i  f
+    (e', i'') <- go n i' e
+    Just (Ap ty f' e', i'')
+  go _ i e = Just (e, i)
 
 -- | The typerep for @m Ignore@.
 ignoreTypeRep :: TypeRep s m

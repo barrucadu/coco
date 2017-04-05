@@ -32,131 +32,90 @@
 -- @
 module Test.Spec.Gen
   ( -- * Generating Terms
-    enumerate
-
-  -- ** Controlled generation
-  , Generator
+    Generator
   , newGenerator
   , newGenerator'
   , stepGenerator
   , getTier
-  , getTier'
   , mapTier
   , filterTier
   , adjustTier
   , maxTier
   ) where
 
+import Control.Monad (filterM)
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
-import Data.Maybe (isJust)
+import Data.Maybe (maybeToList)
 import Data.Semigroup (Semigroup, (<>))
+import Data.Set (Set)
+import qualified Data.Set as S
 
 import Test.Spec.Expr
-import Test.Spec.Type (unmonad)
-import Test.Spec.Util
-
--- | Enumerate all well-typed expressions, in size order.
-enumerate :: [Expr s m] -> [[Expr s m]]
-enumerate = tail . go 0 . newGenerator where
-  go :: Int -> Generator s m () -> [[Expr s m]]
-  go tier g =
-    map snd (getTier' tier g) : go (tier+1) (stepGenerator (\_ _ _ -> True) g)
 
 
 -------------------------------------------------------------------------------
 -- Controlled generation
 
 -- | A generator of expressions.
-data Generator s m ann = Generator { tiers :: IntMap [(ann, Expr s m)], sofar :: Int }
+data Generator s m ann = Generator { tiers :: IntMap (Set (Schema s m, ann)), sofar :: Int }
   deriving (Eq, Ord, Show)
 
 -- | Create a new generator from a collection of basic expressions.
-newGenerator :: Monoid ann => [Expr s m] -> Generator s m ann
-newGenerator = newGenerator' . map (\e -> (mempty, e))
+newGenerator :: (Monoid ann, Ord ann) => [Schema s m] -> Generator s m ann
+newGenerator = newGenerator' . map (\e -> (e, mempty))
 
 -- | Like 'newGenerator', but use an explicit default value.
-newGenerator' :: [(ann, Expr s m)] -> Generator s m ann
+newGenerator' :: Ord ann => [(Schema s m, ann)] -> Generator s m ann
 newGenerator' baseTerms = Generator
-  { tiers = merge [M.fromList [(exprSize (snd t), [t])] | t <- baseTerms]
+  { tiers = merge [M.singleton (exprSize e) (S.singleton s) | s@(e,_) <- baseTerms]
   , sofar = 0
   }
 
 -- | Generate the next tier.
-stepGenerator :: Semigroup ann
-              => (ann -> ann -> Expr s m -> Bool)
-              -- ^ Annotation of first expr, annotation of second expr, combined expr.
-              -> Generator s m ann -> Generator s m ann
+stepGenerator :: (Semigroup ann, Ord ann)
+  => (ann -> ann -> Schema s m -> Bool)
+  -- ^ Annotation of first expr, annotation of second expr, combined expr.
+  -> Generator s m ann -> Generator s m ann
 stepGenerator check g = Generator newTiers (sofar g + 1) where
-  newTiers =
-    let new = merge [ tiers g
-                    , M.singleton (sofar g + 1) funAps
-                    , M.singleton (sofar g + 1) binds
-                    , M.singleton (sofar g + 1) lets
-                    ]
-    in M.adjust (prune new) (sofar g + 1) new
+  newTiers = merge
+    [ tiers g
+    , M.singleton (sofar g + 1) funAps
+    , M.singleton (sofar g + 1) binds
+    ]
 
   -- produce new terms by function application.
   funAps = mkTerms 0 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, e1) <- terms
-                        , exprTypeArity e1 > 0
-                        , (a2, e2) <- candidates
-                        , Just resExpr <- [e1 $$ e2]
-                        , let resAnn = a1 <> a2
-                        , check a1 a2 resExpr
+    [ (new, fAnn <> eAnn)
+      | (f, fAnn) <- terms
+      , (e, eAnn) <- candidates
+      , new <- maybeToList (f $$ e)
+      , check fAnn eAnn new
     ]
 
   -- produce new terms by monad-binding variables.
   binds = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, e1) <- terms
-                        , isJust . unmonad $ exprTypeRep e1
-                        , (a2, e2) <- candidates
-                        , var <- "_" : map fst (freeVariables e2)
-                        , (resAnn, Just resExpr) <- [(a1 <> a2, bind var e1 e2)]
-                        , check a1 a2 resExpr
-    ]
-
-  -- produce new terms by let-binding variables.
-  lets = mkTerms 1 $ \terms candidates ->
-    [ (resAnn, resExpr) | (a1, e1) <- terms
-                        , not (isVariable e1)
-                        , (a2, e2) <- candidates
-                        , not (isVariable e2)
-                        , (var,_) <- freeVariables e2
-                        , (resAnn, Just resExpr) <- [(a1 <> a2, let_ var e1 e2)]
-                        , check a1 a2 resExpr
+    [ (new, bAnn <> eAnn)
+      | (b, bAnn) <- terms
+      -- don't allow a binder which is a hole
+      , not (isHole b)
+      , (e, eAnn) <- candidates
+      , holeset <- powerset . map fst $ holes e
+      , new <- maybeToList (bind holeset b e)
+      , check bAnn eAnn new
     ]
 
   -- produce new terms
   mkTerms n f = M.foldMapWithKey go (tiers g) where
-    go tier terms =
-      let candidates = sizedTerms (sofar g + 1 - tier - n) (tiers g)
-      in f terms candidates
+    go tier terms = S.fromList $
+      let candidates = getTier (sofar g + 1 - tier - n) g
+      in f (S.toList terms) (S.toList candidates)
 
-  -- prune uninteresting expressions.
-  prune tieredTerms = filter go . ordNubOn snd where
-    go (_, term)
-      | isLet term =
-        let term' = assignLets term
-        in term' `notElem` map snd (sizedTerms (exprSize term') tieredTerms)
-      | otherwise = True
+  powerset = filterM (const [False,True])
 
-  -- get all terms of the given size.
-  sizedTerms = M.findWithDefault []
-
--- | Get the terms of a given size, if they have been generated.
-getTier :: Int -> Generator s m ann -> Maybe [(ann, Expr s m)]
-getTier tier g
-  -- this check is to avoid returning a partial result, which is
-  -- possible as the tiers are initially populated based on the base
-  -- terms.
-  | tier > sofar g = Nothing
-  | otherwise = M.lookup tier (tiers g)
-
--- | Get the terms of a given size, if they have been
--- generated. Return an empty list if they have not.
-getTier' :: Int -> Generator s m ann -> [(ann, Expr s m)]
-getTier' tier g = M.findWithDefault [] tier (tiers g)
+-- | Get the terms of a given size.
+getTier :: Int -> Generator s m ann -> Set (Schema s m, ann)
+getTier tier = M.findWithDefault S.empty tier . tiers
 
 -- | Apply a function to every expression in a tier.
 --
@@ -164,12 +123,12 @@ getTier' tier g = M.findWithDefault [] tier (tiers g)
 -- larger or smaller! 'stepGenerator' assumes that every expression in
 -- a tier is of the correct size, and it WILL NOT behave properly if
 -- this invariant is broken!
-mapTier :: ((ann, Expr s m) -> (ann, Expr s m)) -> Int -> Generator s m ann -> Generator s m ann
-mapTier = adjustTier . map
+mapTier :: Ord ann => ((Schema s m, ann) -> (Schema s m, ann)) -> Int -> Generator s m ann -> Generator s m ann
+mapTier = adjustTier . S.map
 
 -- | Filter expressions in a tier.
-filterTier :: ((ann, Expr s m) -> Bool) -> Int -> Generator s m ann -> Generator s m ann
-filterTier = adjustTier . filter
+filterTier :: ((Schema s m, ann) -> Bool) -> Int -> Generator s m ann -> Generator s m ann
+filterTier = adjustTier . S.filter
 
 -- | Apply a function to a tier.
 --
@@ -177,7 +136,7 @@ filterTier = adjustTier . filter
 -- larger or smaller! 'stepGenerator' assumes that every expression in
 -- a tier is of the correct size, and it WILL NOT behave properly if
 -- this invariant is broken!
-adjustTier :: ([(ann, Expr s m)] -> [(ann, Expr s m)]) -> Int -> Generator s m ann -> Generator s m ann
+adjustTier :: (Set (Schema s m, ann) -> Set (Schema s m, ann)) -> Int -> Generator s m ann -> Generator s m ann
 adjustTier f tier g = g { tiers = M.adjust f tier (tiers g) }
 
 -- | Get the highest size generated so far.
@@ -189,5 +148,5 @@ maxTier = sofar
 -- Utilities
 
 -- | Merge a list of maps of lists.
-merge :: [IntMap [a]] -> IntMap [a]
-merge = M.unionsWith (++)
+merge :: Ord a => [IntMap (Set a)] -> IntMap (Set a)
+merge = M.unionsWith S.union

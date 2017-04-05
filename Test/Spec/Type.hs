@@ -55,7 +55,7 @@ module Test.Spec.Type
   , gcast
   , coerceTypeRep
   -- ** Function types
-  , funArgTys
+  , funTys
   , funResultTy
   , typeArity
   -- ** Miscellaneous
@@ -67,6 +67,7 @@ module Test.Spec.Type
   , unsafeFromRawTypeRep
   ) where
 
+import Data.Function (on)
 import Data.Maybe (isJust)
 import Data.Proxy (Proxy(..))
 import Data.Typeable ((:~:)(..))
@@ -84,6 +85,14 @@ data Dynamic (s :: *) (m :: * -> *) where
 
 instance Show (Dynamic s m) where
   show d = "Dynamic <" ++ show (dynTypeRep d) ++ ">"
+
+-- | This only compares types.
+instance Eq (Dynamic s m) where
+  (==) = (==) `on` dynTypeRep
+
+-- | This only compares types.
+instance Ord (Dynamic s m) where
+  compare = compare `on` dynTypeRep
 
 -- | Convert a static value into a dynamic one.
 toDyn :: HasTypeRep s m a => a -> Dynamic s m
@@ -176,9 +185,8 @@ instance {-# INCOHERENT #-} HasTypeRep s m s where
 
 -- | A concrete representation of a type of some expression, with a
 -- state type @s@ and monad type @m@.
-data TypeRep (s :: *) (m :: * -> *) where
-  TypeRep :: T.TypeRep -> TypeRep s m
-  deriving Eq
+newtype TypeRep (s :: *) (m :: * -> *) = TypeRep T.TypeRep
+  deriving (Eq, Ord)
 
 instance Show (TypeRep s m) where
   show = show . rawTypeRep
@@ -230,9 +238,14 @@ coerceTypeRep (TypeRep ty)
 -------------------------------------------------------------------------------
 -- Function types
 
--- | The types of a function's arguments.
-funArgTys :: TypeRep s m -> [TypeRep s m]
-funArgTys = map TypeRep . snd . T.splitTyConApp . rawTypeRep
+-- | The types of a function's argument and result. Returns @Nothing@
+-- if applied to any type other than a function type.
+funTys :: TypeRep s m -> Maybe (TypeRep s m, TypeRep s m)
+funTys ty = case T.splitTyConApp . rawTypeRep $ ty of
+    (con, [argTy, resultTy]) | con == funTyCon -> Just (TypeRep argTy, TypeRep resultTy)
+    _ -> Nothing
+  where
+    funTyCon = T.typeRepTyCon (T.typeRep (Proxy :: Proxy (() -> ())))
 
 -- | Applies a type to a given function type, if the types match.
 funResultTy :: TypeRep s m -> TypeRep s m -> Maybe (TypeRep s m)

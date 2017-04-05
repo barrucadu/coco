@@ -55,26 +55,27 @@ exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int]
 exprsLS = Exprs
   { initialState = fromListLS
   , expressions =
-    [ constant "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
-    , constant "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , constant "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , constant "swapLS"  (swapLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
-    , constant "dupLS"   (dupLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
-    , constant "overLS"  (overLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
-    , constant "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+    [ lit "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
+    , lit "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , lit "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , lit "swapLS"  (swapLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , lit "dupLS"   (dupLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , lit "overLS"  (overLS  :: LockStack (ConcST t) Int -> ConcST t Bool)
+    , lit "rotLS"   (rotLS   :: LockStack (ConcST t) Int -> ConcST t Bool)
     ]
   , backgroundExpressions =
-    [ constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
-                                                             -> LockStack (ConcST t) Int
-                                                             -> Maybe Int
-                                                             -> ConcST t ())
-    , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x" (Proxy :: Proxy (Maybe Int))
-    , stateVariable
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
+                                                        -> LockStack (ConcST t) Int
+                                                        -> Maybe Int
+                                                        -> ConcST t ())
+    , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , hole (Proxy :: Proxy (Maybe Int))
+    , stateVar
     ]
   , observation = toListLS
-  , eval = defaultEvaluate
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
+  , eval   = defaultEvaluate
+  , varfun = defaultVarfun
   }
 
 -------------------------------------------------------------------------------
@@ -121,26 +122,27 @@ exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int]
 exprsCAS = Exprs
   { initialState = fromListCAS
   , expressions =
-    [ constant "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
-    , constant "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , constant "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , constant "swapCAS"  (swapCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
-    , constant "dupCAS"   (dupCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
-    , constant "overCAS"  (overCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
-    , constant "rotCAS"   (rotCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+    [ lit "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
+    , lit "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , lit "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+    , lit "swapCAS"  (swapCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , lit "dupCAS"   (dupCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , lit "overCAS"  (overCAS  :: CASStack (ConcST t) Int -> ConcST t Bool)
+    , lit "rotCAS"   (rotCAS   :: CASStack (ConcST t) Int -> ConcST t Bool)
     ]
   , backgroundExpressions =
-    [ constant "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
-                                                             -> CASStack (ConcST t) Int
-                                                             -> Maybe Int
-                                                             -> ConcST t ())
-    , commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x" (Proxy :: Proxy (Maybe Int))
-    , stateVariable
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
+                                                        -> CASStack (ConcST t) Int
+                                                        -> Maybe Int
+                                                        -> ConcST t ())
+    , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , hole (Proxy :: Proxy (Maybe Int))
+    , stateVar
     ]
   , observation = toListCAS
-  , eval = defaultEvaluate
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const
+  , eval   = defaultEvaluate
+  , varfun = defaultVarfun
   }
 
 -------------------------------------------------------------------------------
@@ -149,11 +151,11 @@ exprsCAS = Exprs
 example :: Int -> IO ()
 example n = do
   let (obs1, obs2, obs3) = runST $ discover defaultListValues exprsLS exprsCAS n
-  prettyPrint obs1
+  prettyPrint (varfun exprsLS) obs1
   putStrLn ""
-  prettyPrint obs2
+  prettyPrint (varfun exprsLS) obs2
   putStrLn ""
-  prettyPrint obs3
+  prettyPrint (varfun exprsLS) obs3
 
 main :: IO ()
 main = example 7

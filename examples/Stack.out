@@ -1,20 +1,26 @@
-peekLS :state:        strictly refines        popLS :state: >>= \x' -> whenJust pushLS :state: x'
+      peekLS :state:        strictly refines        pushLS x :state: >> popLS :state:
+      peekLS :state:        strictly refines        (popLS :state:) ||| (pushLS x :state:)
+      peekLS :state:        strictly refines        popLS :state: >>= \m -> whenJust pushLS :state: m
+   pushLS x1 :state:        strictly refines        push2LS x x1 :state: >> popLS :state:
+   pushLS x1 :state:        strictly refines        (popLS :state:) ||| (push2LS x x1 :state:)
+push2LS x1 x :state:        strictly refines        pushLS x :state: >> pushLS x :state:
+push2LS x1 x :state:        strictly refines        (pushLS x :state:) ||| (pushLS x :state:)
 
-peekCAS :state:        strictly refines        popCAS :state: >>= \x' -> whenJust pushCAS :state: x'
+peekCAS :state:        strictly refines        popCAS :state: >>= \m -> whenJust pushCAS :state: m
 
-                                      popLS :state:        is equivalent to        popCAS :state:
-                                     peekLS :state:        is equivalent to        peekCAS :state:
-                                    peekCAS :state:        strictly refines        popLS :state: >>= \x' -> whenJust pushLS :state: x'
-                          whenJust pushLS :state: x        is equivalent to        whenJust pushCAS :state: x
-                     popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
-                     popLS :state: >> popLS :state:        is equivalent to        (popCAS :state:) ||| (popCAS :state:)
-                (popLS :state:) ||| (popLS :state:)        is equivalent to        popCAS :state: >> popCAS :state:
-                (popLS :state:) ||| (popLS :state:)        is equivalent to        (popCAS :state:) ||| (popCAS :state:)
-         popLS :state: >> whenJust pushLS :state: x        is equivalent to        popCAS :state: >> whenJust pushCAS :state: x
-         popLS :state: >> whenJust pushLS :state: x        strictly refines        (popCAS :state:) ||| (whenJust pushCAS :state: x)
-         whenJust pushLS :state: x >> popLS :state:        is equivalent to        whenJust pushCAS :state: x >> popCAS :state:
-         whenJust pushLS :state: x >> popLS :state:        strictly refines        (popCAS :state:) ||| (whenJust pushCAS :state: x)
-       popCAS :state: >> whenJust pushCAS :state: x        strictly refines        (popLS :state:) ||| (whenJust pushLS :state: x)
-       whenJust pushCAS :state: x >> popCAS :state:        strictly refines        (popLS :state:) ||| (whenJust pushLS :state: x)
-    (popLS :state:) ||| (whenJust pushLS :state: x)        is equivalent to        (popCAS :state:) ||| (whenJust pushCAS :state: x)
-popLS :state: >>= \x' -> whenJust pushLS :state: x'        is equivalent to        popCAS :state: >>= \x' -> whenJust pushCAS :state: x'
+                                  popLS :state:        is equivalent to        popCAS :state:
+                                 peekLS :state:        is equivalent to        peekCAS :state:
+                                peekCAS :state:        strictly refines        (popLS :state:) ||| (pushLS x :state:)
+                                peekCAS :state:        strictly refines        popLS :state: >>= \m -> whenJust pushLS :state: m
+                      whenJust pushLS :state: m        is equivalent to        whenJust pushCAS :state: m
+                 popLS :state: >> popLS :state:        is equivalent to        popCAS :state: >> popCAS :state:
+                 popLS :state: >> popLS :state:        is equivalent to        (popCAS :state:) ||| (popCAS :state:)
+            (popLS :state:) ||| (popLS :state:)        is equivalent to        popCAS :state: >> popCAS :state:
+            (popLS :state:) ||| (popLS :state:)        is equivalent to        (popCAS :state:) ||| (popCAS :state:)
+     popLS :state: >> whenJust pushLS :state: m        is equivalent to        popCAS :state: >> whenJust pushCAS :state: m
+     popLS :state: >> whenJust pushLS :state: m        strictly refines        (popCAS :state:) ||| (whenJust pushCAS :state: m)
+     whenJust pushLS :state: m >> popLS :state:        is equivalent to        whenJust pushCAS :state: m >> popCAS :state:
+     whenJust pushLS :state: m >> popLS :state:        strictly refines        (popCAS :state:) ||| (whenJust pushCAS :state: m)
+   popCAS :state: >> whenJust pushCAS :state: m        strictly refines        (popLS :state:) ||| (whenJust pushLS :state: m)
+   whenJust pushCAS :state: m >> popCAS :state:        strictly refines        (popLS :state:) ||| (whenJust pushLS :state: m)
+(popLS :state:) ||| (whenJust pushLS :state: m)        is equivalent to        (popCAS :state:) ||| (whenJust pushCAS :state: m)

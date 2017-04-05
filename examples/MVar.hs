@@ -14,23 +14,24 @@ exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int)
 exprs = Exprs
   { initialState = maybe newEmptyMVar newMVar
   , expressions =
-    [ constant "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
-    , constant "takeMVar" (takeMVar :: MVar (ConcST t) Int -> ConcST t Int)
-    , constant "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
+    [ lit "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
+    , lit "takeMVar" (takeMVar :: MVar (ConcST t) Int -> ConcST t Int)
+    , lit "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
     ]
   , backgroundExpressions =
-    [ commutativeConstant "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , variable "x" (Proxy :: Proxy Int)
-    , stateVariable
+    [ commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+    , hole (Proxy :: Proxy Int)
+    , stateVar
     ]
   , observation = tryTakeMVar
-  , eval = defaultEvaluate
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
+  , eval   = defaultEvaluate
+  , varfun = defaultVarfun
   }
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example n = prettyPrint $ runST $ discoverSingle defaultListValues exprs n
+example n = prettyPrint (varfun exprs) $ runST $ discoverSingle defaultListValues exprs n
 
 main :: IO ()
 main = example 7

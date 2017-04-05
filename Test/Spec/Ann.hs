@@ -17,31 +17,29 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Semigroup (Semigroup(..))
 import Data.Set (Set)
 import qualified Data.Set as S
 import Test.DejaFu (Failure)
 
-import Test.Spec.Expr (Expr, exprSize)
-import Test.Spec.Gen (Generator, mapTier)
+import Test.Spec.Expr (Term)
 
--- | An annotation on an expression.
+-- | An annotation on a schema.
 --
 -- The 'Semigroup' instance is very optimistic, and assumes that
--- combining two expressions will yield the smallest in its new
+-- combining two schemas will yield the smallest in its new
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
-data Ann x = Ann
-  { allResults :: Maybe (Results x, Results x)
+data Ann s m x = Ann
+  { allResults :: Maybe (Results s m x)
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
   -- untested. Only tested terms can be checked for refinement. The
   -- first 'Results' set is the results of executing the term with no
   -- interference, the second is the results of executing with
   -- interference.
   , isBackground :: Bool
-  -- ^ If the term is entirely composed of background expressions or
-  -- not.
+  -- ^ If the term is entirely composed of background schemas or not.
   , isFailing  :: Bool
   -- ^ If every execution is a failure. Initially, it is assumed a
   -- term is failing if either of its two subterms is, with none of
@@ -60,23 +58,28 @@ data Ann x = Ann
   }
   deriving (Eq, Ord, Show)
 
-instance Semigroup (Ann x) where
-  ann1 <> ann2 = Ann { allResults   = Nothing
-                     , isBackground = isBackground ann1 && isBackground ann2
-                     , isFailing    = isFailing ann1 || isFailing ann2
-                     , isSmallest   = True
-                     , isAtomic     = False
-                     , isBoring     = False
-                     }
+instance Semigroup (Ann s m x) where
+  ann1 <> ann2 = Ann
+    { allResults   = Nothing
+    , isBackground = isBackground ann1 && isBackground ann2
+    , isFailing    = isFailing ann1 || isFailing ann2
+    , isSmallest   = True
+    , isAtomic     = False
+    , isBoring     = False
+    }
 
--- | The results of evaluating an expression.
-data Results x
-  = Some (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
-  -- ^ The expression has some results, with the given variable
-  -- assignments.
+-- | The results of evaluating a schema.
+data Results s m x
+  = Some [(Term s m, (VarResults x, VarResults x))]
+  -- ^ The schema has some results, with the given variable
+  -- assignments. The left results have no interference. The right
+  -- results have some. This is used to disambiguate between
+  -- equivalences-under-no-interference and
+  -- refinements-under-interference: saying two terms are equivalent
+  -- is not very useful if that's only the case when there is no
+  -- interference!
   | None
-  -- ^ The expression has no results (eg, has a function type, has
-  -- free variables).
+  -- ^ The schema has no results (eg, has a function type, has holes).
   deriving (Eq, Ord, Show)
 
 -- | A variable assignment.
@@ -88,8 +91,11 @@ data VarAssignment x = VA
 instance NFData x => NFData (VarAssignment x) where
   rnf (VA s vs) = rnf (s, vs)
 
+-- | Results after assigning values to variables.
+type VarResults x = NonEmpty (VarAssignment x, Set (Maybe Failure, x))
+
 -- | The \"default\" annotation.
-initialAnn :: Bool -> Ann x
+initialAnn :: Bool -> Ann s m x
 initialAnn background = Ann
   { allResults   = Nothing
   , isBackground = background
@@ -99,43 +105,36 @@ initialAnn background = Ann
   , isBoring     = False
   }
 
--- | Annotate an expression.
-annotate :: Expr s m -> ann -> Generator s m ann -> Generator s m ann
-annotate expr ann = mapTier go (exprSize expr) where
-  go (ann0, expr0) = (if expr0 == expr then ann else ann0, expr0)
-
 -- | Update an annotation with expression-evaluation results.
-update :: Eq x
-  => Bool
-  -- ^ True if the execution of the term is atomic.
-  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
-  -- ^ The results with no interference.
-  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
-  -- ^ The results with interference.
-  -> Ann x -> Ann x
-update atomic nointerfere interfere ann = ann
-  { allResults  = Just (maybe None Some nointerfere, maybe None Some interfere)
-  , isFailing   = maybe (isFailing ann) checkIsFailing nointerfere
+update :: Eq x => Bool -> Results s m x -> Ann s m x -> Ann s m x
+update atomic results ann = ann
+  { allResults  = Just results
+  , isFailing   = case results of { Some rs -> checkIsFailing rs; None -> isFailing ann }
   , isAtomic    = atomic
-  , isBoring    = maybe (isBoring ann) (checkIsBoring atomic) nointerfere
+  , isBoring    = case results of { Some rs -> checkIsBoring atomic rs; None -> isBoring ann }
   }
 
 -- | Check if a set of results corresponds to a failing term.
-checkIsFailing :: NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
-checkIsFailing = all (all (isJust . fst) . snd)
+checkIsFailing :: [(Term s m, (VarResults x, VarResults x))] -> Bool
+checkIsFailing results =
+  let term_results = map snd results
+      is_failing = isJust . fst
+  in all (all (all is_failing . snd) . fst) term_results
 
 -- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> NonEmpty (VarAssignment x, Set (Maybe Failure, x)) -> Bool
-checkIsBoring atomic rs0 = atomic && all ch rs0 where
+checkIsBoring :: Eq x => Bool -> [(Term s m, (VarResults x, VarResults x))] -> Bool
+checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) where
   ch (va, rs) = all (\(f, x) -> isNothing f && x == seedVal va) rs
 
--- | Check if the left expression refines the right or the right returns the left.
---
--- If either annotation is missing results, @Nothing@ is returned. If
--- either annotation has no results (which is different to missing
--- results!), @(False, False)@ is returned.
-refines :: Ord x => Ann x -> Ann x -> Maybe (Bool, Bool)
-refines ann_a ann_b
+-- | Check if the left term (defined by its results) refines the right
+-- or the right returns the left.
+refines :: Ord x
+  => (VarResults x, VarResults x) -- ^ Results of left term
+  -> [(String, String)] -- ^ Variable renaming of left term.
+  -> (VarResults x, VarResults x) -- ^ Results of right term.
+  -> [(String, String)] -- ^ Variable renaming of right term.
+  -> (Bool, Bool)
+refines (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) renaming_b
     -- if the terms are equivalent, we want to distinguish a
     -- refinement from a "false equivalence" by checking the results
     -- in the presence of interference. we need to use the
@@ -143,29 +142,26 @@ refines ann_a ann_b
     -- otherwise everything refines everything else: there's always
     -- one result in common, where the interference runs last and so
     -- gives the observation a constant value.
-    | are_equiv = check <$> interfere_a <*> interfere_b
+    | are_equiv = check interfere_a interfere_b
     | otherwise = refines_ab_ba
   where
-    nointerfere_a = fst <$> allResults ann_a
-    nointerfere_b = fst <$> allResults ann_b
-    interfere_a   = snd <$> allResults ann_a
-    interfere_b   = snd <$> allResults ann_b
+    are_equiv = refines_ab_ba == (True, True)
+    refines_ab_ba = check nointerfere_a nointerfere_b
 
-    are_equiv = refines_ab_ba == Just (True, True)
-    refines_ab_ba = check <$> nointerfere_a <*> nointerfere_b
-
-    check (Some results_a) (Some results_b) = foldl' pairAnd (True, True)
+    check rs_a rs_b = foldl' pairAnd (True, True)
       [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
-      | (ass_a, as) <- L.toList results_a
-      , (ass_b, bs) <- L.toList results_b
+      | (ass_a, as) <- L.toList rs_a
+      , (ass_b, bs) <- L.toList rs_b
       , checkAssigns ass_a ass_b
       ]
-    check _ _ = (False, False)
 
     -- two sets of variable assignments match if every variable is
     -- either present in only one execution, or has the same value in
     -- both executions
     checkAssigns (VA seed_a vars_a) (VA seed_b vars_b) =
-      seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b == v) True vars_a
+      let vars_a' = rename renaming_a vars_a
+          vars_b' = rename renaming_b vars_b
+      in seed_a == seed_b && M.foldrWithKey (\k v b -> b && M.findWithDefault v k vars_b' == v) True vars_a'
+    rename renaming = M.mapKeys (\v -> fromMaybe (error "incomplete renaming") $ lookup v renaming)
 
     pairAnd (a, b) (c, d) = (a && c, b && d)

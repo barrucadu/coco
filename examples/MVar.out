@@ -1,7 +1,7 @@
  readMVar :state:        is equivalent to        readMVar :state: >> readMVar :state:
  readMVar :state:        strictly refines        (readMVar :state:) ||| (readMVar :state:)
- readMVar :state:        strictly refines        takeMVar :state: >>= \x' -> putMVar :state: x'
+ readMVar :state:        strictly refines        takeMVar :state: >>= \x -> putMVar :state: x
  takeMVar :state:        is equivalent to        readMVar :state: >> takeMVar :state:
  takeMVar :state:        strictly refines        (readMVar :state:) ||| (takeMVar :state:)
 putMVar :state: x        strictly refines        putMVar :state: x >> readMVar :state:
-putMVar :state: x        strictly refines        (putMVar :state: x) ||| (readMVar :state:)
+putMVar :state: x        strictly refines        (readMVar :state:) ||| (putMVar :state: x)
