@@ -31,8 +31,8 @@ projections e1 e2 = go (env e1) (env e2) where
   go t1 [] = [[(This v, ty) | (v, ty) <- t1]]
   go [] t2 = [[(That v, ty) | (v, ty) <- t2]]
   go ((vL, tyL):t1) t2 =
+   map ((This vL, tyL) :) (go t1 t2) ++
    concat [map ((These vL vR, tyL) :) (go t1 (filter (/=x) t2)) | x@(vR, tyR) <- t2, tyL == tyR]
-   ++ map ((This vL, tyL) :) (go t1 t2)
 
   env = map (second rawTypeRep) . environment
 
