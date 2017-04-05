@@ -75,7 +75,7 @@ import Test.Spec.Ann
 import Test.Spec.Expr (Schema, Term, allTerms, bind, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
 import Test.Spec.List (defaultListValues)
-import Test.Spec.Rename (renamings)
+import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
 import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
 import Test.Spec.Util
 
@@ -261,15 +261,21 @@ check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
     go acc (schema_b, (old_ann_b, ann_b))
       | isSmallest ann_b && not (isBackground ann_b) =
           let
+            -- Given two equal observations, check if the first has a more general naming than the right
+            equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) = o1 == o2 && p1 `isMoreGeneralThan` p2
             -- TODO: only keep the "best" observation for a pair
             -- of schemas?
-            allObservations = [mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b
-                              | let results x = case allResults x of { Just (Some rs) -> M.assocs rs; _ -> [] }
-                              , a <- results ann_a
-                              , b <- results ann_b
-                              , (r_a, r_b) <- renamings varf (fst a) (fst b)
-                              ]
-            go' (final_ann, obs) (_, refines_ba, ob) =
+            allObservations = concat
+              [ discardLater equalAndHasMoreGeneralNaming
+                [ (mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
+                | proj <- projections (fst a) (fst b)
+                , let (r_a, r_b) = renaming varf proj
+                ]
+              | let results x = case allResults x of { Just (Some rs) -> M.assocs rs; _ -> [] }
+              , a <- results ann_a
+              , b <- results ann_b
+              ]
+            go' (final_ann, obs) ((_, refines_ba, ob), _) =
               let
                 -- if B refines A then: if they are different
                 -- types, annotate A as not the smallest,
@@ -419,3 +425,10 @@ checkNewTerm (_, ann1) (_, ann2) expr
 -- | Number of variants of a value to consider.
 numVariants :: Int
 numVariants = 10
+
+-- | Discard elements from a list which match a predicate against some
+-- earlier value.
+discardLater :: (a -> a -> Bool) -> [a] -> [a]
+discardLater p = go where
+  go (x:xs) = x : go (filter (not . p x) xs)
+  go [] = []

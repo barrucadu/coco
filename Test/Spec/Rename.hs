@@ -23,18 +23,25 @@ data These a b
   = This a
   | That b
   | These a b
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Find all type-correct ways of associating environment variables.
 projections :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> [[(These String String, TypeRep)]]
-projections e1 e2 = go (env e1) (env e2) where
-  go t1 [] = [[(This v, ty) | (v, ty) <- t1]]
-  go [] t2 = [[(That v, ty) | (v, ty) <- t2]]
-  go ((vL, tyL):t1) t2 =
-   map ((This vL, tyL) :) (go t1 t2) ++
-   concat [map ((These vL vR, tyL) :) (go t1 (filter (/=x) t2)) | x@(vR, tyR) <- t2, tyL == tyR]
-
+projections e1 e2 = projectionsFromEnv (env e1) (env e2) where
   env = map (second rawTypeRep) . environment
+
+-- | Like 'projections' but takes the lists of environment variables
+-- directly.
+projectionsFromEnv :: [(String, TypeRep)] -> [(String, TypeRep)] -> [[(These String String, TypeRep)]]
+projectionsFromEnv t1 [] = [[(This v, ty) | (v, ty) <- t1]]
+projectionsFromEnv [] t2 = [[(That v, ty) | (v, ty) <- t2]]
+projectionsFromEnv ((vL, tyL):t1) t2 =
+   map ((This vL, tyL) :) (projectionsFromEnv t1 t2)
+   ++ [(These vL vR, tyL) : proj
+      | x@(vR, tyR) <- t2
+      , tyL == tyR
+      , proj <- projectionsFromEnv t1 (filter (/=x) t2)
+      ]
 
 -- | Given a projection into a common namespace, produce a consistent
 -- variable renaming. Variables of the same type, after the first,
@@ -54,3 +61,30 @@ renaming varf = go [] ([], []) where
 -- | Find all consistent renamings of a pair of expressions.
 renamings :: (TypeRep -> Char) -> Expr s1 m1 h1 -> Expr s2 m2 h2 -> [([(String, String)], [(String, String)])]
 renamings varf t1 t2 = map (renaming varf) (projections t1 t2)
+
+-- | Check if one projection is more general than another (this is a
+-- partial ordering).
+--
+-- A projection with more unique variables (@This@ and @That@ values)
+-- is \"more general\" than one with more merged variables (@These@
+-- values). For some intuition, consider an extreme case:
+--
+-- @
+-- f a b == g c d
+-- f a b == g a b
+-- @
+--
+-- Clearly if the first property is true, then the second will as
+-- well. The first is more general in that it imposes fewer
+-- constraints on the values of the variables. The latter is more
+-- specific as it imposes two constraints.
+isMoreGeneralThan :: [(These String String, TypeRep)] -> [(These String String, TypeRep)] -> Bool
+isMoreGeneralThan ((these1, ty1):as) ((these2, ty2):bs)
+  | ty1 /= ty2       = False
+  | these1 == these2 = isMoreGeneralThan as bs
+  | otherwise        = case (these1, these2) of
+      (This a, These x y) -> a == x && (That y, ty1) `elem` as && isMoreGeneralThan (filter (/=(That y, ty1)) as) bs
+      (That b, These x y) -> b == y && (This x, ty1) `elem` as && isMoreGeneralThan (filter (/=(This x, ty1)) as) bs
+      _ -> False
+isMoreGeneralThan [] [] = True
+isMoreGeneralThan _ _ = False
