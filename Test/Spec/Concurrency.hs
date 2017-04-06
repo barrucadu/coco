@@ -56,11 +56,12 @@ import Control.Monad (void, when)
 import Control.Monad.ST (ST)
 import Data.Char (toLower)
 import Data.Function (on)
+import Data.Foldable (toList)
 import Data.List (foldl', sortOn)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
-import Data.Maybe (isJust, isNothing, mapMaybe, maybeToList)
+import Data.Maybe (fromJust, isJust, isNothing, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -72,7 +73,7 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
 import Test.Spec.Ann
-import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
+import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, findInstance, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
 import Test.Spec.List (defaultListValues)
 import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
@@ -220,15 +221,19 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
         else findObservations (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate all terms of a schema and store their results
-    evalSchema (schema, (_, ann)) = do
-      results <- mapM evalTerm (allTerms (varfun exprs) schema)
-      let new_ann = case sequence results of
-            Just rs ->
-              let all_atomic  = all fst rs
-                  all_results = map snd rs
-              in update all_atomic (Some all_results) ann
-            Nothing -> update False None ann
-      pure (schema, (Just ann, new_ann))
+    evalSchema (schema, (_, ann)) = case allTerms (varfun exprs) schema of
+      (mostGeneralTerm:rest) -> do
+        mresult <- evalTerm mostGeneralTerm
+        let new_ann = case mresult of
+              Just (atomic, no_interference, interference) ->
+                let getResults = getResultsFrom mostGeneralTerm
+                    resultsOf t = (\r1 r2 -> (t, (r1, r2))) <$> getResults no_interference t <*> getResults interference t
+                    results      = mapMaybe resultsOf rest
+                    all_results  = (mostGeneralTerm, (no_interference, interference)) : results
+                in update atomic (Some all_results) ann
+              Nothing -> update False None ann
+        pure (schema, (Just ann, new_ann))
+      [] -> pure (schema, (Just ann, update False None ann))
 
     -- evaluate a term
     evalTerm term = do
@@ -237,11 +242,35 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
       pure $ do
         (atomic, no_interference) <- maybe_no_interference
         (_,      interference)    <- maybe_interference
-        pure (atomic, (term, (no_interference, interference)))
+        pure (atomic, no_interference, interference)
 
-    -- evaluate a expression.
+    -- evaluate a term with optional interference
     run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-    run interference expr = shoveMaybe (runSingle listValues exprs interference expr seeds)
+    run interference term = shoveMaybe (runSingle listValues exprs interference term seeds)
+
+-- | Get the results of a more specific term from a more general one
+getResultsFrom :: Foldable f
+  => Term s m -- ^ The general term.
+  -> f (VarAssignment x, Set (Maybe Failure, x)) -- ^ Its results.
+  -> Term s m -- ^ The specific term.
+  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
+getResultsFrom generic results specific = case findInstance generic specific of
+    Just nameMap -> L.nonEmpty $ mapMaybe (juggleVariables nameMap) (toList results)
+    Nothing -> Nothing
+  where
+    -- attempt to rearrange the variable assignment of this result
+    -- into the form required by the more specific term.
+    juggleVariables nameMap (va, rs) = go (map fst $ environment specific) M.empty where
+      -- eliminate specific variables one at a time, checking that the
+      -- variable assignment is consistent with them all being equal.
+      go (s:ss) vts = case lookup s nameMap of
+        Just (g:gs) ->
+          let gv = fromJust (M.lookup g (varTags va))
+          in if all (\g' -> M.lookup g' (varTags va) == Just gv) gs
+             then go ss (M.insert s gv vts)
+             else Nothing
+        _ -> Nothing
+      go [] vts = Just (VA (seedVal va) vts, rs)
 
 -- | Find observations and either annotate a schema or throw it away.
 check :: (Foldable f, Foldable g, Ord x)

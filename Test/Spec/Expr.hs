@@ -59,6 +59,7 @@ module Test.Spec.Expr
   , toTerm
   , allTerms
   , isInstanceOf
+  , findInstance
     -- ** Construction
   , ($$)
   , bind
@@ -232,6 +233,25 @@ isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS
   -- group a list of tuples by first element (the tag) and then discard it.
   sortGroupTagged = map (map snd) . groupBy ((==) `on` fst) . sortOn fst
 
+-- | If one expression is an instance of another, find the mapping
+-- from variable names in the more specific instance to lists of
+-- variables in the more general instance.
+findInstance
+  :: Expr s1 m1 h1 -- ^ The more generic term.
+  -> Expr s2 m2 h2 -- ^ The more specific term.
+  -> Maybe [(String, [String])]
+findInstance eG eS
+    | eS `isInstanceOf` eG = Just nameMap
+    | otherwise = Nothing
+  where
+    env = map fst . environment'
+    nameMap =
+      map (\((s,g):sgs) -> (s, nub (g:map snd sgs))) .
+      groupBy ((==) `on` fst) .
+      sortOn fst $
+      zip (env eS) (env eG)
+
+
 -------------------------------------------------------------------------------
 -- Construction
 
@@ -348,7 +368,12 @@ envbind is e0 = (\(e,_,_) -> e) <$> go [] 0 e0 where
 
 -- | Get all the environment variables in an expression.
 environment :: Expr s m h -> [(String, TypeRep s m)]
-environment = nub . go where
+environment = nub . environment'
+
+-- | Get all the environment variables in an expression, with
+-- repetition, in the order in which they appear in the expression.
+environment' :: Expr s m h -> [(String, TypeRep s m)]
+environment' = go where
   go (Var ty (Named s)) = [(s, ty)]
   go (Let _ _ _ b e) = go b ++ go e
   go (Ap _ f e) = go f ++ go e
