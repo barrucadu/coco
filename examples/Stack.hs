@@ -57,7 +57,6 @@ exprsLS = Exprs
   , observation = toListLS
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
   , eval   = defaultEvaluate
-  , varfun = defaultVarfun
   }
 
 -------------------------------------------------------------------------------
@@ -100,7 +99,6 @@ exprsCAS = Exprs
   , observation = toListCAS
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const
   , eval   = defaultEvaluate
-  , varfun = defaultVarfun
   }
 
 -------------------------------------------------------------------------------
@@ -108,12 +106,12 @@ exprsCAS = Exprs
 
 example :: Int -> IO ()
 example n = do
-  let (obs1, obs2, obs3) = runST $ discover defaultListValues exprsLS exprsCAS n
-  prettyPrint (varfun exprsLS) obs1
+  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos exprsLS exprsCAS n
+  prettyPrint defaultTypeInfos obs1
   putStrLn ""
-  prettyPrint (varfun exprsLS) obs2
+  prettyPrint defaultTypeInfos obs2
   putStrLn ""
-  prettyPrint (varfun exprsLS) obs3
+  prettyPrint defaultTypeInfos obs3
 
 main :: IO ()
 main = example 7

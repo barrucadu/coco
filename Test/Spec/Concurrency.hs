@@ -41,8 +41,7 @@ module Test.Spec.Concurrency
   , discover
   , discoverSingle
   , defaultEvaluate
-  , defaultListValues
-  , defaultVarfun
+  , defaultTypeInfos
   -- * Building blocks
   , (|||)
   -- * Utilities
@@ -54,7 +53,6 @@ import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
 import Control.Monad (void, when)
 import Control.Monad.ST (ST)
-import Data.Char (toLower)
 import Data.Function (on)
 import Data.Foldable (toList)
 import Data.List (foldl', sortOn)
@@ -75,9 +73,9 @@ import Test.DejaFu.SCT (runSCT')
 import Test.Spec.Ann
 import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, findInstance, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.Spec.List (defaultListValues)
 import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
-import Test.Spec.Type (Dynamic, HasTypeRep, TypeRep, coerceDyn, coerceTypeRep, unsafeFromDyn, unsafeFromRawTypeRep)
+import Test.Spec.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
+import Test.Spec.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
 import Test.Spec.Util
 
 -- | Evaluate an expression, if it has no free variables and it is the
@@ -87,13 +85,6 @@ import Test.Spec.Util
 -- inner 'Maybe' is @Nothing@, the type is incorrect.
 defaultEvaluate :: (Monad m, HasTypeRep s m a) => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe a)
 defaultEvaluate = evaluate
-
--- | Returns the lower-cased first letter in the type name, except for
--- ints, which get "x".
-defaultVarfun :: T.TypeRep -> Char
-defaultVarfun ty
-  | ty == T.typeRep (Proxy :: Proxy Int) = 'x'
-  | otherwise = (toLower . head . show) ty
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -130,10 +121,6 @@ data Exprs s m x = Exprs
   -- ^ Set the state value. This doesn't need to be atomic, or even
   -- guaranteed to work, its purpose is to cause interference when
   -- evaluating other terms.
-  , varfun :: T.TypeRep -> Char
-  -- ^ Assigns a letter to each type, used for producing variable
-  -- names. The 'defaultVarfun' function just uses the first letter of
-  -- the type name.
   }
 
 -- | Attempt to discover properties of the given set of concurrent
@@ -141,27 +128,33 @@ data Exprs s m x = Exprs
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
 discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
-  => (TypeRep Void Void1 -> [Dynamic Void Void1]) -- ^ List values of the demanded type.
-  -> Exprs s1 (ConcST t) x -- ^ A collection of expressions
-  -> Exprs s2 (ConcST t) x -- ^ Another collection of expressions.
-  -> Int -- ^ Term size limit
+  => [(T.TypeRep, TypeInfo)]
+  -- ^ Information about types. There MUST be an entry for every hole and seed type!
+  -> Exprs s1 (ConcST t) x
+  -- ^ A collection of expressions
+  -> Exprs s2 (ConcST t) x
+  -- ^ Another collection of expressions.
+  -> Int
+  -- ^ Term size limit
   -> ST t ([Observation], [Observation], [Observation])
-discover listValues exprs1 exprs2 =
-  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy x)
-      seeds  = mapMaybe unsafeFromDyn $ listValues seedty
-  in discoverWithSeeds listValues exprs1 exprs2 seeds
+discover typeInfos exprs1 exprs2 =
+  case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
+    Just tyI ->
+      let seeds = mapMaybe unsafeFromDyn (listValues tyI)
+      in discoverWithSeeds typeInfos exprs1 exprs2 seeds
+    Nothing  -> \_ -> pure ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: (Ord x, NFData x)
-                  => (TypeRep Void Void1 -> [Dynamic Void Void1])
-                  -> Exprs s1 (ConcST t) x
-                  -> Exprs s2 (ConcST t) x
-                  -> [x]
-                  -> Int
-                  -> ST t ([Observation], [Observation], [Observation])
-discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
-    (g1, obs1) <- discoverSingleWithSeeds' listValues exprs1 seeds lim
-    (g2, obs2) <- discoverSingleWithSeeds' listValues exprs2 seeds lim
+  => [(T.TypeRep, TypeInfo)]
+  -> Exprs s1 (ConcST t) x
+  -> Exprs s2 (ConcST t) x
+  -> [x]
+  -> Int
+  -> ST t ([Observation], [Observation], [Observation])
+discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
+    (g1, obs1) <- discoverSingleWithSeeds' typeInfos exprs1 seeds lim
+    (g2, obs2) <- discoverSingleWithSeeds' typeInfos exprs2 seeds lim
     let obs3 = crun (findObservations g1 g2 0)
     pure (obs1, obs2, obs3)
   where
@@ -171,40 +164,45 @@ discoverWithSeeds listValues exprs1 exprs2 seeds lim = do
       go tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = foldl' (check (varfun exprs1) (\_ _ -> False ) smallers) (cnil, cnil) exprs
+            (_, observations) = foldl' (check varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
         in cappend observations $ if tier == lim then cnil else go (tier+1)
+
+    -- get the base name for a variable
+    varfun = getVariableBaseName typeInfos
 
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
 discoverSingle :: forall s t x. (Ord x, T.Typeable x, NFData x)
-  => (TypeRep Void Void1 -> [Dynamic Void Void1])
+  => [(T.TypeRep, TypeInfo)]
   -> Exprs s (ConcST t) x
   -> Int
   -> ST t [Observation]
-discoverSingle listValues exprs =
-  let seedty = unsafeFromRawTypeRep $ T.typeRep (Proxy :: Proxy x)
-      seeds  = mapMaybe unsafeFromDyn $ listValues seedty
-  in discoverSingleWithSeeds listValues exprs seeds
+discoverSingle typeInfos exprs =
+  case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
+    Just tyI ->
+      let seeds = mapMaybe unsafeFromDyn (listValues tyI)
+      in discoverSingleWithSeeds typeInfos exprs seeds
+    Nothing  -> \_ -> pure []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: (Ord x, NFData x)
-  => (TypeRep Void Void1 -> [Dynamic Void Void1])
+  => [(T.TypeRep, TypeInfo)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t [Observation]
-discoverSingleWithSeeds listValues exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' listValues exprs seeds lim
+discoverSingleWithSeeds typeInfos exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' typeInfos exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
-  => (TypeRep Void Void1 -> [Dynamic Void Void1])
+  => [(T.TypeRep, TypeInfo)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) x), Ann s (ConcST t) x), [Observation])
-discoverSingleWithSeeds' listValues exprs seeds lim =
+discoverSingleWithSeeds' typeInfos exprs seeds lim =
     let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           exprs] ++
                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions exprs])
     in second crun <$> findObservations g 0
@@ -214,14 +212,14 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
     findObservations g tier = do
       evaled <- mapM evalSchema . S.toList $ getTier tier g
       let smallers = map (`getTier` g) [0..tier-1]
-      let (kept, observations) = first crun (foldl' (check (varfun exprs) ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
+      let (kept, observations) = first crun (foldl' (check varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
       let g' = adjustTier (const (S.fromList kept)) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
         else findObservations (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate all terms of a schema and store their results
-    evalSchema (schema, (_, ann)) = case allTerms (varfun exprs) schema of
+    evalSchema (schema, (_, ann)) = case allTerms varfun schema of
       (mostGeneralTerm:rest) -> do
         mresult <- evalTerm mostGeneralTerm
         let new_ann = case mresult of
@@ -246,7 +244,10 @@ discoverSingleWithSeeds' listValues exprs seeds lim =
 
     -- evaluate a term with optional interference
     run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-    run interference term = shoveMaybe (runSingle listValues exprs interference term seeds)
+    run interference term = shoveMaybe (runSingle typeInfos exprs interference term seeds)
+
+    -- get the base name for a variable
+    varfun = getVariableBaseName typeInfos
 
 -- | Get the results of a more specific term from a more general one
 getResultsFrom :: Foldable f
@@ -342,8 +343,8 @@ a ||| b = do
 -- Misc
 
 -- | Pretty-print a list of observations.
-prettyPrint :: (T.TypeRep -> Char) -> [Observation] -> IO ()
-prettyPrint nf obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
+prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
+prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   obss = map go obss0 where
     go (Equiv   e1 e2) = (pp nf e1, "is equivalent to", pp nf e2)
     go (Refines e1 e2) = (pp nf e1, "strictly refines", pp nf e2)
@@ -355,6 +356,8 @@ prettyPrint nf obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 
   maxlen = maximum (map (\(e1, _, _) -> length e1) obss)
 
+  nf = getVariableBaseName typeInfos
+
 -------------------------------------------------------------------------------
 -- Utilities
 
@@ -362,13 +365,13 @@ prettyPrint nf obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
 runSingle :: forall s t x. (Ord x, NFData x)
-  => (TypeRep Void Void1 -> [Dynamic Void Void1])
+  => [(T.TypeRep, TypeInfo)]
   -> Exprs s (ConcST t) x
   -> Bool
   -> Term s (ConcST t)
   -> [x]
   -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
-runSingle listValues exprs interference expr seeds
+runSingle typeInfos exprs interference expr seeds
     | null assignments = Nothing
     | otherwise = Just $ do
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
@@ -409,10 +412,12 @@ runSingle listValues exprs interference expr seeds
     assign env [] e = maybeToList $ (\r -> ([], r)) <$> (evoid e >>= \e' -> eval exprs e' env)
 
     vars :: [(String, [Dynamic Void Void1])]
-    vars = ordNubOn fst (map (second listValues) (freeVars expr))
+    vars = ordNubOn fst (map (second enumerateValues) (freeVars expr))
     freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . environment
 
     evoid e = bind [] e (lit "" (pure () :: ConcST t ()))
+
+    enumerateValues = getTypeValues typeInfos . rawTypeRep
 
 -- | Helper for 'discover' and 'discoverSingle': construct an
 -- appropriate 'Observation' given the results of execution.

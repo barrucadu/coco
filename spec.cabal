@@ -20,9 +20,9 @@ library
                      , Test.Spec.Concurrency
                      , Test.Spec.Expr
                      , Test.Spec.Gen
-                     , Test.Spec.List
                      , Test.Spec.Rename
                      , Test.Spec.Type
+                     , Test.Spec.TypeInfo
                      , Test.Spec.Util
   -- other-modules:       
   -- other-extensions:    

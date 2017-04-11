@@ -26,12 +26,11 @@ exprs = Exprs
   , observation = tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   , eval   = defaultEvaluate
-  , varfun = defaultVarfun
   }
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example n = prettyPrint (varfun exprs) $ runST $ discoverSingle defaultListValues exprs n
+example n = prettyPrint defaultTypeInfos $ runST $ discoverSingle defaultTypeInfos exprs n
 
 main :: IO ()
 main = example 7
