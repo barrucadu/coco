@@ -30,7 +30,7 @@ library
                      , concurrency
                      , containers >=0.5.8 && <0.6
                      , deepseq >=1.1 && <2
-                     , dejafu >=0.5.1.1 && <0.6
+                     , dejafu >=0.5.1.1 && <0.7
                      , leancheck >=0.6 && <0.7
                      , template-haskell >=2.11 && <3
   -- hs-source-dirs:      
