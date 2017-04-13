@@ -568,7 +568,7 @@ pp nf e0 = go [] True e0 where
     Hole _ -> wrap top ("_ :: " ++ show ty)
     Bound i -> env !! i
     Named s -> s
-  go _ _ StateVar = ":state:"
+  go _ _ StateVar = "@"
   go env top e = wrap top . unwords $ case e of
     Let _ True is b x ->
       let v = fresh env (fromJust . unmonad $ exprTypeRep b)
