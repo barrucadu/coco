@@ -1,145 +1,145 @@
- dupLS @        strictly refines        dupLS @ >> swapLS @
- dupLS @        strictly refines        (dupLS @) ||| (rotLS @)
- dupLS @        strictly refines        (dupLS @) ||| (swapLS @)
- popLS @        strictly refines        popLS @ >> rotLS @
- popLS @        strictly refines        (rotLS @) ||| (popLS @)
- popLS @        strictly refines        (swapLS @) ||| (popLS @)
-overLS @        strictly refines        (overLS @) ||| (rotLS @)
-peekLS @        strictly refines        dupLS @ >> popLS @
-peekLS @        strictly refines        swapLS @ >> swapLS @
-peekLS @        strictly refines        (dupLS @) ||| (popLS @)
-peekLS @        strictly refines        (swapLS @) ||| (swapLS @)
-peekLS @        strictly refines        popLS @ >>= \m -> whenJust pushLS @ m
+ dupLS @  strictly refines  dupLS @ >> swapLS @
+ dupLS @  strictly refines  (dupLS @) ||| (rotLS @)
+ dupLS @  strictly refines  (dupLS @) ||| (swapLS @)
+ popLS @  strictly refines  popLS @ >> rotLS @
+ popLS @  strictly refines  (rotLS @) ||| (popLS @)
+ popLS @  strictly refines  (swapLS @) ||| (popLS @)
+overLS @  strictly refines  (overLS @) ||| (rotLS @)
+peekLS @  strictly refines  dupLS @ >> popLS @
+peekLS @  strictly refines  swapLS @ >> swapLS @
+peekLS @  strictly refines  (dupLS @) ||| (popLS @)
+peekLS @  strictly refines  (swapLS @) ||| (swapLS @)
+peekLS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
 
- dupCAS @        strictly refines        dupCAS @ >> swapCAS @
- dupCAS @        strictly refines        (dupCAS @) ||| (rotCAS @)
- dupCAS @        strictly refines        (dupCAS @) ||| (swapCAS @)
- popCAS @        strictly refines        popCAS @ >> rotCAS @
- popCAS @        strictly refines        (rotCAS @) ||| (popCAS @)
- popCAS @        strictly refines        (swapCAS @) ||| (popCAS @)
-overCAS @        strictly refines        (overCAS @) ||| (rotCAS @)
-peekCAS @        strictly refines        dupCAS @ >> popCAS @
-peekCAS @        strictly refines        swapCAS @ >> swapCAS @
-peekCAS @        strictly refines        (dupCAS @) ||| (popCAS @)
-peekCAS @        strictly refines        (swapCAS @) ||| (swapCAS @)
-peekCAS @        strictly refines        popCAS @ >>= \m -> whenJust pushCAS @ m
+ dupCAS @  strictly refines  dupCAS @ >> swapCAS @
+ dupCAS @  strictly refines  (dupCAS @) ||| (rotCAS @)
+ dupCAS @  strictly refines  (dupCAS @) ||| (swapCAS @)
+ popCAS @  strictly refines  popCAS @ >> rotCAS @
+ popCAS @  strictly refines  (rotCAS @) ||| (popCAS @)
+ popCAS @  strictly refines  (swapCAS @) ||| (popCAS @)
+overCAS @  strictly refines  (overCAS @) ||| (rotCAS @)
+peekCAS @  strictly refines  dupCAS @ >> popCAS @
+peekCAS @  strictly refines  swapCAS @ >> swapCAS @
+peekCAS @  strictly refines  (dupCAS @) ||| (popCAS @)
+peekCAS @  strictly refines  (swapCAS @) ||| (swapCAS @)
+peekCAS @  strictly refines  popCAS @ >>= \m -> whenJust pushCAS @ m
 
-                             dupLS @        is equivalent to        dupCAS @
-                             popLS @        is equivalent to        popCAS @
-                             rotLS @        is equivalent to        rotCAS @
-                            dupCAS @        strictly refines        (dupLS @) ||| (rotLS @)
-                            dupCAS @        strictly refines        (dupLS @) ||| (swapLS @)
-                            overLS @        is equivalent to        overCAS @
-                            peekLS @        is equivalent to        peekCAS @
-                            popCAS @        strictly refines        popLS @ >> rotLS @
-                            popCAS @        strictly refines        (rotLS @) ||| (popLS @)
-                            popCAS @        strictly refines        (swapLS @) ||| (popLS @)
-                            swapLS @        is equivalent to        swapCAS @
-                           overCAS @        strictly refines        (overLS @) ||| (rotLS @)
-                           peekCAS @        strictly refines        swapLS @ >> swapLS @
-                           peekCAS @        strictly refines        (dupLS @) ||| (popLS @)
-                           peekCAS @        strictly refines        (swapLS @) ||| (swapLS @)
-                           peekCAS @        strictly refines        popLS @ >>= \m -> whenJust pushLS @ m
-                  dupLS @ >> dupLS @        is equivalent to        dupCAS @ >> dupCAS @
-                  dupLS @ >> dupLS @        is equivalent to        (dupCAS @) ||| (dupCAS @)
-                  dupLS @ >> dupLS @        strictly refines        (dupCAS @) ||| (overCAS @)
-                  dupLS @ >> rotLS @        is equivalent to        dupCAS @ >> rotCAS @
-                  popLS @ >> dupLS @        is equivalent to        popCAS @ >> dupCAS @
-                  popLS @ >> popLS @        is equivalent to        popCAS @ >> popCAS @
-                  popLS @ >> popLS @        is equivalent to        (popCAS @) ||| (popCAS @)
-                  rotLS @ >> dupLS @        is equivalent to        rotCAS @ >> dupCAS @
-                  rotLS @ >> popLS @        is equivalent to        rotCAS @ >> popCAS @
-                  rotLS @ >> rotLS @        is equivalent to        rotCAS @ >> rotCAS @
-                  rotLS @ >> rotLS @        is equivalent to        (rotCAS @) ||| (rotCAS @)
-                 dupLS @ >> overLS @        is equivalent to        dupCAS @ >> overCAS @
-                 dupLS @ >> overLS @        strictly refines        (dupCAS @) ||| (overCAS @)
-                 overLS @ >> dupLS @        is equivalent to        overCAS @ >> dupCAS @
-                 overLS @ >> dupLS @        strictly refines        (dupCAS @) ||| (overCAS @)
-                 overLS @ >> popLS @        is equivalent to        overCAS @ >> popCAS @
-                 overLS @ >> popLS @        strictly refines        (overCAS @) ||| (popCAS @)
-                 overLS @ >> rotLS @        is equivalent to        overCAS @ >> rotCAS @
-                 popLS @ >> overLS @        is equivalent to        popCAS @ >> overCAS @
-                 popLS @ >> overLS @        strictly refines        (overCAS @) ||| (popCAS @)
-                 popLS @ >> swapLS @        is equivalent to        popCAS @ >> swapCAS @
-                 rotLS @ >> overLS @        is equivalent to        rotCAS @ >> overCAS @
-                 rotLS @ >> swapLS @        is equivalent to        rotCAS @ >> swapCAS @
-                 rotLS @ >> swapLS @        strictly refines        (rotCAS @) ||| (swapCAS @)
-                 swapLS @ >> dupLS @        is equivalent to        swapCAS @ >> dupCAS @
-                 swapLS @ >> popLS @        is equivalent to        swapCAS @ >> popCAS @
-                 swapLS @ >> rotLS @        is equivalent to        swapCAS @ >> rotCAS @
-                 swapLS @ >> rotLS @        strictly refines        (rotCAS @) ||| (swapCAS @)
-                 whenJust pushLS @ m        is equivalent to        whenJust pushCAS @ m
-                dupCAS @ >> dupCAS @        strictly refines        (dupLS @) ||| (overLS @)
-                dupCAS @ >> rotCAS @        strictly refines        (dupLS @) ||| (rotLS @)
-                overLS @ >> overLS @        is equivalent to        overCAS @ >> overCAS @
-                overLS @ >> overLS @        is equivalent to        (overCAS @) ||| (overCAS @)
-                overLS @ >> swapLS @        is equivalent to        overCAS @ >> swapCAS @
-                overLS @ >> swapLS @        strictly refines        (overCAS @) ||| (swapCAS @)
-                popCAS @ >> dupCAS @        strictly refines        (dupLS @) ||| (popLS @)
-                rotCAS @ >> dupCAS @        strictly refines        (dupLS @) ||| (rotLS @)
-                rotCAS @ >> popCAS @        strictly refines        (rotLS @) ||| (popLS @)
-                swapLS @ >> overLS @        is equivalent to        swapCAS @ >> overCAS @
-                swapLS @ >> overLS @        strictly refines        (overCAS @) ||| (swapCAS @)
-               dupCAS @ >> overCAS @        strictly refines        (dupLS @) ||| (overLS @)
-               overCAS @ >> dupCAS @        strictly refines        (dupLS @) ||| (overLS @)
-               overCAS @ >> popCAS @        strictly refines        (dupLS @) ||| (popLS @)
-               overCAS @ >> popCAS @        strictly refines        (overLS @) ||| (popLS @)
-               overCAS @ >> rotCAS @        strictly refines        (overLS @) ||| (rotLS @)
-               popCAS @ >> overCAS @        strictly refines        (overLS @) ||| (popLS @)
-               popCAS @ >> swapCAS @        strictly refines        (swapLS @) ||| (popLS @)
-               rotCAS @ >> overCAS @        strictly refines        (overLS @) ||| (rotLS @)
-               rotCAS @ >> swapCAS @        strictly refines        (rotLS @) ||| (swapLS @)
-               swapCAS @ >> dupCAS @        strictly refines        (dupLS @) ||| (swapLS @)
-               swapCAS @ >> popCAS @        strictly refines        (swapLS @) ||| (popLS @)
-               swapCAS @ >> rotCAS @        strictly refines        (rotLS @) ||| (swapLS @)
-              overCAS @ >> swapCAS @        strictly refines        (overLS @) ||| (swapLS @)
-              swapCAS @ >> overCAS @        strictly refines        (overLS @) ||| (swapLS @)
-             (dupLS @) ||| (dupLS @)        is equivalent to        dupCAS @ >> dupCAS @
-             (dupLS @) ||| (dupLS @)        is equivalent to        (dupCAS @) ||| (dupCAS @)
-             (dupLS @) ||| (dupLS @)        strictly refines        (dupCAS @) ||| (overCAS @)
-             (popLS @) ||| (popLS @)        is equivalent to        popCAS @ >> popCAS @
-             (popLS @) ||| (popLS @)        is equivalent to        (popCAS @) ||| (popCAS @)
-             (rotLS @) ||| (rotLS @)        is equivalent to        rotCAS @ >> rotCAS @
-             (rotLS @) ||| (rotLS @)        is equivalent to        (rotCAS @) ||| (rotCAS @)
-            (dupLS @) ||| (overLS @)        is equivalent to        (dupCAS @) ||| (overCAS @)
-            (overLS @) ||| (popLS @)        is equivalent to        (overCAS @) ||| (popCAS @)
-            (rotLS @) ||| (swapLS @)        is equivalent to        (rotCAS @) ||| (swapCAS @)
-           (dupCAS @) ||| (dupCAS @)        strictly refines        (dupLS @) ||| (overLS @)
-           (overLS @) ||| (overLS @)        is equivalent to        overCAS @ >> overCAS @
-           (overLS @) ||| (overLS @)        is equivalent to        (overCAS @) ||| (overCAS @)
-           (overLS @) ||| (swapLS @)        is equivalent to        (overCAS @) ||| (swapCAS @)
-      dupLS @ >> whenJust pushLS @ m        is equivalent to        dupCAS @ >> whenJust pushCAS @ m
-      dupLS @ >> whenJust pushLS @ m        strictly refines        (dupCAS @) ||| (whenJust pushCAS @ m)
-      popLS @ >> whenJust pushLS @ m        is equivalent to        popCAS @ >> whenJust pushCAS @ m
-      popLS @ >> whenJust pushLS @ m        strictly refines        (popCAS @) ||| (whenJust pushCAS @ m)
-      rotLS @ >> whenJust pushLS @ m        is equivalent to        rotCAS @ >> whenJust pushCAS @ m
-      rotLS @ >> whenJust pushLS @ m        strictly refines        (rotCAS @) ||| (whenJust pushCAS @ m)
-      whenJust pushLS @ m >> dupLS @        is equivalent to        whenJust pushCAS @ m >> dupCAS @
-      whenJust pushLS @ m >> dupLS @        strictly refines        (dupCAS @) ||| (whenJust pushCAS @ m)
-      whenJust pushLS @ m >> popLS @        is equivalent to        whenJust pushCAS @ m >> popCAS @
-      whenJust pushLS @ m >> popLS @        strictly refines        (popCAS @) ||| (whenJust pushCAS @ m)
-      whenJust pushLS @ m >> rotLS @        is equivalent to        whenJust pushCAS @ m >> rotCAS @
-      whenJust pushLS @ m >> rotLS @        strictly refines        (rotCAS @) ||| (whenJust pushCAS @ m)
-     overLS @ >> whenJust pushLS @ m        is equivalent to        overCAS @ >> whenJust pushCAS @ m
-     overLS @ >> whenJust pushLS @ m        strictly refines        (overCAS @) ||| (whenJust pushCAS @ m)
-     swapLS @ >> whenJust pushLS @ m        is equivalent to        swapCAS @ >> whenJust pushCAS @ m
-     swapLS @ >> whenJust pushLS @ m        strictly refines        (swapCAS @) ||| (whenJust pushCAS @ m)
-     whenJust pushLS @ m >> overLS @        is equivalent to        whenJust pushCAS @ m >> overCAS @
-     whenJust pushLS @ m >> overLS @        strictly refines        (overCAS @) ||| (whenJust pushCAS @ m)
-     whenJust pushLS @ m >> swapLS @        is equivalent to        whenJust pushCAS @ m >> swapCAS @
-     whenJust pushLS @ m >> swapLS @        strictly refines        (swapCAS @) ||| (whenJust pushCAS @ m)
-    dupCAS @ >> whenJust pushCAS @ m        strictly refines        (dupLS @) ||| (whenJust pushLS @ m)
-    popCAS @ >> whenJust pushCAS @ m        strictly refines        (popLS @) ||| (whenJust pushLS @ m)
-    rotCAS @ >> whenJust pushCAS @ m        strictly refines        (rotLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> dupCAS @        strictly refines        (dupLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> popCAS @        strictly refines        (popLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> rotCAS @        strictly refines        (rotLS @) ||| (whenJust pushLS @ m)
-   overCAS @ >> whenJust pushCAS @ m        strictly refines        (overLS @) ||| (whenJust pushLS @ m)
-   swapCAS @ >> whenJust pushCAS @ m        strictly refines        (swapLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> overCAS @        strictly refines        (overLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> swapCAS @        strictly refines        (swapLS @) ||| (whenJust pushLS @ m)
- (dupLS @) ||| (whenJust pushLS @ m)        is equivalent to        (dupCAS @) ||| (whenJust pushCAS @ m)
- (popLS @) ||| (whenJust pushLS @ m)        is equivalent to        (popCAS @) ||| (whenJust pushCAS @ m)
- (rotLS @) ||| (whenJust pushLS @ m)        is equivalent to        (rotCAS @) ||| (whenJust pushCAS @ m)
-(overLS @) ||| (whenJust pushLS @ m)        is equivalent to        (overCAS @) ||| (whenJust pushCAS @ m)
-(swapLS @) ||| (whenJust pushLS @ m)        is equivalent to        (swapCAS @) ||| (whenJust pushCAS @ m)
+                             dupLS @  is equivalent to  dupCAS @
+                             popLS @  is equivalent to  popCAS @
+                             rotLS @  is equivalent to  rotCAS @
+                            dupCAS @  strictly refines  (dupLS @) ||| (rotLS @)
+                            dupCAS @  strictly refines  (dupLS @) ||| (swapLS @)
+                            overLS @  is equivalent to  overCAS @
+                            peekLS @  is equivalent to  peekCAS @
+                            popCAS @  strictly refines  popLS @ >> rotLS @
+                            popCAS @  strictly refines  (rotLS @) ||| (popLS @)
+                            popCAS @  strictly refines  (swapLS @) ||| (popLS @)
+                            swapLS @  is equivalent to  swapCAS @
+                           overCAS @  strictly refines  (overLS @) ||| (rotLS @)
+                           peekCAS @  strictly refines  swapLS @ >> swapLS @
+                           peekCAS @  strictly refines  (dupLS @) ||| (popLS @)
+                           peekCAS @  strictly refines  (swapLS @) ||| (swapLS @)
+                           peekCAS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
+                  dupLS @ >> dupLS @  is equivalent to  dupCAS @ >> dupCAS @
+                  dupLS @ >> dupLS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+                  dupLS @ >> dupLS @  strictly refines  (dupCAS @) ||| (overCAS @)
+                  dupLS @ >> rotLS @  is equivalent to  dupCAS @ >> rotCAS @
+                  popLS @ >> dupLS @  is equivalent to  popCAS @ >> dupCAS @
+                  popLS @ >> popLS @  is equivalent to  popCAS @ >> popCAS @
+                  popLS @ >> popLS @  is equivalent to  (popCAS @) ||| (popCAS @)
+                  rotLS @ >> dupLS @  is equivalent to  rotCAS @ >> dupCAS @
+                  rotLS @ >> popLS @  is equivalent to  rotCAS @ >> popCAS @
+                  rotLS @ >> rotLS @  is equivalent to  rotCAS @ >> rotCAS @
+                  rotLS @ >> rotLS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+                 dupLS @ >> overLS @  is equivalent to  dupCAS @ >> overCAS @
+                 dupLS @ >> overLS @  strictly refines  (dupCAS @) ||| (overCAS @)
+                 overLS @ >> dupLS @  is equivalent to  overCAS @ >> dupCAS @
+                 overLS @ >> dupLS @  strictly refines  (dupCAS @) ||| (overCAS @)
+                 overLS @ >> popLS @  is equivalent to  overCAS @ >> popCAS @
+                 overLS @ >> popLS @  strictly refines  (overCAS @) ||| (popCAS @)
+                 overLS @ >> rotLS @  is equivalent to  overCAS @ >> rotCAS @
+                 popLS @ >> overLS @  is equivalent to  popCAS @ >> overCAS @
+                 popLS @ >> overLS @  strictly refines  (overCAS @) ||| (popCAS @)
+                 popLS @ >> swapLS @  is equivalent to  popCAS @ >> swapCAS @
+                 rotLS @ >> overLS @  is equivalent to  rotCAS @ >> overCAS @
+                 rotLS @ >> swapLS @  is equivalent to  rotCAS @ >> swapCAS @
+                 rotLS @ >> swapLS @  strictly refines  (rotCAS @) ||| (swapCAS @)
+                 swapLS @ >> dupLS @  is equivalent to  swapCAS @ >> dupCAS @
+                 swapLS @ >> popLS @  is equivalent to  swapCAS @ >> popCAS @
+                 swapLS @ >> rotLS @  is equivalent to  swapCAS @ >> rotCAS @
+                 swapLS @ >> rotLS @  strictly refines  (rotCAS @) ||| (swapCAS @)
+                 whenJust pushLS @ m  is equivalent to  whenJust pushCAS @ m
+                dupCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (overLS @)
+                dupCAS @ >> rotCAS @  strictly refines  (dupLS @) ||| (rotLS @)
+                overLS @ >> overLS @  is equivalent to  overCAS @ >> overCAS @
+                overLS @ >> overLS @  is equivalent to  (overCAS @) ||| (overCAS @)
+                overLS @ >> swapLS @  is equivalent to  overCAS @ >> swapCAS @
+                overLS @ >> swapLS @  strictly refines  (overCAS @) ||| (swapCAS @)
+                popCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (popLS @)
+                rotCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (rotLS @)
+                rotCAS @ >> popCAS @  strictly refines  (rotLS @) ||| (popLS @)
+                swapLS @ >> overLS @  is equivalent to  swapCAS @ >> overCAS @
+                swapLS @ >> overLS @  strictly refines  (overCAS @) ||| (swapCAS @)
+               dupCAS @ >> overCAS @  strictly refines  (dupLS @) ||| (overLS @)
+               overCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (overLS @)
+               overCAS @ >> popCAS @  strictly refines  (dupLS @) ||| (popLS @)
+               overCAS @ >> popCAS @  strictly refines  (overLS @) ||| (popLS @)
+               overCAS @ >> rotCAS @  strictly refines  (overLS @) ||| (rotLS @)
+               popCAS @ >> overCAS @  strictly refines  (overLS @) ||| (popLS @)
+               popCAS @ >> swapCAS @  strictly refines  (swapLS @) ||| (popLS @)
+               rotCAS @ >> overCAS @  strictly refines  (overLS @) ||| (rotLS @)
+               rotCAS @ >> swapCAS @  strictly refines  (rotLS @) ||| (swapLS @)
+               swapCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (swapLS @)
+               swapCAS @ >> popCAS @  strictly refines  (swapLS @) ||| (popLS @)
+               swapCAS @ >> rotCAS @  strictly refines  (rotLS @) ||| (swapLS @)
+              overCAS @ >> swapCAS @  strictly refines  (overLS @) ||| (swapLS @)
+              swapCAS @ >> overCAS @  strictly refines  (overLS @) ||| (swapLS @)
+             (dupLS @) ||| (dupLS @)  is equivalent to  dupCAS @ >> dupCAS @
+             (dupLS @) ||| (dupLS @)  is equivalent to  (dupCAS @) ||| (dupCAS @)
+             (dupLS @) ||| (dupLS @)  strictly refines  (dupCAS @) ||| (overCAS @)
+             (popLS @) ||| (popLS @)  is equivalent to  popCAS @ >> popCAS @
+             (popLS @) ||| (popLS @)  is equivalent to  (popCAS @) ||| (popCAS @)
+             (rotLS @) ||| (rotLS @)  is equivalent to  rotCAS @ >> rotCAS @
+             (rotLS @) ||| (rotLS @)  is equivalent to  (rotCAS @) ||| (rotCAS @)
+            (dupLS @) ||| (overLS @)  is equivalent to  (dupCAS @) ||| (overCAS @)
+            (overLS @) ||| (popLS @)  is equivalent to  (overCAS @) ||| (popCAS @)
+            (rotLS @) ||| (swapLS @)  is equivalent to  (rotCAS @) ||| (swapCAS @)
+           (dupCAS @) ||| (dupCAS @)  strictly refines  (dupLS @) ||| (overLS @)
+           (overLS @) ||| (overLS @)  is equivalent to  overCAS @ >> overCAS @
+           (overLS @) ||| (overLS @)  is equivalent to  (overCAS @) ||| (overCAS @)
+           (overLS @) ||| (swapLS @)  is equivalent to  (overCAS @) ||| (swapCAS @)
+      dupLS @ >> whenJust pushLS @ m  is equivalent to  dupCAS @ >> whenJust pushCAS @ m
+      dupLS @ >> whenJust pushLS @ m  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
+      popLS @ >> whenJust pushLS @ m  is equivalent to  popCAS @ >> whenJust pushCAS @ m
+      popLS @ >> whenJust pushLS @ m  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+      rotLS @ >> whenJust pushLS @ m  is equivalent to  rotCAS @ >> whenJust pushCAS @ m
+      rotLS @ >> whenJust pushLS @ m  strictly refines  (rotCAS @) ||| (whenJust pushCAS @ m)
+      whenJust pushLS @ m >> dupLS @  is equivalent to  whenJust pushCAS @ m >> dupCAS @
+      whenJust pushLS @ m >> dupLS @  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
+      whenJust pushLS @ m >> popLS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+      whenJust pushLS @ m >> popLS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+      whenJust pushLS @ m >> rotLS @  is equivalent to  whenJust pushCAS @ m >> rotCAS @
+      whenJust pushLS @ m >> rotLS @  strictly refines  (rotCAS @) ||| (whenJust pushCAS @ m)
+     overLS @ >> whenJust pushLS @ m  is equivalent to  overCAS @ >> whenJust pushCAS @ m
+     overLS @ >> whenJust pushLS @ m  strictly refines  (overCAS @) ||| (whenJust pushCAS @ m)
+     swapLS @ >> whenJust pushLS @ m  is equivalent to  swapCAS @ >> whenJust pushCAS @ m
+     swapLS @ >> whenJust pushLS @ m  strictly refines  (swapCAS @) ||| (whenJust pushCAS @ m)
+     whenJust pushLS @ m >> overLS @  is equivalent to  whenJust pushCAS @ m >> overCAS @
+     whenJust pushLS @ m >> overLS @  strictly refines  (overCAS @) ||| (whenJust pushCAS @ m)
+     whenJust pushLS @ m >> swapLS @  is equivalent to  whenJust pushCAS @ m >> swapCAS @
+     whenJust pushLS @ m >> swapLS @  strictly refines  (swapCAS @) ||| (whenJust pushCAS @ m)
+    dupCAS @ >> whenJust pushCAS @ m  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
+    popCAS @ >> whenJust pushCAS @ m  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+    rotCAS @ >> whenJust pushCAS @ m  strictly refines  (rotLS @) ||| (whenJust pushLS @ m)
+    whenJust pushCAS @ m >> dupCAS @  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
+    whenJust pushCAS @ m >> popCAS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+    whenJust pushCAS @ m >> rotCAS @  strictly refines  (rotLS @) ||| (whenJust pushLS @ m)
+   overCAS @ >> whenJust pushCAS @ m  strictly refines  (overLS @) ||| (whenJust pushLS @ m)
+   swapCAS @ >> whenJust pushCAS @ m  strictly refines  (swapLS @) ||| (whenJust pushLS @ m)
+   whenJust pushCAS @ m >> overCAS @  strictly refines  (overLS @) ||| (whenJust pushLS @ m)
+   whenJust pushCAS @ m >> swapCAS @  strictly refines  (swapLS @) ||| (whenJust pushLS @ m)
+ (dupLS @) ||| (whenJust pushLS @ m)  is equivalent to  (dupCAS @) ||| (whenJust pushCAS @ m)
+ (popLS @) ||| (whenJust pushLS @ m)  is equivalent to  (popCAS @) ||| (whenJust pushCAS @ m)
+ (rotLS @) ||| (whenJust pushLS @ m)  is equivalent to  (rotCAS @) ||| (whenJust pushCAS @ m)
+(overLS @) ||| (whenJust pushLS @ m)  is equivalent to  (overCAS @) ||| (whenJust pushCAS @ m)
+(swapLS @) ||| (whenJust pushLS @ m)  is equivalent to  (swapCAS @) ||| (whenJust pushCAS @ m)

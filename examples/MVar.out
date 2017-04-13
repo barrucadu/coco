@@ -1,7 +1,7 @@
- readMVar @        is equivalent to        readMVar @ >> readMVar @
- readMVar @        strictly refines        (readMVar @) ||| (readMVar @)
- readMVar @        strictly refines        takeMVar @ >>= \x -> putMVar @ x
- takeMVar @        is equivalent to        readMVar @ >> takeMVar @
- takeMVar @        strictly refines        (readMVar @) ||| (takeMVar @)
-putMVar @ x        strictly refines        putMVar @ x >> readMVar @
-putMVar @ x        strictly refines        (readMVar @) ||| (putMVar @ x)
+ readMVar @  is equivalent to  readMVar @ >> readMVar @
+ readMVar @  strictly refines  (readMVar @) ||| (readMVar @)
+ readMVar @  strictly refines  takeMVar @ >>= \x -> putMVar @ x
+ takeMVar @  is equivalent to  readMVar @ >> takeMVar @
+ takeMVar @  strictly refines  (readMVar @) ||| (takeMVar @)
+putMVar @ x  strictly refines  putMVar @ x >> readMVar @
+putMVar @ x  strictly refines  (readMVar @) ||| (putMVar @ x)

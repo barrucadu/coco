@@ -1,26 +1,26 @@
-      peekLS @        strictly refines        pushLS x @ >> popLS @
-      peekLS @        strictly refines        (popLS @) ||| (pushLS x @)
-      peekLS @        strictly refines        popLS @ >>= \m -> whenJust pushLS @ m
-   pushLS x1 @        strictly refines        push2LS x x1 @ >> popLS @
-   pushLS x1 @        strictly refines        (popLS @) ||| (push2LS x x1 @)
-push2LS x1 x @        strictly refines        pushLS x @ >> pushLS x @
-push2LS x1 x @        strictly refines        (pushLS x @) ||| (pushLS x @)
+      peekLS @  strictly refines  pushLS x @ >> popLS @
+      peekLS @  strictly refines  (popLS @) ||| (pushLS x @)
+      peekLS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
+   pushLS x1 @  strictly refines  push2LS x x1 @ >> popLS @
+   pushLS x1 @  strictly refines  (popLS @) ||| (push2LS x x1 @)
+push2LS x1 x @  strictly refines  pushLS x @ >> pushLS x @
+push2LS x1 x @  strictly refines  (pushLS x @) ||| (pushLS x @)
 
-peekCAS @        strictly refines        popCAS @ >>= \m -> whenJust pushCAS @ m
+peekCAS @  strictly refines  popCAS @ >>= \m -> whenJust pushCAS @ m
 
-                            popLS @        is equivalent to        popCAS @
-                           peekLS @        is equivalent to        peekCAS @
-                          peekCAS @        strictly refines        (popLS @) ||| (pushLS x @)
-                          peekCAS @        strictly refines        popLS @ >>= \m -> whenJust pushLS @ m
-                 popLS @ >> popLS @        is equivalent to        popCAS @ >> popCAS @
-                 popLS @ >> popLS @        is equivalent to        (popCAS @) ||| (popCAS @)
-                whenJust pushLS @ m        is equivalent to        whenJust pushCAS @ m
-            (popLS @) ||| (popLS @)        is equivalent to        popCAS @ >> popCAS @
-            (popLS @) ||| (popLS @)        is equivalent to        (popCAS @) ||| (popCAS @)
-     popLS @ >> whenJust pushLS @ m        is equivalent to        popCAS @ >> whenJust pushCAS @ m
-     popLS @ >> whenJust pushLS @ m        strictly refines        (popCAS @) ||| (whenJust pushCAS @ m)
-     whenJust pushLS @ m >> popLS @        is equivalent to        whenJust pushCAS @ m >> popCAS @
-     whenJust pushLS @ m >> popLS @        strictly refines        (popCAS @) ||| (whenJust pushCAS @ m)
-   popCAS @ >> whenJust pushCAS @ m        strictly refines        (popLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> popCAS @        strictly refines        (popLS @) ||| (whenJust pushLS @ m)
-(popLS @) ||| (whenJust pushLS @ m)        is equivalent to        (popCAS @) ||| (whenJust pushCAS @ m)
+                            popLS @  is equivalent to  popCAS @
+                           peekLS @  is equivalent to  peekCAS @
+                          peekCAS @  strictly refines  (popLS @) ||| (pushLS x @)
+                          peekCAS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
+                 popLS @ >> popLS @  is equivalent to  popCAS @ >> popCAS @
+                 popLS @ >> popLS @  is equivalent to  (popCAS @) ||| (popCAS @)
+                whenJust pushLS @ m  is equivalent to  whenJust pushCAS @ m
+            (popLS @) ||| (popLS @)  is equivalent to  popCAS @ >> popCAS @
+            (popLS @) ||| (popLS @)  is equivalent to  (popCAS @) ||| (popCAS @)
+     popLS @ >> whenJust pushLS @ m  is equivalent to  popCAS @ >> whenJust pushCAS @ m
+     popLS @ >> whenJust pushLS @ m  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+     whenJust pushLS @ m >> popLS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+     whenJust pushLS @ m >> popLS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+   popCAS @ >> whenJust pushCAS @ m  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+   whenJust pushCAS @ m >> popCAS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+(popLS @) ||| (whenJust pushLS @ m)  is equivalent to  (popCAS @) ||| (whenJust pushCAS @ m)

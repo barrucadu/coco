@@ -352,7 +352,7 @@ prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   cmp (e1, _, e2) = (length e1, e1, length e2, e2)
 
   pad (e1, t, e2) =
-    replicate (maxlen - length e1) ' ' ++ e1 ++ "        " ++ t ++ "        " ++ e2
+    replicate (maxlen - length e1) ' ' ++ e1 ++ "  " ++ t ++ "  " ++ e2
 
   maxlen = maximum (map (\(e1, _, _) -> length e1) obss)
 
