@@ -92,15 +92,13 @@ defaultEvaluate = evaluate
 data Observation where
   Equiv   :: Term s1 m -> Term s2 m -> Observation
   Refines :: Term s1 m -> Term s2 m -> Observation
+  Implied :: String -> Observation -> Observation
 
 instance Eq Observation where
   (Equiv   l1 l2) == (Equiv   r1 r2) = l1 `eq` r1 && l2 `eq` r2
   (Refines l1 l2) == (Refines r1 r2) = l1 `eq` r1 && l2 `eq` r2
+  (Implied s1 o1) == (Implied s2 o2) = s1 == s2 && o1 == o2
   _ == _ = False
-
-instance Show Observation where
-  show (Equiv   a b) = show a ++ "\tis equivalent to\t" ++ show b
-  show (Refines a b) = show a ++ "\tstrictly refines\t" ++ show b
 
 -- | A collection of expressions.
 data Exprs s m x = Exprs
@@ -164,7 +162,7 @@ discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
       go tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = foldl' (check varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
+            (_, observations) = foldl' (check [] varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
         in cappend observations $ if tier == lim then cnil else go (tier+1)
 
     -- get the base name for a variable
@@ -212,7 +210,7 @@ discoverSingleWithSeeds' typeInfos exprs seeds lim =
     findObservations g tier = do
       evaled <- mapM evalSchema . S.toList $ getTier tier g
       let smallers = map (`getTier` g) [0..tier-1]
-      let (kept, observations) = first crun (foldl' (check varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
+      let (kept, observations) = first crun (foldl' (check [] varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
       let g' = adjustTier (const (S.fromList kept)) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
@@ -275,13 +273,14 @@ getResultsFrom generic results specific = case findInstance generic specific of
 
 -- | Find observations and either annotate a schema or throw it away.
 check :: (Foldable f, Foldable g, Ord x)
-  => (T.TypeRep -> Char)
+  => [(String, x -> Bool)]
+  -> (T.TypeRep -> Char)
   -> (schema1 -> schema2 -> Bool)
   -> f (g (schema2, (Maybe (Ann s2 m x), Ann s2 m x)))
   -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
   -> (schema1, (Maybe (Ann s m x), Ann s m x))
   -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
-check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
+check preconditions varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
     | isBackground ann_a = (csnoc ckept z, cobs)
     | isJust (allResults ann_a) = case foldl' (foldl' go) (Just ann_a, cnil) smallers of
       (Just final_ann, obs) -> (csnoc ckept (schema_a, (old_ann_a, final_ann)), cappend cobs obs)
@@ -291,7 +290,8 @@ check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
     go acc (schema_b, (old_ann_b, ann_b))
       | isSmallest ann_b && not (isBackground ann_b) =
           let
-            -- Given two equal observations, check if the second is an instance of the first.
+            -- Given two equal observations, check if the second is an instance of the first.  This
+            -- does not consider 'Implied' observations, as they do not exist at this level.
             equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
               ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
                 Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
@@ -301,16 +301,32 @@ check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
             -- Given two equal observations, check if the first has a more general naming than the right
             equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) = o1 == o2 && p1 `isMoreGeneralThan` p2
 
+            -- Given a list of (precondition name, observations) values, turn this into a list of
+            -- observations conditional on the predicates.
+            --
+            -- TODO: keep only the weakest preconditions for each observation.
+            keepWeakestPreconditions ((Nothing, obss):rest) =
+              obss ++ keepWeakestPreconditions rest
+            keepWeakestPreconditions ((Just n,  obss):rest) =
+              map (\(ab,ba,mo) -> (ab, ba, Implied n <$> mo)) obss ++ keepWeakestPreconditions rest
+            keepWeakestPreconditions [] = []
+
             -- All interestingly distinct observations
-            allObservations = discardLater equalAndIsInstanceOf $ concat
-              [ map fst $ discardLater equalAndHasMoreGeneralNaming
-                [ (mkobservation (const True) a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
-                | proj <- projections (fst a) (fst b)
-                , let (r_a, r_b) = renaming varf proj
-                ]
-              | let results x = case allResults x of { Just (Some rs) -> rs; _ -> [] }
-              , a <- results ann_a
-              , b <- results ann_b
+            allObservations = keepWeakestPreconditions
+              [ (name, obss)
+              | precondition  <- Nothing : map Just preconditions
+              , let name = fst <$> precondition
+              , let prop = maybe (const True) snd precondition
+              , let obss = discardLater equalAndIsInstanceOf $ concat
+                     [ map fst $ discardLater equalAndHasMoreGeneralNaming
+                       [ (mkobservation prop a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
+                       | proj <- projections (fst a) (fst b)
+                       , let (r_a, r_b) = renaming varf proj
+                       ]
+                     | let results x = case allResults x of { Just (Some rs) -> rs; _ -> [] }
+                     , a <- results ann_a
+                     , b <- results ann_b
+                     ]
               ]
             go' (final_ann, obs) (_, refines_ba, ob) =
               let
@@ -345,9 +361,10 @@ a ||| b = do
 -- | Pretty-print a list of observations.
 prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
 prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
-  obss = map go obss0 where
-    go (Equiv   e1 e2) = (pp nf e1, "is equivalent to", pp nf e2)
-    go (Refines e1 e2) = (pp nf e1, "strictly refines", pp nf e2)
+  obss = mapMaybe go obss0 where
+    go (Equiv   e1 e2) = Just (pp nf e1, "is equivalent to", pp nf e2)
+    go (Refines e1 e2) = Just (pp nf e1, "strictly refines", pp nf e2)
+    go (Implied _  _)  = Nothing
 
   cmp (e1, _, e2) = (length e1, e1, length e2, e2)
 
