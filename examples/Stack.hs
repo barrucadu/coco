@@ -104,9 +104,12 @@ exprsCAS = Exprs
 -------------------------------------------------------------------------------
 -- Examples
 
+seedPreds :: [(String, [a] -> Bool)]
+seedPreds = [("null", null)]
+
 example :: Int -> IO ()
 example n = do
-  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos exprsLS exprsCAS n
+  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos seedPreds exprsLS exprsCAS n
   prettyPrint defaultTypeInfos obs1
   putStrLn ""
   prettyPrint defaultTypeInfos obs2

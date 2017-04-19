@@ -4,6 +4,7 @@ module Main where
 import Control.Concurrent.Classy
 import Control.Monad
 import Control.Monad.ST
+import Data.Maybe
 import Data.Proxy
 import Test.DejaFu.Conc
 
@@ -28,9 +29,15 @@ exprs = Exprs
   , eval   = defaultEvaluate
   }
 
+seedPreds :: [(String, Maybe a -> Bool)]
+seedPreds =
+  [ ("isEmpty", isNothing)
+  , ("isFull",  isJust)
+  ]
+
 -- | For using in GHCi
 example :: Int -> IO ()
-example n = prettyPrint defaultTypeInfos $ runST $ discoverSingle defaultTypeInfos exprs n
+example n = prettyPrint defaultTypeInfos $ runST $ discoverSingle defaultTypeInfos seedPreds exprs n
 
 main :: IO ()
 main = example 7

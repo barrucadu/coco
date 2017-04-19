@@ -128,6 +128,9 @@ data Exprs s m x = Exprs
 discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
   => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types. There MUST be an entry for every hole and seed type!
+  -> [(String, x -> Bool)]
+  -- ^ Predicates on the seed value. Used to discover properties which
+  -- only hold with certain seeds.
   -> Exprs s1 (ConcST t) x
   -- ^ A collection of expressions
   -> Exprs s2 (ConcST t) x
@@ -135,24 +138,25 @@ discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
   -> Int
   -- ^ Term size limit
   -> ST t ([Observation], [Observation], [Observation])
-discover typeInfos exprs1 exprs2 =
+discover typeInfos seedPreds exprs1 exprs2 =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverWithSeeds typeInfos exprs1 exprs2 seeds
+      in discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds
     Nothing  -> \_ -> pure ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s1 (ConcST t) x
   -> Exprs s2 (ConcST t) x
   -> [x]
   -> Int
   -> ST t ([Observation], [Observation], [Observation])
-discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
-    (g1, obs1) <- discoverSingleWithSeeds' typeInfos exprs1 seeds lim
-    (g2, obs2) <- discoverSingleWithSeeds' typeInfos exprs2 seeds lim
+discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds lim = do
+    (g1, obs1) <- discoverSingleWithSeeds' typeInfos seedPreds exprs1 seeds lim
+    (g2, obs2) <- discoverSingleWithSeeds' typeInfos seedPreds exprs2 seeds lim
     let obs3 = crun (findObservations g1 g2 0)
     pure (obs1, obs2, obs3)
   where
@@ -162,7 +166,7 @@ discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
       go tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = foldl' (check [] varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
+            (_, observations) = foldl' (check seedPreds varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
         in cappend observations $ if tier == lim then cnil else go (tier+1)
 
     -- get the base name for a variable
@@ -173,34 +177,37 @@ discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
 -- will lead to better pruning.
 discoverSingle :: forall s t x. (Ord x, T.Typeable x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> Int
   -> ST t [Observation]
-discoverSingle typeInfos exprs =
+discoverSingle typeInfos seedPreds exprs =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverSingleWithSeeds typeInfos exprs seeds
+      in discoverSingleWithSeeds typeInfos seedPreds exprs seeds
     Nothing  -> \_ -> pure []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t [Observation]
-discoverSingleWithSeeds typeInfos exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' typeInfos exprs seeds lim
+discoverSingleWithSeeds typeInfos seedPreds exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) x), Ann s (ConcST t) x), [Observation])
-discoverSingleWithSeeds' typeInfos exprs seeds lim =
+discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
     let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           exprs] ++
                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions exprs])
     in second crun <$> findObservations g 0
@@ -210,7 +217,7 @@ discoverSingleWithSeeds' typeInfos exprs seeds lim =
     findObservations g tier = do
       evaled <- mapM evalSchema . S.toList $ getTier tier g
       let smallers = map (`getTier` g) [0..tier-1]
-      let (kept, observations) = first crun (foldl' (check [] varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
+      let (kept, observations) = first crun (foldl' (check seedPreds varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
       let g' = adjustTier (const (S.fromList kept)) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
@@ -361,19 +368,22 @@ a ||| b = do
 -- | Pretty-print a list of observations.
 prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
 prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
-  obss = mapMaybe go obss0 where
-    go (Equiv   e1 e2) = Just (pp nf e1, "is equivalent to", pp nf e2)
-    go (Refines e1 e2) = Just (pp nf e1, "strictly refines", pp nf e2)
-    go (Implied _  _)  = Nothing
+  obss = map go obss0 where
+    go (Equiv   e1 e2) = (Nothing, pp nf e1, "is equivalent to", pp nf e2)
+    go (Refines e1 e2) = (Nothing, pp nf e1, "strictly refines", pp nf e2)
+    go (Implied p obs) = let (Nothing, e1, t, e2) = go obs in (Just p, e1, t, e2)
 
-  cmp (e1, _, e2) = (length e1, e1, length e2, e2)
+  cmp (p, e1, _, e2) = (maybe 0 length p, p, length e1, e1, length e2, e2)
 
-  pad (e1, t, e2) =
-    replicate (maxlen - length e1) ' ' ++ e1 ++ "  " ++ t ++ "  " ++ e2
+  pad (p, e1, t, e2) =
+    let off = replicate (maxlen p - length e1) ' '
+        prefix = maybe "" (++ " @  ==>  ") p
+    in prefix ++ off ++ e1 ++ "  " ++ t ++ "  " ++ e2
 
-  maxlen = maximum (map (\(e1, _, _) -> length e1) obss)
+  maxlen p0 = maximum (map (\(p, e1, _, _) -> if p == p0 then length e1 else 0) obss)
 
   nf = getVariableBaseName typeInfos
+
 
 -------------------------------------------------------------------------------
 -- Utilities
