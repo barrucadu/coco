@@ -296,7 +296,7 @@ prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 
   pad (p, e1, t, e2) =
     let off = replicate (maxlen p - length e1) ' '
-        prefix = maybe "" (++ " @  ==>  ") p
+        prefix = maybe "" (++ "  ==>  ") p
     in prefix ++ off ++ e1 ++ "  " ++ t ++ "  " ++ e2
 
   maxlen p0 = maximum (map (\(p, e1, _, _) -> if p == p0 then length e1 else 0) obss)

@@ -5,26 +5,26 @@
  takeMVar @  strictly refines  (readMVar @) ||| (takeMVar @)
 putMVar @ x  strictly refines  putMVar @ x >> readMVar @
 putMVar @ x  strictly refines  (readMVar @) ||| (putMVar @ x)
-isFull @  ==>  putMVar @ x  is equivalent to  putMVar @ x >> readMVar @
-isFull @  ==>  putMVar @ x  is equivalent to  readMVar @ >> putMVar @ x
-isFull @  ==>  putMVar @ x  is equivalent to  (readMVar @) ||| (putMVar @ x)
-isEmpty @  ==>  readMVar @  is equivalent to  readMVar @ >> takeMVar @
-isEmpty @  ==>  readMVar @  is equivalent to  takeMVar @ >> readMVar @
-isEmpty @  ==>  readMVar @  is equivalent to  takeMVar @ >> takeMVar @
-isEmpty @  ==>  readMVar @  is equivalent to  readMVar @ >> putMVar @ x
-isEmpty @  ==>  readMVar @  is equivalent to  takeMVar @ >> putMVar @ x
-isEmpty @  ==>  readMVar @  is equivalent to  (readMVar @) ||| (readMVar @)
-isEmpty @  ==>  readMVar @  is equivalent to  (readMVar @) ||| (takeMVar @)
-isEmpty @  ==>  readMVar @  is equivalent to  (takeMVar @) ||| (takeMVar @)
-isEmpty @  ==>  readMVar @  is equivalent to  readMVar @ >>= \x -> putMVar @ x
-isEmpty @  ==>  readMVar @  is equivalent to  takeMVar @ >>= \x -> putMVar @ x
-isEmpty @  ==>  takeMVar @  is equivalent to  readMVar @ >> readMVar @
-isEmpty @  ==>  takeMVar @  is equivalent to  takeMVar @ >> readMVar @
-isEmpty @  ==>  takeMVar @  is equivalent to  takeMVar @ >> takeMVar @
-isEmpty @  ==>  takeMVar @  is equivalent to  readMVar @ >> putMVar @ x
-isEmpty @  ==>  takeMVar @  is equivalent to  takeMVar @ >> putMVar @ x
-isEmpty @  ==>  takeMVar @  is equivalent to  (readMVar @) ||| (readMVar @)
-isEmpty @  ==>  takeMVar @  is equivalent to  (readMVar @) ||| (takeMVar @)
-isEmpty @  ==>  takeMVar @  is equivalent to  (takeMVar @) ||| (takeMVar @)
-isEmpty @  ==>  takeMVar @  is equivalent to  readMVar @ >>= \x -> putMVar @ x
-isEmpty @  ==>  takeMVar @  is equivalent to  takeMVar @ >>= \x -> putMVar @ x
+isFull  ==>  putMVar @ x  is equivalent to  putMVar @ x >> readMVar @
+isFull  ==>  putMVar @ x  is equivalent to  readMVar @ >> putMVar @ x
+isFull  ==>  putMVar @ x  is equivalent to  (readMVar @) ||| (putMVar @ x)
+isEmpty  ==>  readMVar @  is equivalent to  readMVar @ >> takeMVar @
+isEmpty  ==>  readMVar @  is equivalent to  takeMVar @ >> readMVar @
+isEmpty  ==>  readMVar @  is equivalent to  takeMVar @ >> takeMVar @
+isEmpty  ==>  readMVar @  is equivalent to  readMVar @ >> putMVar @ x
+isEmpty  ==>  readMVar @  is equivalent to  takeMVar @ >> putMVar @ x
+isEmpty  ==>  readMVar @  is equivalent to  (readMVar @) ||| (readMVar @)
+isEmpty  ==>  readMVar @  is equivalent to  (readMVar @) ||| (takeMVar @)
+isEmpty  ==>  readMVar @  is equivalent to  (takeMVar @) ||| (takeMVar @)
+isEmpty  ==>  readMVar @  is equivalent to  readMVar @ >>= \x -> putMVar @ x
+isEmpty  ==>  readMVar @  is equivalent to  takeMVar @ >>= \x -> putMVar @ x
+isEmpty  ==>  takeMVar @  is equivalent to  readMVar @ >> readMVar @
+isEmpty  ==>  takeMVar @  is equivalent to  takeMVar @ >> readMVar @
+isEmpty  ==>  takeMVar @  is equivalent to  takeMVar @ >> takeMVar @
+isEmpty  ==>  takeMVar @  is equivalent to  readMVar @ >> putMVar @ x
+isEmpty  ==>  takeMVar @  is equivalent to  takeMVar @ >> putMVar @ x
+isEmpty  ==>  takeMVar @  is equivalent to  (readMVar @) ||| (readMVar @)
+isEmpty  ==>  takeMVar @  is equivalent to  (readMVar @) ||| (takeMVar @)
+isEmpty  ==>  takeMVar @  is equivalent to  (takeMVar @) ||| (takeMVar @)
+isEmpty  ==>  takeMVar @  is equivalent to  readMVar @ >>= \x -> putMVar @ x
+isEmpty  ==>  takeMVar @  is equivalent to  takeMVar @ >>= \x -> putMVar @ x
