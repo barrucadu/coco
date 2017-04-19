@@ -88,6 +88,17 @@ constr :: Type -> Type
 constr (AppT ty _) = constr ty
 constr ty = ty
 
+-- | Discard elements from a list which match a predicate against some
+-- earlier value.
+discardLater :: (a -> a -> Bool) -> [a] -> [a]
+discardLater p = go where
+  go (x:xs) = x : go (filter (not . p x) xs)
+  go [] = []
+
+
+-------------------------------------------------------------------------------
+-- * Church-encoded lists
+
 -- | Church-encoded lists.
 newtype ChurchList a = CL (forall r. (a -> r -> r) -> r -> r)
 
