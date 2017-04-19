@@ -304,7 +304,7 @@ check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
             -- All interestingly distinct observations
             allObservations = discardLater equalAndIsInstanceOf $ concat
               [ map fst $ discardLater equalAndHasMoreGeneralNaming
-                [ (mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
+                [ (mkobservation (const True) a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
                 | proj <- projections (fst a) (fst b)
                 , let (r_a, r_b) = renaming varf proj
                 ]
@@ -422,7 +422,8 @@ runSingle typeInfos exprs interference expr seeds
 -- | Helper for 'discover' and 'discoverSingle': construct an
 -- appropriate 'Observation' given the results of execution.
 mkobservation :: Ord x
-  => (Term s1 m, (VarResults x, VarResults x)) -- ^ The left expression and results.
+  => (x -> Bool) -- ^ The predicate on the seed value.
+  -> (Term s1 m, (VarResults x, VarResults x)) -- ^ The left expression and results.
   -> (Term s2 m, (VarResults x, VarResults x)) -- ^ The right expression and results.
   -> [(String, String)] -- ^ A projection of the variable names in the left term into a consistent namespace.
   -> [(String, String)] -- ^ A projection of the variable names in the right term into a consistent namespace.
@@ -431,7 +432,7 @@ mkobservation :: Ord x
   -> Maybe (Ann s2 m x) -- ^ The old right annotation.
   -> Ann s2 m x -- ^ The current right annotation.
   -> (Bool, Bool, Maybe Observation)
-mkobservation (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_ann_a ann_a old_ann_b ann_b =
+mkobservation p (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_ann_a ann_a old_ann_b ann_b =
     (refines_ab, refines_ba, obs)
   where
     -- a failure is uninteresting if the failing term is built out of failing components
@@ -440,7 +441,7 @@ mkobservation (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_
       (maybe False isFailing old_ann_b && isFailing ann_b)
 
     -- P ⊑ Q iff the results of P are a subset of the results of Q
-    (refines_ab, refines_ba) = refines results_a renaming_a results_b renaming_b
+    (refines_ab, refines_ba) = refines p results_a renaming_a results_b renaming_b
 
     -- describe the observation
     term_a' = rename renaming_a term_a
