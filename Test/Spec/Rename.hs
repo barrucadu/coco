@@ -25,14 +25,18 @@ data These a b
   | These a b
   deriving (Eq, Show)
 
+-- | A projection into a common namespace.  This only makes sense for
+-- the original two expressions it was generated from.
+type Projection = [(These String String, TypeRep)]
+
 -- | Find all type-correct ways of associating environment variables.
-projections :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> [[(These String String, TypeRep)]]
+projections :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> [Projection]
 projections e1 e2 = projectionsFromEnv (env e1) (env e2) where
   env = map (second rawTypeRep) . environment
 
 -- | Like 'projections' but takes the lists of environment variables
 -- directly.
-projectionsFromEnv :: [(String, TypeRep)] -> [(String, TypeRep)] -> [[(These String String, TypeRep)]]
+projectionsFromEnv :: [(String, TypeRep)] -> [(String, TypeRep)] -> [Projection]
 projectionsFromEnv t1 [] = [[(This v, ty) | (v, ty) <- t1]]
 projectionsFromEnv [] t2 = [[(That v, ty) | (v, ty) <- t2]]
 projectionsFromEnv ((vL, tyL):t1) t2 =
@@ -46,7 +50,7 @@ projectionsFromEnv ((vL, tyL):t1) t2 =
 -- | Given a projection into a common namespace, produce a consistent
 -- variable renaming. Variables of the same type, after the first,
 -- will have a number appended starting from 1.
-renaming :: (TypeRep -> Char) -> [(These String String, TypeRep)] -> ([(String, String)], [(String, String)])
+renaming :: (TypeRep -> Char) -> Projection -> ([(String, String)], [(String, String)])
 renaming varf = go [] ([], []) where
   go e x ((these, ty):rest) =
     let name = varf ty
@@ -78,7 +82,7 @@ renamings varf t1 t2 = map (renaming varf) (projections t1 t2)
 -- well. The first is more general in that it imposes fewer
 -- constraints on the values of the variables. The latter is more
 -- specific as it imposes two constraints.
-isMoreGeneralThan :: [(These String String, TypeRep)] -> [(These String String, TypeRep)] -> Bool
+isMoreGeneralThan :: Projection -> Projection -> Bool
 isMoreGeneralThan ((these1, ty1):as) ((these2, ty2):bs)
   | ty1 /= ty2       = False
   | these1 == these2 = isMoreGeneralThan as bs

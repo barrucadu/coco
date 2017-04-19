@@ -73,7 +73,7 @@ import Test.DejaFu.SCT (runSCT')
 import Test.Spec.Ann
 import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, findInstance, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
+import Test.Spec.Rename (Projection, isMoreGeneralThan, projections, renaming)
 import Test.Spec.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
 import Test.Spec.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
 import Test.Spec.Util
@@ -297,29 +297,8 @@ check preconditions varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a
     go acc (schema_b, (old_ann_b, ann_b))
       | isSmallest ann_b && not (isBackground ann_b) =
           let
-            -- Given two equal observations, check if the second is an instance of the first.  This
-            -- does not consider 'Implied' observations, as they do not exist at this level.
-            equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
-              ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
-                Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-                Just (Refines t1 t2, Refines t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-                _ -> False
-
-            -- Given two equal observations, check if the first has a more general naming than the right
-            equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) = o1 == o2 && p1 `isMoreGeneralThan` p2
-
-            -- Given a list of (precondition name, observations) values, turn this into a list of
-            -- observations conditional on the predicates.
-            --
-            -- TODO: keep only the weakest preconditions for each observation.
-            keepWeakestPreconditions ((Nothing, obss):rest) =
-              obss ++ keepWeakestPreconditions rest
-            keepWeakestPreconditions ((Just n,  obss):rest) =
-              map (\(ab,ba,mo) -> (ab, ba, Implied n <$> mo)) obss ++ keepWeakestPreconditions rest
-            keepWeakestPreconditions [] = []
-
             -- All interestingly distinct observations
-            allObservations = keepWeakestPreconditions
+            allObservations = (makeConditionalObservations . keepWeakestPreconditions)
               [ (name, obss)
               | precondition  <- Nothing : map Just preconditions
               , let name = fst <$> precondition
@@ -480,6 +459,38 @@ mkobservation p (term_a, results_a) (term_b, results_b) renaming_a renaming_b ol
       | refines_ab = Just (Refines term_a' term_b')
       | refines_ba = Just (Refines term_b' term_a')
       | otherwise = Nothing
+
+-- | Given two equal observations, check if the second is an instance of the first.  This does not
+-- consider 'Implied' observations, as they do not exist at this level.
+equalAndIsInstanceOf :: (Eq a, Eq b)
+  => (a, b, Maybe Observation)
+  -> (a, b, Maybe Observation)
+  -> Bool
+equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
+  ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
+    Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+    Just (Refines t1 t2, Refines t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+    _ -> False
+
+-- | Given two equal observations, check if the first has a more general naming than the right.
+equalAndHasMoreGeneralNaming :: Eq a => (a, Projection) -> (a, Projection) -> Bool
+equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) =
+  o1 == o2 && p1 `isMoreGeneralThan` p2
+
+-- | Given a list of (precondition name, observations) values, keep only the weakest preconditions
+-- for each observation.
+keepWeakestPreconditions :: Eq a => [(p, [a])] -> [(p, [a])]
+keepWeakestPreconditions = filter (not . null . snd) . go . sortOn (length . snd) where
+  -- remove every property in `as` from all the later entries in the list.
+  go (p@(_,as):ps) = p : go (map (second (filter (`elem`as))) ps)
+  go [] = []
+
+-- | Given a list of (precondition name, observations) values, turn this into a list of observations
+-- conditional on the predicates.
+makeConditionalObservations :: [(Maybe String, [(a, b, Maybe Observation)])] -> [(a, b, Maybe Observation)]
+makeConditionalObservations = concatMap go where
+  go (Just n,  obss) = map (\(ab,ba,mo) -> (ab, ba, Implied n <$> mo)) obss
+  go (Nothing, obss) = obss
 
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
