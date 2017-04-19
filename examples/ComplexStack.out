@@ -10,6 +10,277 @@ peekLS @  strictly refines  swapLS @ >> swapLS @
 peekLS @  strictly refines  (dupLS @) ||| (popLS @)
 peekLS @  strictly refines  (swapLS @) ||| (swapLS @)
 peekLS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              dupLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>              dupLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>              dupLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>              dupLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>              dupLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>              dupLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>              dupLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>              dupLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>              dupLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>              dupLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>              dupLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>              dupLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>              dupLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>              dupLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>              dupLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>              dupLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>              dupLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>              dupLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>              dupLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>              dupLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>              dupLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>              dupLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>              dupLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>              dupLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>              dupLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>              dupLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              dupLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              dupLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              dupLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              dupLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              dupLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              dupLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              dupLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              dupLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              dupLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              dupLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              dupLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              dupLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              dupLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              dupLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              dupLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>              dupLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>              dupLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              popLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>              popLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>              popLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>              popLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>              popLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>              popLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>              popLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>              popLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>              popLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>              popLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>              popLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>              popLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>              popLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>              popLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>              popLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>              popLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>              popLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>              popLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>              popLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>              popLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>              popLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>              popLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>              popLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>              popLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>              popLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>              popLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              popLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              popLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              popLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              popLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              popLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              popLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              popLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              popLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              popLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              popLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              popLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              popLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              popLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              popLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              popLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>              popLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>              popLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              rotLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>              rotLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>              rotLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>              rotLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>              rotLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>              rotLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>              rotLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>              rotLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>              rotLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>              rotLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>              rotLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>              rotLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>              rotLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>              rotLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>              rotLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>              rotLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>              rotLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>              rotLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>              rotLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>              rotLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>              rotLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>              rotLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>              rotLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>              rotLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>              rotLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>              rotLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              rotLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              rotLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              rotLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              rotLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              rotLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              rotLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              rotLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              rotLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              rotLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              rotLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              rotLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              rotLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              rotLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              rotLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              rotLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>              rotLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>              rotLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>             overLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>             overLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>             overLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>             overLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>             overLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>             overLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>             overLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>             overLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>             overLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>             overLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>             overLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>             overLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>             overLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>             overLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>             overLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>             overLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>             overLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>             overLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>             overLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>             overLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>             overLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>             overLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>             overLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>             overLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>             overLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>             overLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             overLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             overLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             overLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             overLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             overLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             overLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             overLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             overLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             overLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             overLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             overLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             overLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             overLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             overLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             overLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>             overLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>             overLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>             peekLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>             peekLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>             peekLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>             peekLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>             peekLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>             peekLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>             peekLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>             peekLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>             peekLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>             peekLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>             peekLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>             peekLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>             peekLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>             peekLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>             peekLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>             peekLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>             peekLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>             peekLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>             peekLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>             peekLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>             peekLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>             peekLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>             peekLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>             peekLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>             peekLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>             peekLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             peekLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             peekLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             peekLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             peekLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             peekLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             peekLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             peekLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             peekLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             peekLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             peekLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             peekLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             peekLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             peekLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             peekLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             peekLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>             peekLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>             peekLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>             swapLS @  is equivalent to  dupLS @ >> dupLS @
+null @  ==>             swapLS @  is equivalent to  dupLS @ >> popLS @
+null @  ==>             swapLS @  is equivalent to  dupLS @ >> rotLS @
+null @  ==>             swapLS @  is equivalent to  popLS @ >> dupLS @
+null @  ==>             swapLS @  is equivalent to  popLS @ >> popLS @
+null @  ==>             swapLS @  is equivalent to  popLS @ >> rotLS @
+null @  ==>             swapLS @  is equivalent to  rotLS @ >> dupLS @
+null @  ==>             swapLS @  is equivalent to  rotLS @ >> popLS @
+null @  ==>             swapLS @  is equivalent to  rotLS @ >> rotLS @
+null @  ==>             swapLS @  is equivalent to  dupLS @ >> overLS @
+null @  ==>             swapLS @  is equivalent to  dupLS @ >> swapLS @
+null @  ==>             swapLS @  is equivalent to  overLS @ >> dupLS @
+null @  ==>             swapLS @  is equivalent to  overLS @ >> popLS @
+null @  ==>             swapLS @  is equivalent to  overLS @ >> rotLS @
+null @  ==>             swapLS @  is equivalent to  popLS @ >> overLS @
+null @  ==>             swapLS @  is equivalent to  popLS @ >> swapLS @
+null @  ==>             swapLS @  is equivalent to  rotLS @ >> overLS @
+null @  ==>             swapLS @  is equivalent to  rotLS @ >> swapLS @
+null @  ==>             swapLS @  is equivalent to  swapLS @ >> dupLS @
+null @  ==>             swapLS @  is equivalent to  swapLS @ >> popLS @
+null @  ==>             swapLS @  is equivalent to  swapLS @ >> rotLS @
+null @  ==>             swapLS @  is equivalent to  overLS @ >> overLS @
+null @  ==>             swapLS @  is equivalent to  overLS @ >> swapLS @
+null @  ==>             swapLS @  is equivalent to  swapLS @ >> overLS @
+null @  ==>             swapLS @  is equivalent to  swapLS @ >> swapLS @
+null @  ==>             swapLS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             swapLS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             swapLS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             swapLS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             swapLS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             swapLS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             swapLS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             swapLS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             swapLS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             swapLS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             swapLS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             swapLS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             swapLS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             swapLS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             swapLS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             swapLS @  is equivalent to  whenJust pushLS @ m >> popLS @
+null @  ==>             swapLS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>             swapLS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  dupLS @ >> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  popLS @ >> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  rotLS @ >> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  whenJust pushLS @ m >> rotLS @
+null @  ==>  whenJust pushLS @ m  is equivalent to  overLS @ >> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  swapLS @ >> whenJust pushLS @ m
+null @  ==>  whenJust pushLS @ m  is equivalent to  whenJust pushLS @ m >> overLS @
+null @  ==>  whenJust pushLS @ m  is equivalent to  whenJust pushLS @ m >> swapLS @
+null @  ==>  whenJust pushLS @ m  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
+null @  ==>  whenJust pushLS @ m  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
+null @  ==>  whenJust pushLS @ m  is equivalent to  (rotLS @) ||| (whenJust pushLS @ m)
+null @  ==>  whenJust pushLS @ m  is equivalent to  (overLS @) ||| (whenJust pushLS @ m)
+null @  ==>  whenJust pushLS @ m  is equivalent to  (swapLS @) ||| (whenJust pushLS @ m)
 
  dupCAS @  strictly refines  dupCAS @ >> swapCAS @
  dupCAS @  strictly refines  (dupCAS @) ||| (rotCAS @)
@@ -23,187 +294,420 @@ peekCAS @  strictly refines  swapCAS @ >> swapCAS @
 peekCAS @  strictly refines  (dupCAS @) ||| (popCAS @)
 peekCAS @  strictly refines  (swapCAS @) ||| (swapCAS @)
 peekCAS @  strictly refines  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>              dupCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>              dupCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>              dupCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>              dupCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>              dupCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>              dupCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>              dupCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>              dupCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>              dupCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>              dupCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>              dupCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>              dupCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>              dupCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>              dupCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>              dupCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>              dupCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>              dupCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>              dupCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>              dupCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>              dupCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>              dupCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>              dupCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>              dupCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>              dupCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>              dupCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>              dupCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>              dupCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>              dupCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>              dupCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>              dupCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>              dupCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>              dupCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>              dupCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>              dupCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>              dupCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>              dupCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>              dupCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>              dupCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>              popCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>              popCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>              popCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>              popCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>              popCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>              popCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>              popCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>              popCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>              popCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>              popCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>              popCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>              popCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>              popCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>              popCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>              popCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>              popCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>              popCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>              popCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>              popCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>              popCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>              popCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>              popCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>              popCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>              popCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>              popCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>              popCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>              popCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>              popCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>              popCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>              popCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>              popCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>              popCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>              popCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>              popCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>              popCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>              popCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>              popCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>              popCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>              popCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>              popCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>              popCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>              popCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>              popCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>              rotCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>              rotCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>              rotCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>              rotCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>              rotCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>              rotCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>              rotCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>              rotCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>              rotCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>              rotCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>              rotCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>              rotCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>              rotCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>              rotCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>              rotCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>              rotCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>              rotCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>              rotCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>              rotCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>              rotCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>              rotCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>              rotCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>              rotCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>              rotCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>              rotCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>              rotCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>              rotCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>              rotCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>              rotCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>              rotCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>              rotCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>              rotCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>              rotCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>              rotCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>              rotCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>              rotCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>              rotCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>              rotCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>             overCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>             overCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>             overCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>             overCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>             overCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>             overCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>             overCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>             overCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>             overCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>             overCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>             overCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>             overCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>             overCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>             overCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>             overCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>             overCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>             overCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>             overCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>             overCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>             overCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>             overCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>             overCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>             overCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>             overCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>             overCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>             overCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>             overCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>             overCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>             overCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>             overCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>             overCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>             overCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>             overCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>             overCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>             overCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>             overCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>             overCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>             overCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>             overCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>             overCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>             overCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>             overCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>             overCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>             peekCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>             peekCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>             peekCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>             peekCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>             peekCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>             peekCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>             peekCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>             peekCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>             peekCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>             peekCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>             peekCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>             peekCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>             peekCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>             peekCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>             peekCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>             peekCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>             peekCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>             peekCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>             peekCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>             peekCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>             peekCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>             peekCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>             peekCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>             peekCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>             peekCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>             peekCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>             peekCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>             peekCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>             peekCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>             peekCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>             peekCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>             peekCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>             peekCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>             peekCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>             peekCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>             peekCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>             peekCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>             peekCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>             swapCAS @  is equivalent to  dupCAS @ >> dupCAS @
+null @  ==>             swapCAS @  is equivalent to  dupCAS @ >> popCAS @
+null @  ==>             swapCAS @  is equivalent to  dupCAS @ >> rotCAS @
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >> dupCAS @
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >> popCAS @
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >> rotCAS @
+null @  ==>             swapCAS @  is equivalent to  rotCAS @ >> dupCAS @
+null @  ==>             swapCAS @  is equivalent to  rotCAS @ >> popCAS @
+null @  ==>             swapCAS @  is equivalent to  rotCAS @ >> rotCAS @
+null @  ==>             swapCAS @  is equivalent to  dupCAS @ >> overCAS @
+null @  ==>             swapCAS @  is equivalent to  dupCAS @ >> swapCAS @
+null @  ==>             swapCAS @  is equivalent to  overCAS @ >> dupCAS @
+null @  ==>             swapCAS @  is equivalent to  overCAS @ >> popCAS @
+null @  ==>             swapCAS @  is equivalent to  overCAS @ >> rotCAS @
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >> overCAS @
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >> swapCAS @
+null @  ==>             swapCAS @  is equivalent to  rotCAS @ >> overCAS @
+null @  ==>             swapCAS @  is equivalent to  rotCAS @ >> swapCAS @
+null @  ==>             swapCAS @  is equivalent to  swapCAS @ >> dupCAS @
+null @  ==>             swapCAS @  is equivalent to  swapCAS @ >> popCAS @
+null @  ==>             swapCAS @  is equivalent to  swapCAS @ >> rotCAS @
+null @  ==>             swapCAS @  is equivalent to  overCAS @ >> overCAS @
+null @  ==>             swapCAS @  is equivalent to  overCAS @ >> swapCAS @
+null @  ==>             swapCAS @  is equivalent to  swapCAS @ >> overCAS @
+null @  ==>             swapCAS @  is equivalent to  swapCAS @ >> swapCAS @
+null @  ==>             swapCAS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
+null @  ==>             swapCAS @  is equivalent to  (dupCAS @) ||| (popCAS @)
+null @  ==>             swapCAS @  is equivalent to  (dupCAS @) ||| (rotCAS @)
+null @  ==>             swapCAS @  is equivalent to  (popCAS @) ||| (popCAS @)
+null @  ==>             swapCAS @  is equivalent to  (rotCAS @) ||| (popCAS @)
+null @  ==>             swapCAS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
+null @  ==>             swapCAS @  is equivalent to  (dupCAS @) ||| (overCAS @)
+null @  ==>             swapCAS @  is equivalent to  (dupCAS @) ||| (swapCAS @)
+null @  ==>             swapCAS @  is equivalent to  (overCAS @) ||| (popCAS @)
+null @  ==>             swapCAS @  is equivalent to  (overCAS @) ||| (rotCAS @)
+null @  ==>             swapCAS @  is equivalent to  (rotCAS @) ||| (swapCAS @)
+null @  ==>             swapCAS @  is equivalent to  (swapCAS @) ||| (popCAS @)
+null @  ==>             swapCAS @  is equivalent to  (overCAS @) ||| (overCAS @)
+null @  ==>             swapCAS @  is equivalent to  (overCAS @) ||| (swapCAS @)
+null @  ==>             swapCAS @  is equivalent to  (swapCAS @) ||| (swapCAS @)
+null @  ==>             swapCAS @  is equivalent to  whenJust pushCAS @ m >> popCAS @
+null @  ==>             swapCAS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>             swapCAS @  is equivalent to  popCAS @ >>= \m -> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  dupCAS @ >> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  popCAS @ >> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  rotCAS @ >> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushCAS @ m >> rotCAS @
+null @  ==>  whenJust pushCAS @ m  is equivalent to  overCAS @ >> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  swapCAS @ >> whenJust pushCAS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushCAS @ m >> overCAS @
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushCAS @ m >> swapCAS @
+null @  ==>  whenJust pushCAS @ m  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>  whenJust pushCAS @ m  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>  whenJust pushCAS @ m  is equivalent to  (rotCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>  whenJust pushCAS @ m  is equivalent to  (overCAS @) ||| (whenJust pushCAS @ m)
+null @  ==>  whenJust pushCAS @ m  is equivalent to  (swapCAS @) ||| (whenJust pushCAS @ m)
 
-                             dupLS @  is equivalent to  dupCAS @
-                             popLS @  is equivalent to  popCAS @
-                             rotLS @  is equivalent to  rotCAS @
-                            dupCAS @  strictly refines  (dupLS @) ||| (rotLS @)
-                            dupCAS @  strictly refines  (dupLS @) ||| (swapLS @)
-                            overLS @  is equivalent to  overCAS @
-                            peekLS @  is equivalent to  peekCAS @
-                            popCAS @  strictly refines  popLS @ >> rotLS @
-                            popCAS @  strictly refines  (rotLS @) ||| (popLS @)
-                            popCAS @  strictly refines  (swapLS @) ||| (popLS @)
-                            swapLS @  is equivalent to  swapCAS @
-                           overCAS @  strictly refines  (overLS @) ||| (rotLS @)
-                           peekCAS @  strictly refines  swapLS @ >> swapLS @
-                           peekCAS @  strictly refines  (dupLS @) ||| (popLS @)
-                           peekCAS @  strictly refines  (swapLS @) ||| (swapLS @)
-                           peekCAS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
-                  dupLS @ >> dupLS @  is equivalent to  dupCAS @ >> dupCAS @
-                  dupLS @ >> dupLS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
-                  dupLS @ >> dupLS @  strictly refines  (dupCAS @) ||| (overCAS @)
-                  dupLS @ >> rotLS @  is equivalent to  dupCAS @ >> rotCAS @
-                  popLS @ >> dupLS @  is equivalent to  popCAS @ >> dupCAS @
-                  popLS @ >> popLS @  is equivalent to  popCAS @ >> popCAS @
-                  popLS @ >> popLS @  is equivalent to  (popCAS @) ||| (popCAS @)
-                  rotLS @ >> dupLS @  is equivalent to  rotCAS @ >> dupCAS @
-                  rotLS @ >> popLS @  is equivalent to  rotCAS @ >> popCAS @
-                  rotLS @ >> rotLS @  is equivalent to  rotCAS @ >> rotCAS @
-                  rotLS @ >> rotLS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
-                 dupLS @ >> overLS @  is equivalent to  dupCAS @ >> overCAS @
-                 dupLS @ >> overLS @  strictly refines  (dupCAS @) ||| (overCAS @)
-                 overLS @ >> dupLS @  is equivalent to  overCAS @ >> dupCAS @
-                 overLS @ >> dupLS @  strictly refines  (dupCAS @) ||| (overCAS @)
-                 overLS @ >> popLS @  is equivalent to  overCAS @ >> popCAS @
-                 overLS @ >> popLS @  strictly refines  (overCAS @) ||| (popCAS @)
-                 overLS @ >> rotLS @  is equivalent to  overCAS @ >> rotCAS @
-                 popLS @ >> overLS @  is equivalent to  popCAS @ >> overCAS @
-                 popLS @ >> overLS @  strictly refines  (overCAS @) ||| (popCAS @)
-                 popLS @ >> swapLS @  is equivalent to  popCAS @ >> swapCAS @
-                 rotLS @ >> overLS @  is equivalent to  rotCAS @ >> overCAS @
-                 rotLS @ >> swapLS @  is equivalent to  rotCAS @ >> swapCAS @
-                 rotLS @ >> swapLS @  strictly refines  (rotCAS @) ||| (swapCAS @)
-                 swapLS @ >> dupLS @  is equivalent to  swapCAS @ >> dupCAS @
-                 swapLS @ >> popLS @  is equivalent to  swapCAS @ >> popCAS @
-                 swapLS @ >> rotLS @  is equivalent to  swapCAS @ >> rotCAS @
-                 swapLS @ >> rotLS @  strictly refines  (rotCAS @) ||| (swapCAS @)
-                 whenJust pushLS @ m  is equivalent to  whenJust pushCAS @ m
-                dupCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (overLS @)
-                dupCAS @ >> rotCAS @  strictly refines  (dupLS @) ||| (rotLS @)
-                overLS @ >> overLS @  is equivalent to  overCAS @ >> overCAS @
-                overLS @ >> overLS @  is equivalent to  (overCAS @) ||| (overCAS @)
-                overLS @ >> swapLS @  is equivalent to  overCAS @ >> swapCAS @
-                overLS @ >> swapLS @  strictly refines  (overCAS @) ||| (swapCAS @)
-                popCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (popLS @)
-                rotCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (rotLS @)
-                rotCAS @ >> popCAS @  strictly refines  (rotLS @) ||| (popLS @)
-                swapLS @ >> overLS @  is equivalent to  swapCAS @ >> overCAS @
-                swapLS @ >> overLS @  strictly refines  (overCAS @) ||| (swapCAS @)
-               dupCAS @ >> overCAS @  strictly refines  (dupLS @) ||| (overLS @)
-               overCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (overLS @)
-               overCAS @ >> popCAS @  strictly refines  (dupLS @) ||| (popLS @)
-               overCAS @ >> popCAS @  strictly refines  (overLS @) ||| (popLS @)
-               overCAS @ >> rotCAS @  strictly refines  (overLS @) ||| (rotLS @)
-               popCAS @ >> overCAS @  strictly refines  (overLS @) ||| (popLS @)
-               popCAS @ >> swapCAS @  strictly refines  (swapLS @) ||| (popLS @)
-               rotCAS @ >> overCAS @  strictly refines  (overLS @) ||| (rotLS @)
-               rotCAS @ >> swapCAS @  strictly refines  (rotLS @) ||| (swapLS @)
-               swapCAS @ >> dupCAS @  strictly refines  (dupLS @) ||| (swapLS @)
-               swapCAS @ >> popCAS @  strictly refines  (swapLS @) ||| (popLS @)
-               swapCAS @ >> rotCAS @  strictly refines  (rotLS @) ||| (swapLS @)
-              overCAS @ >> swapCAS @  strictly refines  (overLS @) ||| (swapLS @)
-              swapCAS @ >> overCAS @  strictly refines  (overLS @) ||| (swapLS @)
-             (dupLS @) ||| (dupLS @)  is equivalent to  dupCAS @ >> dupCAS @
-             (dupLS @) ||| (dupLS @)  is equivalent to  (dupCAS @) ||| (dupCAS @)
-             (dupLS @) ||| (dupLS @)  strictly refines  (dupCAS @) ||| (overCAS @)
-             (popLS @) ||| (popLS @)  is equivalent to  popCAS @ >> popCAS @
-             (popLS @) ||| (popLS @)  is equivalent to  (popCAS @) ||| (popCAS @)
-             (rotLS @) ||| (rotLS @)  is equivalent to  rotCAS @ >> rotCAS @
-             (rotLS @) ||| (rotLS @)  is equivalent to  (rotCAS @) ||| (rotCAS @)
-            (dupLS @) ||| (overLS @)  is equivalent to  (dupCAS @) ||| (overCAS @)
-            (overLS @) ||| (popLS @)  is equivalent to  (overCAS @) ||| (popCAS @)
-            (rotLS @) ||| (swapLS @)  is equivalent to  (rotCAS @) ||| (swapCAS @)
-           (dupCAS @) ||| (dupCAS @)  strictly refines  (dupLS @) ||| (overLS @)
-           (overLS @) ||| (overLS @)  is equivalent to  overCAS @ >> overCAS @
-           (overLS @) ||| (overLS @)  is equivalent to  (overCAS @) ||| (overCAS @)
-           (overLS @) ||| (swapLS @)  is equivalent to  (overCAS @) ||| (swapCAS @)
-      dupLS @ >> whenJust pushLS @ m  is equivalent to  dupCAS @ >> whenJust pushCAS @ m
-      dupLS @ >> whenJust pushLS @ m  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
-      popLS @ >> whenJust pushLS @ m  is equivalent to  popCAS @ >> whenJust pushCAS @ m
-      popLS @ >> whenJust pushLS @ m  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
-      rotLS @ >> whenJust pushLS @ m  is equivalent to  rotCAS @ >> whenJust pushCAS @ m
-      rotLS @ >> whenJust pushLS @ m  strictly refines  (rotCAS @) ||| (whenJust pushCAS @ m)
-      whenJust pushLS @ m >> dupLS @  is equivalent to  whenJust pushCAS @ m >> dupCAS @
-      whenJust pushLS @ m >> dupLS @  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
-      whenJust pushLS @ m >> rotLS @  is equivalent to  whenJust pushCAS @ m >> rotCAS @
-      whenJust pushLS @ m >> rotLS @  strictly refines  (rotCAS @) ||| (whenJust pushCAS @ m)
-     overLS @ >> whenJust pushLS @ m  is equivalent to  overCAS @ >> whenJust pushCAS @ m
-     overLS @ >> whenJust pushLS @ m  strictly refines  (overCAS @) ||| (whenJust pushCAS @ m)
-     swapLS @ >> whenJust pushLS @ m  is equivalent to  swapCAS @ >> whenJust pushCAS @ m
-     swapLS @ >> whenJust pushLS @ m  strictly refines  (swapCAS @) ||| (whenJust pushCAS @ m)
-     whenJust pushLS @ m >> overLS @  is equivalent to  whenJust pushCAS @ m >> overCAS @
-     whenJust pushLS @ m >> overLS @  strictly refines  (overCAS @) ||| (whenJust pushCAS @ m)
-     whenJust pushLS @ m >> swapLS @  is equivalent to  whenJust pushCAS @ m >> swapCAS @
-     whenJust pushLS @ m >> swapLS @  strictly refines  (swapCAS @) ||| (whenJust pushCAS @ m)
-    dupCAS @ >> whenJust pushCAS @ m  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
-    popCAS @ >> whenJust pushCAS @ m  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
-    rotCAS @ >> whenJust pushCAS @ m  strictly refines  (rotLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> dupCAS @  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> rotCAS @  strictly refines  (rotLS @) ||| (whenJust pushLS @ m)
-   overCAS @ >> whenJust pushCAS @ m  strictly refines  (overLS @) ||| (whenJust pushLS @ m)
-   swapCAS @ >> whenJust pushCAS @ m  strictly refines  (swapLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> overCAS @  strictly refines  (overLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> swapCAS @  strictly refines  (swapLS @) ||| (whenJust pushLS @ m)
- (dupLS @) ||| (whenJust pushLS @ m)  is equivalent to  (dupCAS @) ||| (whenJust pushCAS @ m)
- (popLS @) ||| (whenJust pushLS @ m)  is equivalent to  (popCAS @) ||| (whenJust pushCAS @ m)
- (rotLS @) ||| (whenJust pushLS @ m)  is equivalent to  (rotCAS @) ||| (whenJust pushCAS @ m)
-(overLS @) ||| (whenJust pushLS @ m)  is equivalent to  (overCAS @) ||| (whenJust pushCAS @ m)
-(swapLS @) ||| (whenJust pushLS @ m)  is equivalent to  (swapCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>                               dupLS @  is equivalent to  dupCAS @
-null @  ==>                               popLS @  is equivalent to  popCAS @
-null @  ==>                               rotLS @  is equivalent to  rotCAS @
-null @  ==>                              overLS @  is equivalent to  overCAS @
-null @  ==>                              peekLS @  is equivalent to  peekCAS @
-null @  ==>                              swapLS @  is equivalent to  swapCAS @
-null @  ==>                    dupLS @ >> dupLS @  is equivalent to  dupCAS @ >> dupCAS @
-null @  ==>                    dupLS @ >> dupLS @  is equivalent to  (dupCAS @) ||| (dupCAS @)
-null @  ==>                    dupLS @ >> rotLS @  is equivalent to  dupCAS @ >> rotCAS @
-null @  ==>                    popLS @ >> dupLS @  is equivalent to  popCAS @ >> dupCAS @
-null @  ==>                    popLS @ >> popLS @  is equivalent to  popCAS @ >> popCAS @
-null @  ==>                    popLS @ >> popLS @  is equivalent to  (popCAS @) ||| (popCAS @)
-null @  ==>                    rotLS @ >> dupLS @  is equivalent to  rotCAS @ >> dupCAS @
-null @  ==>                    rotLS @ >> popLS @  is equivalent to  rotCAS @ >> popCAS @
-null @  ==>                    rotLS @ >> rotLS @  is equivalent to  rotCAS @ >> rotCAS @
-null @  ==>                    rotLS @ >> rotLS @  is equivalent to  (rotCAS @) ||| (rotCAS @)
-null @  ==>                   dupLS @ >> overLS @  is equivalent to  dupCAS @ >> overCAS @
-null @  ==>                   overLS @ >> dupLS @  is equivalent to  overCAS @ >> dupCAS @
-null @  ==>                   overLS @ >> popLS @  is equivalent to  overCAS @ >> popCAS @
-null @  ==>                   overLS @ >> rotLS @  is equivalent to  overCAS @ >> rotCAS @
-null @  ==>                   popLS @ >> overLS @  is equivalent to  popCAS @ >> overCAS @
-null @  ==>                   popLS @ >> swapLS @  is equivalent to  popCAS @ >> swapCAS @
-null @  ==>                   rotLS @ >> overLS @  is equivalent to  rotCAS @ >> overCAS @
-null @  ==>                   rotLS @ >> swapLS @  is equivalent to  rotCAS @ >> swapCAS @
-null @  ==>                   swapLS @ >> dupLS @  is equivalent to  swapCAS @ >> dupCAS @
-null @  ==>                   swapLS @ >> popLS @  is equivalent to  swapCAS @ >> popCAS @
-null @  ==>                   swapLS @ >> rotLS @  is equivalent to  swapCAS @ >> rotCAS @
-null @  ==>                   whenJust pushLS @ m  is equivalent to  whenJust pushCAS @ m
-null @  ==>                  overLS @ >> overLS @  is equivalent to  overCAS @ >> overCAS @
-null @  ==>                  overLS @ >> overLS @  is equivalent to  (overCAS @) ||| (overCAS @)
-null @  ==>                  overLS @ >> swapLS @  is equivalent to  overCAS @ >> swapCAS @
-null @  ==>                  swapLS @ >> overLS @  is equivalent to  swapCAS @ >> overCAS @
-null @  ==>               (dupLS @) ||| (dupLS @)  is equivalent to  dupCAS @ >> dupCAS @
-null @  ==>               (dupLS @) ||| (dupLS @)  is equivalent to  (dupCAS @) ||| (dupCAS @)
-null @  ==>               (popLS @) ||| (popLS @)  is equivalent to  popCAS @ >> popCAS @
-null @  ==>               (popLS @) ||| (popLS @)  is equivalent to  (popCAS @) ||| (popCAS @)
-null @  ==>               (rotLS @) ||| (rotLS @)  is equivalent to  rotCAS @ >> rotCAS @
-null @  ==>               (rotLS @) ||| (rotLS @)  is equivalent to  (rotCAS @) ||| (rotCAS @)
-null @  ==>              (dupLS @) ||| (overLS @)  is equivalent to  (dupCAS @) ||| (overCAS @)
-null @  ==>              (overLS @) ||| (popLS @)  is equivalent to  (overCAS @) ||| (popCAS @)
-null @  ==>              (rotLS @) ||| (swapLS @)  is equivalent to  (rotCAS @) ||| (swapCAS @)
-null @  ==>             (overLS @) ||| (overLS @)  is equivalent to  overCAS @ >> overCAS @
-null @  ==>             (overLS @) ||| (overLS @)  is equivalent to  (overCAS @) ||| (overCAS @)
-null @  ==>             (overLS @) ||| (swapLS @)  is equivalent to  (overCAS @) ||| (swapCAS @)
-null @  ==>        dupLS @ >> whenJust pushLS @ m  is equivalent to  dupCAS @ >> whenJust pushCAS @ m
-null @  ==>        dupLS @ >> whenJust pushLS @ m  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>        popLS @ >> whenJust pushLS @ m  is equivalent to  popCAS @ >> whenJust pushCAS @ m
-null @  ==>        popLS @ >> whenJust pushLS @ m  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>        rotLS @ >> whenJust pushLS @ m  is equivalent to  rotCAS @ >> whenJust pushCAS @ m
-null @  ==>        whenJust pushLS @ m >> dupLS @  is equivalent to  whenJust pushCAS @ m >> dupCAS @
-null @  ==>        whenJust pushLS @ m >> dupLS @  strictly refines  (dupCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>        whenJust pushLS @ m >> popLS @  is equivalent to  whenJust pushCAS @ m1 >> popCAS @
-null @  ==>        whenJust pushLS @ m >> popLS @  strictly refines  (popCAS @) ||| (whenJust pushCAS @ m1)
-null @  ==>        whenJust pushLS @ m >> rotLS @  is equivalent to  whenJust pushCAS @ m >> rotCAS @
-null @  ==>       overLS @ >> whenJust pushLS @ m  is equivalent to  overCAS @ >> whenJust pushCAS @ m
-null @  ==>       swapLS @ >> whenJust pushLS @ m  is equivalent to  swapCAS @ >> whenJust pushCAS @ m
-null @  ==>       whenJust pushLS @ m >> overLS @  is equivalent to  whenJust pushCAS @ m >> overCAS @
-null @  ==>       whenJust pushLS @ m >> swapLS @  is equivalent to  whenJust pushCAS @ m >> swapCAS @
-null @  ==>      dupCAS @ >> whenJust pushCAS @ m  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
-null @  ==>      popCAS @ >> whenJust pushCAS @ m  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
-null @  ==>      whenJust pushCAS @ m >> dupCAS @  strictly refines  (dupLS @) ||| (whenJust pushLS @ m)
-null @  ==>     whenJust pushCAS @ m1 >> popCAS @  strictly refines  (popLS @) ||| (whenJust pushLS @ m)
-null @  ==>   (dupLS @) ||| (whenJust pushLS @ m)  is equivalent to  (dupCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>   (popLS @) ||| (whenJust pushLS @ m)  is equivalent to  (popCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>   (rotLS @) ||| (whenJust pushLS @ m)  is equivalent to  (rotCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>  (overLS @) ||| (whenJust pushLS @ m)  is equivalent to  (overCAS @) ||| (whenJust pushCAS @ m)
-null @  ==>  (swapLS @) ||| (whenJust pushLS @ m)  is equivalent to  (swapCAS @) ||| (whenJust pushCAS @ m)
+                       dupLS @  is equivalent to  dupCAS @
+                       popLS @  is equivalent to  popCAS @
+                       rotLS @  is equivalent to  rotCAS @
+                      dupCAS @  strictly refines  (dupLS @) ||| (rotLS @)
+                      dupCAS @  strictly refines  (dupLS @) ||| (swapLS @)
+                      overLS @  is equivalent to  overCAS @
+                      peekLS @  is equivalent to  peekCAS @
+                      popCAS @  strictly refines  (rotLS @) ||| (popLS @)
+                      popCAS @  strictly refines  (swapLS @) ||| (popLS @)
+                      swapLS @  is equivalent to  swapCAS @
+                     overCAS @  strictly refines  (overLS @) ||| (rotLS @)
+                     peekCAS @  strictly refines  (dupLS @) ||| (popLS @)
+                     peekCAS @  strictly refines  (swapLS @) ||| (swapLS @)
+                     peekCAS @  strictly refines  popLS @ >>= \m -> whenJust pushLS @ m
+           whenJust pushLS @ m  is equivalent to  whenJust pushCAS @ m
+whenJust pushLS @ m >> dupLS @  is equivalent to  whenJust pushCAS @ m >> dupCAS @
+null @  ==>               dupLS @  is equivalent to  popCAS @
+null @  ==>               dupLS @  is equivalent to  rotCAS @
+null @  ==>               dupLS @  is equivalent to  overCAS @
+null @  ==>               dupLS @  is equivalent to  peekCAS @
+null @  ==>               dupLS @  is equivalent to  swapCAS @
+null @  ==>               popLS @  is equivalent to  dupCAS @
+null @  ==>               popLS @  is equivalent to  rotCAS @
+null @  ==>               popLS @  is equivalent to  overCAS @
+null @  ==>               popLS @  is equivalent to  peekCAS @
+null @  ==>               popLS @  is equivalent to  swapCAS @
+null @  ==>               rotLS @  is equivalent to  dupCAS @
+null @  ==>               rotLS @  is equivalent to  popCAS @
+null @  ==>               rotLS @  is equivalent to  overCAS @
+null @  ==>               rotLS @  is equivalent to  peekCAS @
+null @  ==>               rotLS @  is equivalent to  swapCAS @
+null @  ==>              dupCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              dupCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              dupCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              dupCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              dupCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              dupCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              dupCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              dupCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              dupCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              dupCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              dupCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              dupCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              dupCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              dupCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              dupCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              dupCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              overLS @  is equivalent to  dupCAS @
+null @  ==>              overLS @  is equivalent to  popCAS @
+null @  ==>              overLS @  is equivalent to  rotCAS @
+null @  ==>              overLS @  is equivalent to  peekCAS @
+null @  ==>              overLS @  is equivalent to  swapCAS @
+null @  ==>              peekLS @  is equivalent to  dupCAS @
+null @  ==>              peekLS @  is equivalent to  popCAS @
+null @  ==>              peekLS @  is equivalent to  rotCAS @
+null @  ==>              peekLS @  is equivalent to  overCAS @
+null @  ==>              peekLS @  is equivalent to  swapCAS @
+null @  ==>              popCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              popCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              popCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              popCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              popCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              popCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              popCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              popCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              popCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              popCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              popCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              popCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              popCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              popCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              popCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              popCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              rotCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>              rotCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>              rotCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>              rotCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>              rotCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>              rotCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>              rotCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>              rotCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>              rotCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>              rotCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>              rotCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>              rotCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>              rotCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>              rotCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>              rotCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>              rotCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>              swapLS @  is equivalent to  dupCAS @
+null @  ==>              swapLS @  is equivalent to  popCAS @
+null @  ==>              swapLS @  is equivalent to  rotCAS @
+null @  ==>              swapLS @  is equivalent to  overCAS @
+null @  ==>              swapLS @  is equivalent to  peekCAS @
+null @  ==>             overCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             overCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             overCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             overCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             overCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             overCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             overCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             overCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             overCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             overCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             overCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             overCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             overCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             overCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             overCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             overCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>             peekCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             peekCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             peekCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             peekCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             peekCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             peekCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             peekCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             peekCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             peekCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             peekCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             peekCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             peekCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             peekCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             peekCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             peekCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             peekCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>             swapCAS @  is equivalent to  (dupLS @) ||| (dupLS @)
+null @  ==>             swapCAS @  is equivalent to  (dupLS @) ||| (popLS @)
+null @  ==>             swapCAS @  is equivalent to  (dupLS @) ||| (rotLS @)
+null @  ==>             swapCAS @  is equivalent to  (popLS @) ||| (popLS @)
+null @  ==>             swapCAS @  is equivalent to  (rotLS @) ||| (popLS @)
+null @  ==>             swapCAS @  is equivalent to  (rotLS @) ||| (rotLS @)
+null @  ==>             swapCAS @  is equivalent to  (dupLS @) ||| (overLS @)
+null @  ==>             swapCAS @  is equivalent to  (dupLS @) ||| (swapLS @)
+null @  ==>             swapCAS @  is equivalent to  (overLS @) ||| (popLS @)
+null @  ==>             swapCAS @  is equivalent to  (overLS @) ||| (rotLS @)
+null @  ==>             swapCAS @  is equivalent to  (rotLS @) ||| (swapLS @)
+null @  ==>             swapCAS @  is equivalent to  (swapLS @) ||| (popLS @)
+null @  ==>             swapCAS @  is equivalent to  (overLS @) ||| (overLS @)
+null @  ==>             swapCAS @  is equivalent to  (overLS @) ||| (swapLS @)
+null @  ==>             swapCAS @  is equivalent to  (swapLS @) ||| (swapLS @)
+null @  ==>             swapCAS @  is equivalent to  popLS @ >>= \m -> whenJust pushLS @ m
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushLS @ m >> rotLS @
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushLS @ m >> overLS @
+null @  ==>  whenJust pushCAS @ m  is equivalent to  whenJust pushLS @ m >> swapLS @

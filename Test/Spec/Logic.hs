@@ -163,9 +163,14 @@ equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) =
 -- for each observation.
 keepWeakestPreconditions :: Eq a => [(p, [a])] -> [(p, [a])]
 keepWeakestPreconditions = filter (not . null . snd) . go . sortOn (length . snd) where
-  -- remove every property in `as` from all the later entries in the list.
-  go (p@(_,as):ps) = p : go (map (second (filter (`elem`as))) ps)
+  go (p@(_,as):ps) = p : go (map (second (restrict as)) ps)
   go [] = []
+
+  -- if as0 is a subset of as, remove all of as0 from as; otherwise the predicates are unrelated, so
+  -- leave the list unmangled.
+  restrict as0 as
+    | all (`elem` as) as0 = filter (`notElem` as0) as
+    | otherwise = as
 
 -- | Given a list of (precondition name, observations) values, turn this into a list of observations
 -- conditional on the predicates.
