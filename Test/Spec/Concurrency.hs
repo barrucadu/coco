@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -8,7 +8,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : GADTs, ScopedTypeVariables, TupleSections
+-- Portability : MonoLocalBinds, ScopedTypeVariables, TupleSections
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -55,11 +55,11 @@ import Control.Monad (void, when)
 import Control.Monad.ST (ST)
 import Data.Function (on)
 import Data.Foldable (toList)
-import Data.List (foldl', sortOn)
+import Data.List (sortOn)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
-import Data.Maybe (fromJust, isJust, isNothing, mapMaybe, maybeToList)
+import Data.Maybe (fromJust, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -71,12 +71,13 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
 import Test.Spec.Ann
-import Test.Spec.Expr (Schema, Term, allTerms, bind, isInstanceOf, findInstance, lit, eq, evaluate, exprSize, exprTypeRep, environment, pp, rename, unBind)
+import Test.Spec.Expr (Schema, Term, allTerms, bind, findInstance, lit, evaluate, exprTypeRep, environment, pp, unBind)
 import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.Spec.Rename (isMoreGeneralThan, projections, renaming)
 import Test.Spec.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
 import Test.Spec.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
 import Test.Spec.Util
+
+import Test.Spec.Logic
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.
@@ -88,19 +89,6 @@ defaultEvaluate = evaluate
 
 -------------------------------------------------------------------------------
 -- Property discovery
-
-data Observation where
-  Equiv   :: Term s1 m -> Term s2 m -> Observation
-  Refines :: Term s1 m -> Term s2 m -> Observation
-
-instance Eq Observation where
-  (Equiv   l1 l2) == (Equiv   r1 r2) = l1 `eq` r1 && l2 `eq` r2
-  (Refines l1 l2) == (Refines r1 r2) = l1 `eq` r1 && l2 `eq` r2
-  _ == _ = False
-
-instance Show Observation where
-  show (Equiv   a b) = show a ++ "  ===  " ++ show b
-  show (Refines a b) = show a ++ "  =[=  " ++ show b
 
 -- | A collection of expressions.
 data Exprs s m x = Exprs
@@ -130,6 +118,9 @@ data Exprs s m x = Exprs
 discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
   => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types. There MUST be an entry for every hole and seed type!
+  -> [(String, x -> Bool)]
+  -- ^ Predicates on the seed value. Used to discover properties which
+  -- only hold with certain seeds.
   -> Exprs s1 (ConcST t) x
   -- ^ A collection of expressions
   -> Exprs s2 (ConcST t) x
@@ -137,24 +128,25 @@ discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
   -> Int
   -- ^ Term size limit
   -> ST t ([Observation], [Observation], [Observation])
-discover typeInfos exprs1 exprs2 =
+discover typeInfos seedPreds exprs1 exprs2 =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverWithSeeds typeInfos exprs1 exprs2 seeds
+      in discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds
     Nothing  -> \_ -> pure ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s1 (ConcST t) x
   -> Exprs s2 (ConcST t) x
   -> [x]
   -> Int
   -> ST t ([Observation], [Observation], [Observation])
-discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
-    (g1, obs1) <- discoverSingleWithSeeds' typeInfos exprs1 seeds lim
-    (g2, obs2) <- discoverSingleWithSeeds' typeInfos exprs2 seeds lim
+discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds lim = do
+    (g1, obs1) <- discoverSingleWithSeeds' typeInfos seedPreds exprs1 seeds lim
+    (g2, obs2) <- discoverSingleWithSeeds' typeInfos seedPreds exprs2 seeds lim
     let obs3 = crun (findObservations g1 g2 0)
     pure (obs1, obs2, obs3)
   where
@@ -164,7 +156,7 @@ discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
       go tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = foldl' (check varfun (\_ _ -> False ) smallers) (cnil, cnil) exprs
+            (_, observations) = observe seedPreds varfun (\_ _ -> False) smallers exprs
         in cappend observations $ if tier == lim then cnil else go (tier+1)
 
     -- get the base name for a variable
@@ -175,34 +167,37 @@ discoverWithSeeds typeInfos exprs1 exprs2 seeds lim = do
 -- will lead to better pruning.
 discoverSingle :: forall s t x. (Ord x, T.Typeable x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> Int
   -> ST t [Observation]
-discoverSingle typeInfos exprs =
+discoverSingle typeInfos seedPreds exprs =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverSingleWithSeeds typeInfos exprs seeds
+      in discoverSingleWithSeeds typeInfos seedPreds exprs seeds
     Nothing  -> \_ -> pure []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t [Observation]
-discoverSingleWithSeeds typeInfos exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' typeInfos exprs seeds lim
+discoverSingleWithSeeds typeInfos seedPreds exprs seeds lim =
+  snd <$> discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
   => [(T.TypeRep, TypeInfo)]
+  -> [(String, x -> Bool)]
   -> Exprs s (ConcST t) x
   -> [x]
   -> Int
   -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) x), Ann s (ConcST t) x), [Observation])
-discoverSingleWithSeeds' typeInfos exprs seeds lim =
+discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
     let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           exprs] ++
                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions exprs])
     in second crun <$> findObservations g 0
@@ -212,7 +207,7 @@ discoverSingleWithSeeds' typeInfos exprs seeds lim =
     findObservations g tier = do
       evaled <- mapM evalSchema . S.toList $ getTier tier g
       let smallers = map (`getTier` g) [0..tier-1]
-      let (kept, observations) = first crun (foldl' (check varfun ((==) `on` exprTypeRep) smallers) (cnil, cnil) evaled)
+      let (kept, observations) = first crun (observe seedPreds varfun ((==) `on` exprTypeRep) smallers evaled)
       let g' = adjustTier (const (S.fromList kept)) tier g
       second (cappend observations) <$> if tier == lim
         then pure (g', cnil)
@@ -273,59 +268,6 @@ getResultsFrom generic results specific = case findInstance generic specific of
         _ -> Nothing
       go [] vts = Just (VA (seedVal va) vts, rs)
 
--- | Find observations and either annotate a schema or throw it away.
-check :: (Foldable f, Foldable g, Ord x)
-  => (T.TypeRep -> Char)
-  -> (schema1 -> schema2 -> Bool)
-  -> f (g (schema2, (Maybe (Ann s2 m x), Ann s2 m x)))
-  -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
-  -> (schema1, (Maybe (Ann s m x), Ann s m x))
-  -> (ChurchList (schema1, (Maybe (Ann s m x), Ann s m x)), ChurchList Observation)
-check varf p smallers (ckept, cobs) z@(schema_a, (old_ann_a, ann_a))
-    | isBackground ann_a = (csnoc ckept z, cobs)
-    | isJust (allResults ann_a) = case foldl' (foldl' go) (Just ann_a, cnil) smallers of
-      (Just final_ann, obs) -> (csnoc ckept (schema_a, (old_ann_a, final_ann)), cappend cobs obs)
-      (Nothing, obs)        -> (ckept, cappend cobs obs)
-    | otherwise = (csnoc ckept z, cobs)
-  where
-    go acc (schema_b, (old_ann_b, ann_b))
-      | isSmallest ann_b && not (isBackground ann_b) =
-          let
-            -- Given two equal observations, check if the second is an instance of the first.
-            equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
-              ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
-                Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-                Just (Refines t1 t2, Refines t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-                _ -> False
-
-            -- Given two equal observations, check if the first has a more general naming than the right
-            equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) = o1 == o2 && p1 `isMoreGeneralThan` p2
-
-            -- All interestingly distinct observations
-            allObservations = discardLater equalAndIsInstanceOf $ concat
-              [ map fst $ discardLater equalAndHasMoreGeneralNaming
-                [ (mkobservation a b r_a r_b old_ann_a ann_a old_ann_b ann_b, proj)
-                | proj <- projections (fst a) (fst b)
-                , let (r_a, r_b) = renaming varf proj
-                ]
-              | let results x = case allResults x of { Just (Some rs) -> rs; _ -> [] }
-              , a <- results ann_a
-              , b <- results ann_b
-              ]
-            go' (final_ann, obs) (_, refines_ba, ob) =
-              let
-                -- if B refines A then: if they are different
-                -- types, annotate A as not the smallest,
-                -- otherwise throw A away.
-                final_ann'
-                  | isNothing final_ann = final_ann
-                  | refines_ba && p schema_a schema_b = Nothing
-                  | refines_ba = Just (ann_a { isSmallest = False })
-                  | otherwise = final_ann
-              in (final_ann', maybe id (flip csnoc) ob obs)
-          in foldl' go' acc allObservations
-      | otherwise = acc
-
 
 -------------------------------------------------------------------------------
 -- Building blocks
@@ -346,17 +288,21 @@ a ||| b = do
 prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
 prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   obss = map go obss0 where
-    go (Equiv   e1 e2) = (pp nf e1, "===", pp nf e2)
-    go (Refines e1 e2) = (pp nf e1, "=[=", pp nf e2)
+    go (Equiv   e1 e2) = (Nothing, pp nf e1, "===", pp nf e2)
+    go (Refines e1 e2) = (Nothing, pp nf e1, "=[=", pp nf e2)
+    go (Implied p obs) = let (Nothing, e1, t, e2) = go obs in (Just p, e1, t, e2)
 
-  cmp (e1, _, e2) = (length e1, e1, length e2, e2)
+  cmp (p, e1, _, e2) = (maybe 0 length p, p, length e1, e1, length e2, e2)
 
-  pad (e1, t, e2) =
-    replicate (maxlen - length e1) ' ' ++ e1 ++ "  " ++ t ++ "  " ++ e2
+  pad (p, e1, t, e2) =
+    let off = replicate (maxlen p - length e1) ' '
+        prefix = maybe "" (++ "  ==>  ") p
+    in prefix ++ off ++ e1 ++ "  " ++ t ++ "  " ++ e2
 
-  maxlen = maximum (map (\(e1, _, _) -> length e1) obss)
+  maxlen p0 = maximum (map (\(p, e1, _, _) -> if p == p0 then length e1 else 0) obss)
 
   nf = getVariableBaseName typeInfos
+
 
 -------------------------------------------------------------------------------
 -- Utilities
@@ -419,40 +365,6 @@ runSingle typeInfos exprs interference expr seeds
 
     enumerateValues = getTypeValues typeInfos . rawTypeRep
 
--- | Helper for 'discover' and 'discoverSingle': construct an
--- appropriate 'Observation' given the results of execution.
-mkobservation :: Ord x
-  => (Term s1 m, (VarResults x, VarResults x)) -- ^ The left expression and results.
-  -> (Term s2 m, (VarResults x, VarResults x)) -- ^ The right expression and results.
-  -> [(String, String)] -- ^ A projection of the variable names in the left term into a consistent namespace.
-  -> [(String, String)] -- ^ A projection of the variable names in the right term into a consistent namespace.
-  -> Maybe (Ann s1 m x) -- ^ The old left annotation.
-  -> Ann s1 m x -- ^ The current left annotation.
-  -> Maybe (Ann s2 m x) -- ^ The old right annotation.
-  -> Ann s2 m x -- ^ The current right annotation.
-  -> (Bool, Bool, Maybe Observation)
-mkobservation (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_ann_a ann_a old_ann_b ann_b =
-    (refines_ab, refines_ba, obs)
-  where
-    -- a failure is uninteresting if the failing term is built out of failing components
-    uninteresting_failure =
-      (maybe False isFailing old_ann_a && isFailing ann_a) ||
-      (maybe False isFailing old_ann_b && isFailing ann_b)
-
-    -- P ⊑ Q iff the results of P are a subset of the results of Q
-    (refines_ab, refines_ba) = refines results_a renaming_a results_b renaming_b
-
-    -- describe the observation
-    term_a' = rename renaming_a term_a
-    term_b' = rename renaming_b term_b
-    obs
-      | uninteresting_failure = Nothing
-      | refines_ab && refines_ba = Just $
-        if exprSize term_a > exprSize term_b then Equiv term_b' term_a' else Equiv term_a' term_b'
-      | refines_ab = Just (Refines term_a' term_b')
-      | refines_ba = Just (Refines term_b' term_a')
-      | otherwise = Nothing
-
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
 checkNewTerm :: (a, Ann s m x) -> (a, Ann s m x) -> Schema s m -> Bool
@@ -466,10 +378,3 @@ checkNewTerm (_, ann1) (_, ann2) expr
 -- | Number of variants of a value to consider.
 numVariants :: Int
 numVariants = 10
-
--- | Discard elements from a list which match a predicate against some
--- earlier value.
-discardLater :: (a -> a -> Bool) -> [a] -> [a]
-discardLater p = go where
-  go (x:xs) = x : go (filter (not . p x) xs)
-  go [] = []

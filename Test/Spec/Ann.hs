@@ -129,12 +129,13 @@ checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) wh
 -- | Check if the left term (defined by its results) refines the right
 -- or the right returns the left.
 refines :: Ord x
-  => (VarResults x, VarResults x) -- ^ Results of left term
+  => (x -> Bool) -- ^ The predicate on the seed value.
+  -> (VarResults x, VarResults x) -- ^ Results of left term
   -> [(String, String)] -- ^ Variable renaming of left term.
   -> (VarResults x, VarResults x) -- ^ Results of right term.
   -> [(String, String)] -- ^ Variable renaming of right term.
   -> (Bool, Bool)
-refines (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) renaming_b
+refines p (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) renaming_b
     -- if the terms are equivalent, we want to distinguish a
     -- refinement from a "false equivalence" by checking the results
     -- in the presence of interference. we need to use the
@@ -152,6 +153,8 @@ refines (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) ren
       [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
       | (ass_a, as) <- L.toList rs_a
       , (ass_b, bs) <- L.toList rs_b
+      , p (seedVal ass_a)
+      , p (seedVal ass_b)
       , checkAssigns ass_a ass_b
       ]
 

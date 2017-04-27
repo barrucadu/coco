@@ -20,6 +20,7 @@ library
                      , Test.Spec.Concurrency
                      , Test.Spec.Expr
                      , Test.Spec.Gen
+                     , Test.Spec.Logic
                      , Test.Spec.Rename
                      , Test.Spec.Type
                      , Test.Spec.TypeInfo
