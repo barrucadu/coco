@@ -99,8 +99,8 @@ instance Eq Observation where
   _ == _ = False
 
 instance Show Observation where
-  show (Equiv   a b) = show a ++ "\tis equivalent to\t" ++ show b
-  show (Refines a b) = show a ++ "\tstrictly refines\t" ++ show b
+  show (Equiv   a b) = show a ++ "  ===  " ++ show b
+  show (Refines a b) = show a ++ "  =[=  " ++ show b
 
 -- | A collection of expressions.
 data Exprs s m x = Exprs
@@ -346,8 +346,8 @@ a ||| b = do
 prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
 prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   obss = map go obss0 where
-    go (Equiv   e1 e2) = (pp nf e1, "is equivalent to", pp nf e2)
-    go (Refines e1 e2) = (pp nf e1, "strictly refines", pp nf e2)
+    go (Equiv   e1 e2) = (pp nf e1, "===", pp nf e2)
+    go (Refines e1 e2) = (pp nf e1, "=[=", pp nf e2)
 
   cmp (e1, _, e2) = (length e1, e1, length e2, e2)
 
