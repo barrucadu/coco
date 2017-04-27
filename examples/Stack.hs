@@ -105,7 +105,7 @@ exprsCAS = Exprs
 -- Examples
 
 seedPreds :: [(String, [a] -> Bool)]
-seedPreds = [("null", null)]
+seedPreds = []
 
 example :: Int -> IO ()
 example n = do
