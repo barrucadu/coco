@@ -7,8 +7,8 @@ import Control.Monad.ST
 import Data.Proxy
 import Test.DejaFu.Conc
 
-import Test.Spec.Concurrency
-import Test.Spec.Expr
+import Test.CoCo.Concurrency
+import Test.CoCo.Expr
 
 exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int)
 exprs = Exprs

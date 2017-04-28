@@ -8,8 +8,8 @@ import Data.Maybe (listToMaybe)
 import Data.Proxy (Proxy(..))
 import Test.DejaFu.Conc
 
-import Test.Spec.Concurrency
-import Test.Spec.Expr
+import Test.CoCo.Concurrency
+import Test.CoCo.Expr
 
 -------------------------------------------------------------------------------
 -- Lock-based stack

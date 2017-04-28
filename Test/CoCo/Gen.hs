@@ -1,7 +1,7 @@
 {-# LANGUAGE StrictData #-}
 
 -- |
--- Module      : Test.Spec.Gen
+-- Module      : Test.CoCo.Gen
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -30,7 +30,7 @@
 -- putMVar_int :state: x >> takeMVar_int :state:
 -- putMVar_int :state: x >> readMVar_int :state:
 -- @
-module Test.Spec.Gen
+module Test.CoCo.Gen
   ( -- * Generating Terms
     Generator
   , newGenerator
@@ -51,7 +51,7 @@ import Data.Semigroup (Semigroup, (<>))
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import Test.Spec.Expr
+import Test.CoCo.Expr
 
 
 -------------------------------------------------------------------------------

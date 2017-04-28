@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- |
--- Module      : Test.Spec.Concurrency
+-- Module      : Test.CoCo.Concurrency
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -34,7 +34,7 @@
 -- readMVar_int :state: >>= \_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
 -- readMVar_int :state: >>= \_ -> readMVar_int :state:     is equivalent to        readMVar_int :state:
 -- @
-module Test.Spec.Concurrency
+module Test.CoCo.Concurrency
   ( -- * Property discovery
     Exprs(..)
   , Observation(..)
@@ -70,14 +70,14 @@ import Test.DejaFu.Common (ThreadAction(..))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
-import Test.Spec.Ann
-import Test.Spec.Expr (Schema, Term, allTerms, bind, findInstance, lit, evaluate, exprTypeRep, environment, pp, unBind)
-import Test.Spec.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.Spec.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
-import Test.Spec.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
-import Test.Spec.Util
+import Test.CoCo.Ann
+import Test.CoCo.Expr (Schema, Term, allTerms, bind, findInstance, lit, evaluate, exprTypeRep, environment, pp, unBind)
+import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
+import Test.CoCo.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
+import Test.CoCo.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
+import Test.CoCo.Util
 
-import Test.Spec.Logic
+import Test.CoCo.Logic
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.

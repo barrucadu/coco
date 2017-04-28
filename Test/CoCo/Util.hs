@@ -5,7 +5,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 -- |
--- Module      : Test.Spec.Util
+-- Module      : Test.CoCo.Util
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -13,7 +13,7 @@
 -- Portability : DeriveGeneric, EmptyCase, RankNTypes
 --
 -- Utility functions.
-module Test.Spec.Util where
+module Test.CoCo.Util where
 
 import Control.Exception (Exception)
 import Data.Data (Data(..))

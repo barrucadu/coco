@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 -- |
--- Module      : Test.Spec.Rename
+-- Module      : Test.CoCo.Rename
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -9,13 +9,13 @@
 -- Portability : LambdaCase
 --
 -- Functions for projecting expressions into a consistent namespace.
-module Test.Spec.Rename where
+module Test.CoCo.Rename where
 
 import Control.Arrow (second)
 import Data.Typeable (TypeRep)
 
-import Test.Spec.Expr (Expr, environment)
-import Test.Spec.Type (rawTypeRep)
+import Test.CoCo.Expr (Expr, environment)
+import Test.CoCo.Type (rawTypeRep)
 
 -- | The @These@ type is like 'Either', but also has the case for when
 -- we have both values.

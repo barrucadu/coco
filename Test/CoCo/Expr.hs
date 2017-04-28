@@ -1,7 +1,7 @@
 {-# LANGUAGE StrictData #-}
 
 -- |
--- Module      : Test.Spec.Expr
+-- Module      : Test.CoCo.Expr
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -51,7 +51,7 @@
 --
 -- As you can see, there is basically no type inference working at the
 -- moment. I hope that this will improve as I build more on top.
-module Test.Spec.Expr
+module Test.CoCo.Expr
   ( -- * Expressions
     Expr
   , Schema
@@ -105,8 +105,8 @@ import Data.Ord (Down(..))
 import qualified Data.Typeable as T
 import Data.Void (Void)
 
-import Test.Spec.Type
-import Test.Spec.Util
+import Test.CoCo.Type
+import Test.CoCo.Util
 
 -------------------------------------------------------------------------------
 -- Expressions

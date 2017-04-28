@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 -- |
--- Module      : Test.Spec.Type
+-- Module      : Test.CoCo.Type
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -26,7 +26,7 @@
 --
 -- This is not good code. Do not come here to learn, unless you need
 -- to solve the same problem. Here be dragons.
-module Test.Spec.Type
+module Test.CoCo.Type
   ( -- * Dynamic
     Dynamic
   , toDyn

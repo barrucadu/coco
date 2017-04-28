@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- |
--- Module      : Test.Spec.TypeInfo
+-- Module      : Test.CoCo.TypeInfo
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -10,7 +10,7 @@
 -- Portability : ScopedTypeVariables, TemplateHaskell
 --
 -- Information about types.
-module Test.Spec.TypeInfo where
+module Test.CoCo.TypeInfo where
 
 import Control.Monad (forM)
 import Data.Char (isAlpha, toLower)
@@ -20,8 +20,8 @@ import Data.Void (Void)
 import Language.Haskell.TH.Syntax (Exp(..), Type(..))
 import Test.LeanCheck (Listable, list)
 
-import Test.Spec.Type (Dynamic, unsafeToDyn)
-import Test.Spec.Util
+import Test.CoCo.Type (Dynamic, unsafeToDyn)
+import Test.CoCo.Util
 
 -- | Information about a type.
 data TypeInfo = TypeInfo

@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
 -- |
--- Module      : Test.Spec.Logic
+-- Module      : Test.CoCo.Logic
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -9,17 +9,17 @@
 -- Portability : GADTs
 --
 -- Observations and stuff about them.
-module Test.Spec.Logic where
+module Test.CoCo.Logic where
 
 import Control.Arrow (second)
 import Data.List (foldl', sortOn)
 import Data.Maybe (isJust, isNothing)
 import Data.Typeable (TypeRep)
 
-import Test.Spec.Ann (Ann(..), Results(..), VarResults, refines)
-import Test.Spec.Expr (Term, eq, exprSize, isInstanceOf, rename)
-import Test.Spec.Rename (Projection, isMoreGeneralThan, projections, renaming)
-import Test.Spec.Util (ChurchList, cappend, cnil, csnoc, discardLater)
+import Test.CoCo.Ann (Ann(..), Results(..), VarResults, refines)
+import Test.CoCo.Expr (Term, eq, exprSize, isInstanceOf, rename)
+import Test.CoCo.Rename (Projection, isMoreGeneralThan, projections, renaming)
+import Test.CoCo.Util (ChurchList, cappend, cnil, csnoc, discardLater)
 
 -------------------------------------------------------------------------------
 -- * Observations about Terms

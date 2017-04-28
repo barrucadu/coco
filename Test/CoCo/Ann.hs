@@ -1,7 +1,7 @@
 {-# LANGUAGE StrictData #-}
 
 -- |
--- Module      : Test.Spec.Ann
+-- Module      : Test.CoCo.Ann
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -9,7 +9,7 @@
 -- Portability : StrictData
 --
 -- Expression annotations.
-module Test.Spec.Ann where
+module Test.CoCo.Ann where
 
 import Control.DeepSeq (NFData(..))
 import Data.List (foldl')
@@ -23,7 +23,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Test.DejaFu (Failure)
 
-import Test.Spec.Expr (Term)
+import Test.CoCo.Expr (Term)
 
 -- | An annotation on a schema.
 --
