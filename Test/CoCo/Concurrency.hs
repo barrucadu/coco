@@ -56,16 +56,14 @@ import Control.Monad.ST (ST)
 import Data.Function (on)
 import Data.Foldable (toList)
 import Data.List (sortOn)
-import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
 import Data.Proxy (Proxy(..))
-import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Data.Void (Void)
-import Test.DejaFu (Failure, defaultMemType, defaultWay)
+import Test.DejaFu (defaultMemType, defaultWay)
 import Test.DejaFu.Common (ThreadAction(..))
 import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
@@ -91,7 +89,7 @@ defaultEvaluate = evaluate
 -- Property discovery
 
 -- | A collection of expressions.
-data Exprs s m x = Exprs
+data Exprs s m o x = Exprs
   { initialState :: x -> m s
   -- ^ Create a new instance of the state variable.
   , expressions :: [Schema s m]
@@ -100,8 +98,11 @@ data Exprs s m x = Exprs
   -- ^ Expressions to use as helpers for building new
   -- expressions. Observations will not be reported about terms which
   -- are entirely composed of background expressions.
-  , observation :: s -> m x
+  , observation :: s -> m o
   -- ^ The observation to make.
+  , backToSeed :: s -> m x
+  -- ^ Convert the state back to the seed (used to determine if a term
+  -- is boring).
   , eval :: Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe (m ()))
   -- ^ Evaluate an expression. In practice this will just be
   -- 'defaultEvaluate', but it's here to make the types work out.
@@ -115,15 +116,15 @@ data Exprs s m x = Exprs
 -- operations. Returns three sets of observations about, respectively:
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
-discover :: forall s1 s2 t x. (Ord x, T.Typeable x, NFData x)
+discover :: forall s1 s2 t o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types. There MUST be an entry for every hole and seed type!
   -> [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover properties which
   -- only hold with certain seeds.
-  -> Exprs s1 (ConcST t) x
+  -> Exprs s1 (ConcST t) o x
   -- ^ A collection of expressions
-  -> Exprs s2 (ConcST t) x
+  -> Exprs s2 (ConcST t) o x
   -- ^ Another collection of expressions.
   -> Int
   -- ^ Term size limit
@@ -136,11 +137,11 @@ discover typeInfos seedPreds exprs1 exprs2 =
     Nothing  -> \_ -> pure ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
-discoverWithSeeds :: (Ord x, NFData x)
+discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s1 (ConcST t) x
-  -> Exprs s2 (ConcST t) x
+  -> Exprs s1 (ConcST t) o x
+  -> Exprs s2 (ConcST t) o x
   -> [x]
   -> Int
   -> ST t ([Observation], [Observation], [Observation])
@@ -165,10 +166,10 @@ discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds lim = do
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall s t x. (Ord x, T.Typeable x, NFData x)
+discoverSingle :: forall s t o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) x
+  -> Exprs s (ConcST t) o x
   -> Int
   -> ST t [Observation]
 discoverSingle typeInfos seedPreds exprs =
@@ -179,10 +180,10 @@ discoverSingle typeInfos seedPreds exprs =
     Nothing  -> \_ -> pure []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
-discoverSingleWithSeeds :: (Ord x, NFData x)
+discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) x
+  -> Exprs s (ConcST t) o x
   -> [x]
   -> Int
   -> ST t [Observation]
@@ -190,13 +191,13 @@ discoverSingleWithSeeds typeInfos seedPreds exprs seeds lim =
   snd <$> discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: forall s t x. (Ord x, NFData x)
+discoverSingleWithSeeds' :: forall s t o x. (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) x
+  -> Exprs s (ConcST t) o x
   -> [x]
   -> Int
-  -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) x), Ann s (ConcST t) x), [Observation])
+  -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) o x), Ann s (ConcST t) o x), [Observation])
 discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
     let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           exprs] ++
                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions exprs])
@@ -238,18 +239,18 @@ discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
         pure (atomic, no_interference, interference)
 
     -- evaluate a term with optional interference
-    run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
+    run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, VarResults o x))
     run interference term = shoveMaybe (runSingle typeInfos exprs interference term seeds)
 
     -- get the base name for a variable
     varfun = getVariableBaseName typeInfos
 
 -- | Get the results of a more specific term from a more general one
-getResultsFrom :: Foldable f
-  => Term s m -- ^ The general term.
-  -> f (VarAssignment x, Set (Maybe Failure, x)) -- ^ Its results.
-  -> Term s m -- ^ The specific term.
-  -> Maybe (NonEmpty (VarAssignment x, Set (Maybe Failure, x)))
+getResultsFrom
+  :: Term s m       -- ^ The general term.
+  -> VarResults o x -- ^ Its results.
+  -> Term s m       -- ^ The specific term.
+  -> Maybe (VarResults o x)
 getResultsFrom generic results specific = case findInstance generic specific of
     Just nameMap -> L.nonEmpty $ mapMaybe (juggleVariables nameMap) (toList results)
     Nothing -> Nothing
@@ -310,13 +311,13 @@ prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 -- | Run a concurrent program many times, gathering the results. Up to
 -- 'numVariants' values of every free variable, including the seed,
 -- are tried in all combinations.
-runSingle :: forall s t x. (Ord x, NFData x)
+runSingle :: forall s t o x. (Ord x, NFData o, NFData x, Ord o)
   => [(T.TypeRep, TypeInfo)]
-  -> Exprs s (ConcST t) x
+  -> Exprs s (ConcST t) o x
   -> Bool
   -> Term s (ConcST t)
   -> [x]
-  -> Maybe (ST t (Bool, NonEmpty (VarAssignment x, Set (Maybe Failure, x))))
+  -> Maybe (ST t (Bool, VarResults o x))
 runSingle typeInfos exprs interference expr seeds
     | null assignments = Nothing
     | otherwise = Just $ do
@@ -330,8 +331,9 @@ runSingle typeInfos exprs interference expr seeds
           when interference $
             void . C.fork . setState exprs s $ seedVal varassign
           shoveMaybe (eval_expr s)
-        x <- observation exprs s
-        pure (either Just (const Nothing) r, x)
+        o  <- observation exprs s
+        x' <- backToSeed exprs s
+        pure (either Just (const Nothing) r, x', o)
       -- very rough interpretation of atomicity: the trace has one
       -- thing in it other than the stop!
       let is_atomic trc =
@@ -367,7 +369,7 @@ runSingle typeInfos exprs interference expr seeds
 
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
-checkNewTerm :: (a, Ann s m x) -> (a, Ann s m x) -> Schema s m -> Bool
+checkNewTerm :: (a, Ann s m o x) -> (a, Ann s m o x) -> Schema s m -> Bool
 checkNewTerm (_, ann1) (_, ann2) expr
   | isBoring ann1 || isBoring ann2 = False
   | otherwise = case unBind expr of

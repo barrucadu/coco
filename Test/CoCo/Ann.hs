@@ -31,8 +31,8 @@ import Test.CoCo.Expr (Term)
 -- combining two schemas will yield the smallest in its new
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
-data Ann s m x = Ann
-  { allResults :: Maybe (Results s m x)
+data Ann s m o x = Ann
+  { allResults :: Maybe (Results s m o x)
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
   -- untested. Only tested terms can be checked for refinement. The
   -- first 'Results' set is the results of executing the term with no
@@ -58,7 +58,7 @@ data Ann s m x = Ann
   }
   deriving (Eq, Ord, Show)
 
-instance Semigroup (Ann s m x) where
+instance Semigroup (Ann s m o x) where
   ann1 <> ann2 = Ann
     { allResults   = Nothing
     , isBackground = isBackground ann1 && isBackground ann2
@@ -69,8 +69,8 @@ instance Semigroup (Ann s m x) where
     }
 
 -- | The results of evaluating a schema.
-data Results s m x
-  = Some [(Term s m, (VarResults x, VarResults x))]
+data Results s m o x
+  = Some [(Term s m, (VarResults o x, VarResults o x))]
   -- ^ The schema has some results, with the given variable
   -- assignments. The left results have no interference. The right
   -- results have some. This is used to disambiguate between
@@ -92,10 +92,10 @@ instance NFData x => NFData (VarAssignment x) where
   rnf (VA s vs) = rnf (s, vs)
 
 -- | Results after assigning values to variables.
-type VarResults x = NonEmpty (VarAssignment x, Set (Maybe Failure, x))
+type VarResults o x = NonEmpty (VarAssignment x, Set (Maybe Failure, x, o))
 
 -- | The \"default\" annotation.
-initialAnn :: Bool -> Ann s m x
+initialAnn :: Bool -> Ann s m o x
 initialAnn background = Ann
   { allResults   = Nothing
   , isBackground = background
@@ -106,7 +106,7 @@ initialAnn background = Ann
   }
 
 -- | Update an annotation with expression-evaluation results.
-update :: Eq x => Bool -> Results s m x -> Ann s m x -> Ann s m x
+update :: Eq x => Bool -> Results s m o x -> Ann s m o x -> Ann s m o x
 update atomic results ann = ann
   { allResults  = Just results
   , isFailing   = case results of { Some rs -> checkIsFailing rs; None -> isFailing ann }
@@ -115,24 +115,24 @@ update atomic results ann = ann
   }
 
 -- | Check if a set of results corresponds to a failing term.
-checkIsFailing :: [(Term s m, (VarResults x, VarResults x))] -> Bool
+checkIsFailing :: [(Term s m, (VarResults o x, VarResults o x))] -> Bool
 checkIsFailing results =
   let term_results = map snd results
-      is_failing = isJust . fst
+      is_failing (mf, _, _) = isJust mf
   in all (all (all is_failing . snd) . fst) term_results
 
 -- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> [(Term s m, (VarResults x, VarResults x))] -> Bool
+checkIsBoring :: Eq x => Bool -> [(Term s m, (VarResults o x, VarResults o x))] -> Bool
 checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) where
-  ch (va, rs) = all (\(f, x) -> isNothing f && x == seedVal va) rs
+  ch (va, rs) = all (\(f, x, _) -> isNothing f && x == seedVal va) rs
 
 -- | Check if the left term (defined by its results) refines the right
 -- or the right returns the left.
-refines :: Ord x
+refines :: (Eq x, Ord o)
   => (x -> Bool) -- ^ The predicate on the seed value.
-  -> (VarResults x, VarResults x) -- ^ Results of left term
+  -> (VarResults o x, VarResults o x) -- ^ Results of left term
   -> [(String, String)] -- ^ Variable renaming of left term.
-  -> (VarResults x, VarResults x) -- ^ Results of right term.
+  -> (VarResults o x, VarResults o x) -- ^ Results of right term.
   -> [(String, String)] -- ^ Variable renaming of right term.
   -> (Bool, Bool)
 refines p (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) renaming_b
@@ -150,12 +150,17 @@ refines p (nointerfere_a, interfere_a) renaming_a (nointerfere_b, interfere_b) r
     refines_ab_ba = check nointerfere_a nointerfere_b
 
     check rs_a rs_b = foldl' pairAnd (True, True)
-      [ (as `S.isSubsetOf` bs, bs `S.isSubsetOf` as)
+      [ (as' `S.isSubsetOf` bs', bs' `S.isSubsetOf` as')
       | (ass_a, as) <- L.toList rs_a
       , (ass_b, bs) <- L.toList rs_b
       , p (seedVal ass_a)
       , p (seedVal ass_b)
       , checkAssigns ass_a ass_b
+      -- don't include the post-execution state value in the
+      -- comparison, that would defeat the point of the observation
+      -- function!
+      , let as' = S.map (\(f, _, o) -> (f, o)) as
+      , let bs' = S.map (\(f, _, o) -> (f, o)) bs
       ]
 
     -- two sets of variable assignments match if every variable is

@@ -51,7 +51,7 @@ fromListLS as = LockStack <$> newMVar as
 toListLS :: MonadConc m => LockStack m a -> m [a]
 toListLS (LockStack v) = readMVar v
 
-exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int]
+exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
 exprsLS = Exprs
   { initialState = fromListLS
   , expressions =
@@ -73,6 +73,7 @@ exprsLS = Exprs
     , stateVar
     ]
   , observation = toListLS
+  , backToSeed = toListLS
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
   , eval   = defaultEvaluate
   }
@@ -117,7 +118,7 @@ fromListCAS as = CASStack <$> newCRef as
 toListCAS :: MonadConc m => CASStack m a -> m [a]
 toListCAS (CASStack r) = readCRef r
 
-exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int]
+exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
 exprsCAS = Exprs
   { initialState = fromListCAS
   , expressions =
@@ -139,6 +140,7 @@ exprsCAS = Exprs
     , stateVar
     ]
   , observation = toListCAS
+  , backToSeed = toListCAS
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const
   , eval   = defaultEvaluate
   }

@@ -10,7 +10,7 @@ import Test.DejaFu.Conc
 import Test.CoCo.Concurrency
 import Test.CoCo.Expr
 
-exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int)
+exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int) (Maybe Int)
 exprs = Exprs
   { initialState = maybe newEmptyMVar newMVar
   , expressions =
@@ -24,6 +24,7 @@ exprs = Exprs
     , stateVar
     ]
   , observation = tryTakeMVar
+  , backToSeed = tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   , eval   = defaultEvaluate
   }
