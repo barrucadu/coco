@@ -56,11 +56,13 @@ defaultTypeInfos =
        c3s <- map constr <$> sequence [[t|((),(),())|]]
        let mkapps = map (foldl1 AppT) . sequence
        let types = c0s ++ mkapps [c1s, c0s] ++ mkapps [c2s, c0s, c0s] ++ mkapps [c3s, c0s, c0s, c0s]
-       infos <- forM types (\ty ->
-         let p = [|Proxy :: Proxy $(pure ty)|]
-         in [|(T.typeRep $p, TypeInfo { listValues = dynamicListValues $p, varName = variableName $p })|])
+       infos <- forM types (\ty -> [|makeTypeInfo (Proxy :: Proxy $(pure ty))|])
        pure (ListE infos)
    )
+
+-- | Make the 'TypeInfo' for a listable type.
+makeTypeInfo :: (Listable a, T.Typeable a) => proxy a -> (T.TypeRep, TypeInfo)
+makeTypeInfo p = (T.typeRep p, TypeInfo { listValues = dynamicListValues p, varName = variableName p })
 
 -- | Produce dynamic values from a 'Listable' instance.
 dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic Void Void1]
