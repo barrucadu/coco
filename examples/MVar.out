@@ -1,5 +1,5 @@
  readMVar @  ===  readMVar @ >> readMVar @
- readMVar @  =[=  (readMVar @) ||| (readMVar @)
+ readMVar @  ===  (readMVar @) ||| (readMVar @)
  readMVar @  =[=  takeMVar @ >>= \x -> putMVar @ x
  takeMVar @  ===  readMVar @ >> takeMVar @
  takeMVar @  =[=  (readMVar @) ||| (takeMVar @)

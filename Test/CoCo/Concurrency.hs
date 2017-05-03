@@ -51,7 +51,7 @@ module Test.CoCo.Concurrency
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, rnf)
-import Control.Monad (void, when)
+import Control.Monad (void)
 import Control.Monad.ST (ST)
 import Data.Function (on)
 import Data.Foldable (toList)
@@ -327,10 +327,13 @@ runSingle typeInfos exprs interference expr seeds
     go (varassign, eval_expr) = do
       rs <- runSCT' defaultWay defaultMemType $ do
         s <- initialState exprs (seedVal varassign)
-        r <- subconcurrency $ do
-          when interference $
-            void . C.fork . setState exprs s $ seedVal varassign
-          shoveMaybe (eval_expr s)
+        r <- subconcurrency $ if interference
+          then do
+            i <- C.spawn (setState exprs s $ seedVal varassign)
+            o <- shoveMaybe (eval_expr s)
+            C.readMVar i
+            pure o
+          else shoveMaybe (eval_expr s)
         o  <- observation exprs s
         x' <- backToSeed exprs s
         pure (either Just (const Nothing) r, x', o)
