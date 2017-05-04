@@ -57,7 +57,6 @@ exprsLS = Exprs
   , observation = toListLS
   , backToSeed = toListLS
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
-  , eval   = defaultEvaluate
   }
 
 -------------------------------------------------------------------------------
@@ -100,7 +99,6 @@ exprsCAS = Exprs
   , observation = toListCAS
   , backToSeed = toListCAS
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const
-  , eval   = defaultEvaluate
   }
 
 -------------------------------------------------------------------------------

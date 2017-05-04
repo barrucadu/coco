@@ -26,7 +26,7 @@ import Test.DejaFu.Conc (ConcST, subconcurrency)
 import Test.DejaFu.SCT (runSCT')
 
 import Test.CoCo.Ann
-import Test.CoCo.Expr (Term, bind, lit, environment)
+import Test.CoCo.Expr (Term, bind, lit, environment, evaluate)
 import Test.CoCo.Type (Dynamic, coerceDyn, coerceTypeRep, rawTypeRep)
 import Test.CoCo.TypeInfo (TypeInfo(..), getTypeValues)
 import Test.CoCo.Util
@@ -49,20 +49,18 @@ runSingle :: (Ord x, NFData o, NFData x, Ord o)
   -- ^ The observation to make.
   -> (s -> ConcST t x)
   -- ^ Convert the state back to the seed.
-  -> (Term s (ConcST t) -> [(String, Dynamic s (ConcST t))] -> Maybe (s -> Maybe (ConcST t ())))
-  -- ^ Evaluate a term.
   -> [x]
   -- ^ The seed values to use.
   -> Term s (ConcST t)
   -- ^ The term to evaluate.  This must have a monadic result type.
   -> Maybe (ST t (Bool, VarResults o x))
-runSingle typeInfos mkstate interfere observe unstate eval seeds expr
+runSingle typeInfos mkstate interfere observe unstate seeds expr
     | null assignments = Nothing
     | otherwise = Just $ do
         out <- (and *** L.fromList) . unzip <$> mapM go assignments
         rnf out `seq` pure out
   where
-    assignments = varassigns typeInfos eval seeds expr
+    assignments = varassigns typeInfos seeds expr
 
     go (varassign, eval_expr) = do
       rs <- runSCT' defaultWay defaultMemType $ do
@@ -101,14 +99,12 @@ varassigns :: forall s t x.
      [(T.TypeRep, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
-  -> (Term s (ConcST t) -> [(String, Dynamic s (ConcST t))] -> Maybe (s -> Maybe (ConcST t ())))
-  -- ^ Evaluate a term.
   -> [x]
   -- ^ The seed values to use.
   -> Term s (ConcST t)
   -- ^ The term to evaluate.  This must have a result in the monad.
   -> [(VarAssignment x, s -> Maybe (ConcST t ()))]
-varassigns typeInfos eval seeds term =
+varassigns typeInfos seeds term =
     [ (VA seed (M.fromList vidmap), eval_term)
     | seed <- take numVariants seeds
     , (vidmap, eval_term) <- assign [] vars term
@@ -128,6 +124,9 @@ varassigns typeInfos eval seeds term =
     evoid e = bind [] e (lit "" (pure () :: ConcST t ()))
 
     enumerateValues = getTypeValues typeInfos . rawTypeRep
+
+    eval :: (Term s (ConcST t) -> [(String, Dynamic s (ConcST t))] -> Maybe (s -> Maybe (ConcST t ())))
+    eval = evaluate
 
 -- | Number of variants of a value to consider.
 numVariants :: Int

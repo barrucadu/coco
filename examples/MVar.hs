@@ -26,7 +26,6 @@ exprs = Exprs
   , observation = tryTakeMVar
   , backToSeed = tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
-  , eval   = defaultEvaluate
   }
 
 seedPreds :: [(String, Maybe a -> Bool)]

@@ -40,7 +40,6 @@ module Test.CoCo.Concurrency
   , Observation(..)
   , discover
   , discoverSingle
-  , defaultEvaluate
   , defaultTypeInfos
   -- * Building blocks
   , (|||)
@@ -65,21 +64,14 @@ import qualified Data.Typeable as T
 import Test.DejaFu.Conc (ConcST)
 
 import Test.CoCo.Ann
-import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, evaluate, exprTypeRep, environment, pp, unBind)
+import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, exprTypeRep, environment, pp, unBind)
 import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.CoCo.Type (Dynamic, HasTypeRep, unsafeFromDyn)
+import Test.CoCo.Type (unsafeFromDyn)
 import Test.CoCo.TypeInfo (TypeInfo(..), defaultTypeInfos, getVariableBaseName)
 import Test.CoCo.Util
 import Test.CoCo.Logic
 import Test.CoCo.Eval (runSingle)
 
--- | Evaluate an expression, if it has no free variables and it is the
--- correct type.
---
--- If the outer 'Maybe' is @Nothing@, there are free variables. If the
--- inner 'Maybe' is @Nothing@, the type is incorrect.
-defaultEvaluate :: (Monad m, HasTypeRep s m a) => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe a)
-defaultEvaluate = evaluate
 
 -------------------------------------------------------------------------------
 -- Property discovery
@@ -99,9 +91,6 @@ data Exprs s m o x = Exprs
   , backToSeed :: s -> m x
   -- ^ Convert the state back to the seed (used to determine if a term
   -- is boring).
-  , eval :: Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe (m ()))
-  -- ^ Evaluate an expression. In practice this will just be
-  -- 'defaultEvaluate', but it's here to make the types work out.
   , setState :: s -> x -> m ()
   -- ^ Set the state value. This doesn't need to be atomic, or even
   -- guaranteed to work, its purpose is to cause interference when
@@ -242,7 +231,6 @@ discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
                             (if interference then Just (setState exprs) else Nothing)
                             (observation exprs)
                             (backToSeed exprs)
-                            (eval exprs)
                             seeds
                             term)
 
