@@ -37,12 +37,17 @@ resolver: lts-8.0
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
+- location:
+   git: https://github.com/barrucadu/dejafu.git
+   commit: b6713505c5636e0c2086a57e92f7ba1dcc666e99
+  extra-dep: true
+  subdirs:
+  - dejafu
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - concurrency-1.1.2.0
 - containers-0.5.10.1
-- dejafu-0.6.0.0
 - leancheck-0.6.0
 
 # Override default flag values for local packages and extra-deps
