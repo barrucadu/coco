@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- |
--- Module      : Test.CoCo.Concurrency
+-- Module      : Test.CoCo.Discover
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
@@ -12,49 +12,13 @@
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
---
--- @
--- > :set -XScopedTypeVariables
--- > :{
--- let exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) Int Int
---     exprs = Exprs { initialState = newMVar
---                   , expressions = [ constant "putMVar_int"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
---                                   , constant "takeMVar_int" (takeMVar :: MVar (ConcST t) Int -> ConcST t Int)
---                                   , constant "readMVar_int" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
---                                   , constant "succ_int"     (succ     :: Int -> Int)
---                                   , variable "x"            (Proxy    :: Proxy Int)
---                                   ]
---                   , observation = constant "readMVar_int" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
---                   , eval = evaluate
---                   }
--- :}
--- > mapM_ print $ runST $ discover exprs exprs 5 10
--- takeMVar_int :state: >>= \_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
--- takeMVar_int :state: >>= \_ -> readMVar_int :state:     is equivalent to        takeMVar_int :state:
--- readMVar_int :state: >>= \_ -> takeMVar_int :state:     is equivalent to        takeMVar_int :state:
--- readMVar_int :state: >>= \_ -> readMVar_int :state:     is equivalent to        readMVar_int :state:
--- @
-module Test.CoCo.Concurrency
-  ( -- * Property discovery
-    Exprs(..)
-  , Observation(..)
-  , discover
-  , discoverSingle
-  , defaultTypeInfos
-  -- * Building blocks
-  , (|||)
-  -- * Utilities
-  , prettyPrint
-  ) where
+module Test.CoCo.Discover where
 
 import Control.Arrow (first, second)
-import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData)
-import Control.Monad (void)
 import Control.Monad.ST (ST)
 import Data.Function (on)
 import Data.Foldable (toList)
-import Data.List (sortOn)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, mapMaybe)
@@ -64,17 +28,13 @@ import qualified Data.Typeable as T
 import Test.DejaFu.Conc (ConcST)
 
 import Test.CoCo.Ann
-import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, exprTypeRep, environment, pp, unBind)
+import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, exprTypeRep, environment, unBind)
 import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
 import Test.CoCo.Type (unsafeFromDyn)
-import Test.CoCo.TypeInfo (TypeInfo(..), defaultTypeInfos, getVariableBaseName)
+import Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
 import Test.CoCo.Util
 import Test.CoCo.Logic
 import Test.CoCo.Eval (runSingle)
-
-
--------------------------------------------------------------------------------
--- Property discovery
 
 -- | A collection of expressions.
 data Exprs s m o x = Exprs
@@ -260,41 +220,6 @@ getResultsFrom generic results specific = case findInstance generic specific of
              else Nothing
         _ -> Nothing
       go [] vts = Just (VA (seedVal va) vts, rs)
-
-
--------------------------------------------------------------------------------
--- Building blocks
-
--- | Concurrent composition. Waits for both component computations to
--- finish.
-(|||) :: ConcST t a -> ConcST t b -> ConcST t ()
-a ||| b = do
-  j <- C.spawn a
-  void b
-  void (C.readMVar j)
-
-
--------------------------------------------------------------------------------
--- Misc
-
--- | Pretty-print a list of observations.
-prettyPrint :: [(T.TypeRep, TypeInfo)] -> [Observation] -> IO ()
-prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
-  obss = map go obss0 where
-    go (Equiv   e1 e2) = (Nothing, pp nf e1, "===", pp nf e2)
-    go (Refines e1 e2) = (Nothing, pp nf e1, "=[=", pp nf e2)
-    go (Implied p obs) = let (Nothing, e1, t, e2) = go obs in (Just p, e1, t, e2)
-
-  cmp (p, e1, _, e2) = (maybe 0 length p, p, length e1, e1, length e2, e2)
-
-  pad (p, e1, t, e2) =
-    let off = replicate (maxlen p - length e1) ' '
-        prefix = maybe "" (++ "  ==>  ") p
-    in prefix ++ off ++ e1 ++ "  " ++ t ++ "  " ++ e2
-
-  maxlen p0 = maximum (map (\(p, e1, _, _) -> if p == p0 then length e1 else 0) obss)
-
-  nf = getVariableBaseName typeInfos
 
 
 -------------------------------------------------------------------------------

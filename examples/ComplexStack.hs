@@ -3,13 +3,9 @@ module Main where
 
 import Control.Arrow ((&&&))
 import Control.Concurrent.Classy
-import Control.Monad.ST (runST)
 import Data.Maybe (listToMaybe)
-import Data.Proxy (Proxy(..))
-import Test.DejaFu.Conc
 
-import Test.CoCo.Concurrency
-import Test.CoCo.Expr
+import Test.CoCo
 
 -------------------------------------------------------------------------------
 -- Lock-based stack

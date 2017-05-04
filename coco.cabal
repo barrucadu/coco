@@ -16,8 +16,9 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Test.CoCo.Ann
-                     , Test.CoCo.Concurrency
+  exposed-modules:     Test.CoCo
+                     , Test.CoCo.Ann
+                     , Test.CoCo.Discover
                      , Test.CoCo.Eval
                      , Test.CoCo.Expr
                      , Test.CoCo.Gen

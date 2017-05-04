@@ -3,12 +3,8 @@ module Main where
 
 import Control.Concurrent.Classy
 import Control.Monad
-import Control.Monad.ST
-import Data.Proxy
-import Test.DejaFu.Conc
 
-import Test.CoCo.Concurrency
-import Test.CoCo.Expr
+import Test.CoCo
 
 exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int) (Maybe Int)
 exprs = Exprs
