@@ -18,6 +18,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Test.CoCo.Ann
                      , Test.CoCo.Concurrency
+                     , Test.CoCo.Eval
                      , Test.CoCo.Expr
                      , Test.CoCo.Gen
                      , Test.CoCo.Logic

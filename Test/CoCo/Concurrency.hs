@@ -48,9 +48,9 @@ module Test.CoCo.Concurrency
   , prettyPrint
   ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first, second)
 import qualified Control.Concurrent.Classy as C
-import Control.DeepSeq (NFData, rnf)
+import Control.DeepSeq (NFData)
 import Control.Monad (void)
 import Control.Monad.ST (ST)
 import Data.Function (on)
@@ -58,24 +58,20 @@ import Data.Foldable (toList)
 import Data.List (sortOn)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
-import Data.Maybe (fromJust, mapMaybe, maybeToList)
+import Data.Maybe (fromJust, mapMaybe)
 import Data.Proxy (Proxy(..))
 import qualified Data.Set as S
 import qualified Data.Typeable as T
-import Data.Void (Void)
-import Test.DejaFu (defaultMemType, defaultWay)
-import Test.DejaFu.Common (ThreadAction(..))
-import Test.DejaFu.Conc (ConcST, subconcurrency)
-import Test.DejaFu.SCT (runSCT')
+import Test.DejaFu.Conc (ConcST)
 
 import Test.CoCo.Ann
-import Test.CoCo.Expr (Schema, Term, allTerms, bind, findInstance, lit, evaluate, exprTypeRep, environment, pp, unBind)
+import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, evaluate, exprTypeRep, environment, pp, unBind)
 import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.CoCo.Type (Dynamic, HasTypeRep, coerceDyn, coerceTypeRep, rawTypeRep, unsafeFromDyn)
-import Test.CoCo.TypeInfo (TypeInfo(..), defaultTypeInfos, getTypeValues, getVariableBaseName)
+import Test.CoCo.Type (Dynamic, HasTypeRep, unsafeFromDyn)
+import Test.CoCo.TypeInfo (TypeInfo(..), defaultTypeInfos, getVariableBaseName)
 import Test.CoCo.Util
-
 import Test.CoCo.Logic
+import Test.CoCo.Eval (runSingle)
 
 -- | Evaluate an expression, if it has no free variables and it is the
 -- correct type.
@@ -240,7 +236,15 @@ discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
 
     -- evaluate a term with optional interference
     run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, VarResults o x))
-    run interference term = shoveMaybe (runSingle typeInfos exprs interference term seeds)
+    run interference term =
+      shoveMaybe (runSingle typeInfos
+                            (initialState exprs)
+                            (if interference then Just (setState exprs) else Nothing)
+                            (observation exprs)
+                            (backToSeed exprs)
+                            (eval exprs)
+                            seeds
+                            term)
 
     -- get the base name for a variable
     varfun = getVariableBaseName typeInfos
@@ -308,68 +312,6 @@ prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
 -------------------------------------------------------------------------------
 -- Utilities
 
--- | Run a concurrent program many times, gathering the results. Up to
--- 'numVariants' values of every free variable, including the seed,
--- are tried in all combinations.
-runSingle :: forall s t o x. (Ord x, NFData o, NFData x, Ord o)
-  => [(T.TypeRep, TypeInfo)]
-  -> Exprs s (ConcST t) o x
-  -> Bool
-  -> Term s (ConcST t)
-  -> [x]
-  -> Maybe (ST t (Bool, VarResults o x))
-runSingle typeInfos exprs interference expr seeds
-    | null assignments = Nothing
-    | otherwise = Just $ do
-        out <- (and *** L.fromList) . unzip <$> mapM go assignments
-        rnf out `seq` pure out
-  where
-    go (varassign, eval_expr) = do
-      rs <- runSCT' defaultWay defaultMemType $ do
-        s <- initialState exprs (seedVal varassign)
-        r <- subconcurrency $ if interference
-          then do
-            i <- C.spawn (setState exprs s $ seedVal varassign)
-            o <- shoveMaybe (eval_expr s)
-            C.readMVar i
-            pure o
-          else shoveMaybe (eval_expr s)
-        o  <- observation exprs s
-        x' <- backToSeed exprs s
-        pure (either Just (const Nothing) r, x', o)
-      -- very rough interpretation of atomicity: the trace has one
-      -- thing in it other than the stop!
-      let is_atomic trc =
-            let relevant = filter (\(_,_,ta) -> ta /= Return) .
-                           takeWhile (\(_,_,ta) -> ta /= StopSubconcurrency && ta /= Stop) .
-                           drop 1 .
-                           dropWhile (\(_,_,ta) -> ta /= Subconcurrency)
-            in length (relevant trc) == 1
-      let out = (all (is_atomic . snd) rs, (varassign, smapMaybe eitherToMaybe . S.fromList $ map fst rs))
-      -- strictify, to avoid wasting memory on intermediate results.
-      rnf out `seq` pure out
-
-    assignments =
-      [ (VA seed (M.fromList vidmap), eval_expr)
-      | seed <- take numVariants seeds
-      , (vidmap, eval_expr) <- assign [] vars expr
-      ]
-
-    assign env ((var, dyns):free) e =
-      [ ((var, vid):vidlist, eval_expr)
-      | (vid, Just dyn) <- map (second coerceDyn) . take numVariants $ zip [0..] dyns
-      , (vidlist, eval_expr) <- assign ((var, dyn):env) free e
-      ]
-    assign env [] e = maybeToList $ (\r -> ([], r)) <$> (evoid e >>= \e' -> eval exprs e' env)
-
-    vars :: [(String, [Dynamic Void Void1])]
-    vars = ordNubOn fst (map (second enumerateValues) (freeVars expr))
-    freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . environment
-
-    evoid e = bind [] e (lit "" (pure () :: ConcST t ()))
-
-    enumerateValues = getTypeValues typeInfos . rawTypeRep
-
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
 checkNewTerm :: (a, Ann s m o x) -> (a, Ann s m o x) -> Schema s m -> Bool
@@ -379,7 +321,3 @@ checkNewTerm (_, ann1) (_, ann2) expr
       Just ([], _, _) -> isSmallest ann1 && isSmallest ann2
       Just _ -> isSmallest ann2
       _ -> True
-
--- | Number of variants of a value to consider.
-numVariants :: Int
-numVariants = 10
