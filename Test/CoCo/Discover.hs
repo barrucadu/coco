@@ -28,7 +28,7 @@ import qualified Data.Typeable as T
 import Test.CoCo.Ann
 import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, exprTypeRep, environment, unBind)
 import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.CoCo.Type (unsafeFromDyn)
+import Test.CoCo.Type (fromDyn)
 import Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
 import Test.CoCo.Util
 import Test.CoCo.Logic
@@ -40,7 +40,7 @@ import Test.CoCo.Monad (Concurrency)
 -- operations. Returns three sets of observations about, respectively:
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
-discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
+discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeable s2, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types. There MUST be an entry for every hole and seed type!
   -> [(String, x -> Bool)]
@@ -56,12 +56,12 @@ discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
 discover typeInfos seedPreds sig1 sig2 =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
-      let seeds = mapMaybe unsafeFromDyn (listValues tyI)
+      let seeds = mapMaybe fromDyn (listValues tyI)
       in discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds
     Nothing  -> \_ -> ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
-discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
+discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeable s2)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s1 Concurrency o x
@@ -91,7 +91,7 @@ discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim =
 
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
-discoverSingle :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
+discoverSingle :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s Concurrency o x
@@ -100,12 +100,12 @@ discoverSingle :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
 discoverSingle typeInfos seedPreds sig =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
-      let seeds = mapMaybe unsafeFromDyn (listValues tyI)
+      let seeds = mapMaybe fromDyn (listValues tyI)
       in discoverSingleWithSeeds typeInfos seedPreds sig seeds
     Nothing  -> \_ -> []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
-discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
+discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s Concurrency o x
@@ -116,7 +116,7 @@ discoverSingleWithSeeds typeInfos seedPreds sig seeds =
   snd . discoverSingleWithSeeds' typeInfos seedPreds sig seeds
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
-discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x)
+discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s Concurrency o x

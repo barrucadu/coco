@@ -16,7 +16,6 @@ import Control.Monad (forM)
 import Data.Char (isAlpha, toLower)
 import Data.Proxy (Proxy(..))
 import qualified Data.Typeable as T
-import Data.Void (Void)
 import Language.Haskell.TH.Syntax (Exp(..), Type(..))
 import Test.LeanCheck (Listable, list)
 
@@ -25,7 +24,7 @@ import Test.CoCo.Util
 
 -- | Information about a type.
 data TypeInfo = TypeInfo
-  { listValues :: [Dynamic Void Void1]
+  { listValues :: [Dynamic]
     -- ^ Produce a (possibly infinite) list of values of this type.
   , varName    :: Char
   -- ^ Base name for variables of this type. Conflicting names will be
@@ -41,7 +40,7 @@ getVariableBaseName typeInfos ty = maybe 'z' varName (lookup ty typeInfos)
 -- | Get values of a type.
 --
 -- Returns @[]@ if the type is not in the list.
-getTypeValues :: [(T.TypeRep, TypeInfo)] -> T.TypeRep -> [Dynamic Void Void1]
+getTypeValues :: [(T.TypeRep, TypeInfo)] -> T.TypeRep -> [Dynamic]
 getTypeValues typeInfos ty = maybe [] listValues (lookup ty typeInfos)
 
 -- | 'TypeInfo' for @()@, @Bool@, @Char@, @Double@, @Float@, @Int@,
@@ -65,11 +64,11 @@ makeTypeInfo :: (Listable a, T.Typeable a) => proxy a -> (T.TypeRep, TypeInfo)
 makeTypeInfo p = (T.typeRep p, TypeInfo { listValues = dynamicListValues p, varName = variableName p })
 
 -- | Produce dynamic values from a 'Listable' instance.
-dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic Void Void1]
+dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic]
 dynamicListValues p = map (unsafeToDyn $ T.typeRep p) (list :: [a])
 
 -- | Like 'dynamicListValues' but takes an actual value, not a proxy.
-dynamicListValues' :: forall a. (Listable a, T.Typeable a) => a -> [Dynamic Void Void1]
+dynamicListValues' :: forall a. (Listable a, T.Typeable a) => a -> [Dynamic]
 dynamicListValues' _ = dynamicListValues (Proxy :: Proxy a)
 
 -- | Produce a variable name from a type. This is mostly just @show@

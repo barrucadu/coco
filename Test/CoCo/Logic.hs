@@ -14,7 +14,7 @@ module Test.CoCo.Logic where
 import Control.Arrow (second)
 import Data.List (foldl', sortOn)
 import Data.Maybe (isJust, isNothing)
-import Data.Typeable (TypeRep)
+import Data.Typeable (Typeable, TypeRep)
 
 import Test.CoCo.Ann (Ann(..), Results(..), VarResults, refines)
 import Test.CoCo.Expr (Term, eq, exprSize, isInstanceOf, rename)
@@ -26,8 +26,8 @@ import Test.CoCo.Util (ChurchList, cappend, cnil, csnoc, discardLater)
 
 -- | Observations about pairs of terms.
 data Observation where
-  Equiv   :: Term s1 m -> Term s2 m -> Observation
-  Refines :: Term s1 m -> Term s2 m -> Observation
+  Equiv   :: (Typeable s1, Typeable s2, Typeable m) => Term s1 m -> Term s2 m -> Observation
+  Refines :: (Typeable s1, Typeable s2, Typeable m) => Term s1 m -> Term s2 m -> Observation
   Implied :: String -> Observation -> Observation
 
 instance Eq Observation where
@@ -40,7 +40,7 @@ instance Eq Observation where
 -- ** Discovery
 
 -- | Find observations and either annotate a schema or throw it away.
-observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o)
+observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
   => [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover observations which only hold with certain
   -- seeds.
@@ -79,7 +79,7 @@ observe preconditions varf p smallers = foldl' go (cnil, cnil) where
         | otherwise = acc
 
 -- | Helper for 'observations': all interestingly-distinct observations for a pair of schemas.
-allObservations :: (Eq x, Ord o)
+allObservations :: (Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
   => [(String, x -> Bool)]
   -> (TypeRep -> Char)
   -> (Maybe (Ann s1 m o x), Ann s1 m o x)
@@ -105,7 +105,7 @@ allObservations preconditions varf (old_ann_a, ann_a) (old_ann_b, ann_b) =
 
 -- | Helper for 'allObservations': construct an appropriate 'Observation' given the results of
 -- execution.
-makeObservation :: (Eq x, Ord o)
+makeObservation :: (Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
   => (x -> Bool) -- ^ The predicate on the seed value.
   -> (Term s1 m, (VarResults o x, VarResults o x)) -- ^ The left expression and results.
   -> (Term s2 m, (VarResults o x, VarResults o x)) -- ^ The right expression and results.

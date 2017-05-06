@@ -29,6 +29,7 @@ import Data.Maybe (maybeToList)
 import Data.Semigroup (Semigroup, (<>))
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Typeable (Typeable)
 
 import Test.CoCo.Expr
 
@@ -52,7 +53,7 @@ newGenerator' baseTerms = Generator
   }
 
 -- | Generate the next tier.
-stepGenerator :: (Semigroup ann, Ord ann)
+stepGenerator :: (Semigroup ann, Ord ann, Typeable s, Typeable m)
   => (ann -> ann -> Schema s m -> Bool)
   -- ^ Annotation of first expr, annotation of second expr, combined expr.
   -> Generator s m ann -> Generator s m ann

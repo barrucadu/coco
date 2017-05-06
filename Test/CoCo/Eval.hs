@@ -16,14 +16,14 @@ import qualified Control.Concurrent.Classy as C
 import Control.DeepSeq (NFData, force)
 import qualified Data.List.NonEmpty as L
 import qualified Data.Map.Strict as M
-import Data.Maybe (mapMaybe, maybeToList)
+import Data.Maybe (maybeToList)
 import qualified Data.Set as S
 import qualified Data.Typeable as T
 import Test.DejaFu.Common (ThreadAction(..))
 
 import Test.CoCo.Ann
 import Test.CoCo.Expr (Term, bind, lit, environment, evaluate)
-import Test.CoCo.Type (Dynamic, coerceDyn, coerceTypeRep, rawTypeRep)
+import Test.CoCo.Type (Dynamic)
 import Test.CoCo.TypeInfo (TypeInfo(..), getTypeValues)
 import Test.CoCo.Util
 import Test.CoCo.Monad
@@ -34,7 +34,7 @@ import Test.CoCo.Monad
 --
 -- The @Bool@ in the return value is whether the execution of this
 -- term is atomic.
-runSingle :: (Ord x, NFData o, NFData x, Ord o)
+runSingle :: (Ord x, NFData o, NFData x, Ord o, T.Typeable s)
   => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
@@ -98,8 +98,8 @@ runSingle typeInfos mkstate interfere observe unstate seeds expr
 -- 'numVariants' values will be taken of each and zipped together
 -- (producing @numVariants^(length (environment term) + 1)@
 -- assignments).
-varassigns :: forall s x.
-     [(T.TypeRep, TypeInfo)]
+varassigns :: forall s x. T.Typeable s
+  => [(T.TypeRep, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
   -> [x]
@@ -115,20 +115,19 @@ varassigns typeInfos seeds term =
   where
     assign env ((var, dyns):free) e =
       [ ((var, vid):vidlist, eval_term)
-      | (vid, Just dyn) <- map (second coerceDyn) . take numVariants $ zip [0..] dyns
+      | (vid, dyn) <- take numVariants $ zip [0..] dyns
       , (vidlist, eval_term) <- assign ((var, dyn):env) free e
       ]
     assign env [] e = maybeToList $ (\r -> ([], r)) <$> (evoid e >>= \e' -> eval e' env)
 
-    vars = ordNubOn fst (map (second enumerateValues) (freeVars term))
-    freeVars = mapMaybe (\(var, ty) -> (,) <$> pure var <*> coerceTypeRep ty) . environment
+    vars = ordNubOn fst (map (second enumerateValues) (environment term))
 
     evoid :: Term s Concurrency -> Maybe (Term s Concurrency)
     evoid e = bind [] e (lit "" (pure () :: Concurrency ()))
 
-    enumerateValues = getTypeValues typeInfos . rawTypeRep
+    enumerateValues = getTypeValues typeInfos
 
-    eval :: (Term s Concurrency -> [(String, Dynamic s Concurrency)] -> Maybe (s -> Maybe (Concurrency ())))
+    eval :: (Term s Concurrency -> [(String, Dynamic)] -> Maybe (s -> Maybe (Concurrency ())))
     eval = evaluate
 
 -- | Number of variants of a value to consider.

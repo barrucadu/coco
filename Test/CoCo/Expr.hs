@@ -1,3 +1,5 @@
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 
 -- |
@@ -6,7 +8,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : StrictData
+-- Portability : KindSignatures, ScopedTypeVariables, StrictData
 --
 -- Constructing and evaluating dynamically-typed monadic expressions.
 module Test.CoCo.Expr
@@ -61,7 +63,7 @@ import Data.Function (on)
 import Data.List (groupBy, nub, sortOn)
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Ord (Down(..))
-import qualified Data.Typeable as T
+import Data.Typeable
 import Data.Void (Void)
 
 import Test.CoCo.Type
@@ -71,17 +73,17 @@ import Test.CoCo.Util
 -- Expressions
 
 -- | An expression with effects in some monad @m@.
-data Expr s m h
+data Expr (s :: *) (m :: * -> *) (h :: *)
   -- It's important that these constructors aren't exposed, so the
   -- correctness of the 'TypeRep's can be ensured.
-  = Lit Bool String (Dynamic s m)
+  = Lit Bool String Dynamic
   -- ^ @Lit True@ is a commutative lit, which affects function
   -- application.
-  | Var (TypeRep s m) (Var h)
+  | Var TypeRep (Var h)
   -- ^ Holes, let-bound variables, and environment variables.
-  | Let (TypeRep s m) Bool [Int] (Expr s m h) (Expr s m h)
+  | Let TypeRep Bool [Int] (Expr s m h) (Expr s m h)
   -- ^ @Let True@ is a monadic bind, which affects evaluation.
-  | Ap  (TypeRep s m) (Expr s m h) (Expr s m h)
+  | Ap  TypeRep (Expr s m h) (Expr s m h)
   -- ^ Function application.
   | StateVar
   -- ^ The state variable.
@@ -122,15 +124,14 @@ toTerm StateVar = Just StateVar
 --
 -- This takes a function to assign a letter to each type, subsequent
 -- variables of the same type have digits appended.
-allTerms :: (T.TypeRep -> Char) -> Schema s m -> [Term s m]
+allTerms :: (TypeRep -> Char) -> Schema s m -> [Term s m]
 allTerms nf = mapMaybe toTerm . sortOn (Down . length . environment) . go where
   go e0 = case hs e0 of
     [] -> [e0]
     (chosen:_) -> concatMap go
       [ e | ps <- partitions chosen
           , let (((_,tyc):_):_) = ps
-          , let tyc' = rawTypeRep tyc
-          , let vname i = if i == 0 then [nf tyc'] else nf tyc' : show (i::Int)
+          , let vname i = if i == 0 then [nf tyc] else nf tyc : show (i::Int)
           , let naming = concat $ zipWith (\i vs -> [(v, vname i) | (v,_) <- vs]) [0..] ps
           , e <- maybeToList (envbind naming e0)
       ]
@@ -168,17 +169,17 @@ isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS
   (ok, envG, envS, _) = checkShape (0::Int) eG eS
 
   checkShape i (Lit b1 s1 dyn1) (Lit b2 s2 dyn2) = (b1 == b2 && s1 == s2 && dyn1 `deq` dyn2, [], [], i)
-  checkShape i (Var ty1 (Hole  _))  (Var ty2 (Hole  _))  = (ty1 `teq` ty2, [], [], i)
-  checkShape i (Var ty1 (Named s1)) (Var ty2 (Named s2)) = (ty1 `teq` ty2, [(s1, i)], [(s2, i)], i+1)
-  checkShape i (Var ty1 (Bound i1)) (Var ty2 (Bound i2)) = (ty1 `teq` ty2 && i1 == i2, [], [], i)
+  checkShape i (Var ty1 (Hole  _))  (Var ty2 (Hole  _))  = (ty1 == ty2, [], [], i)
+  checkShape i (Var ty1 (Named s1)) (Var ty2 (Named s2)) = (ty1 == ty2, [(s1, i)], [(s2, i)], i+1)
+  checkShape i (Var ty1 (Bound i1)) (Var ty2 (Bound i2)) = (ty1 == ty2 && i1 == i2, [], [], i)
   checkShape i (Let ty1 m1 is1 b1 e1) (Let ty2 m2 is2 b2 e2) =
     let (bok, benv1, benv2, i')  = checkShape i  b1 b2
         (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
-    in (ty1 `teq` ty2 && m1 == m2 && is1 == is2 && bok && eok, nub (benv1++eenv1), nub (benv2++eenv2), i'')
+    in (ty1 == ty2 && m1 == m2 && is1 == is2 && bok && eok, nub (benv1++eenv1), nub (benv2++eenv2), i'')
   checkShape i (Ap ty1 f1 e1) (Ap ty2 f2 e2) =
     let (fok, fenv1, fenv2, i')  = checkShape i  f1 f2
         (eok, eenv1, eenv2, i'') = checkShape i' e1 e2
-    in (ty1 `teq` ty2 && fok && eok, nub (fenv1++eenv1), nub (fenv2++eenv2), i'')
+    in (ty1 == ty2 && fok && eok, nub (fenv1++eenv1), nub (fenv2++eenv2), i'')
   checkShape i StateVar StateVar = (True, [], [], i)
   checkShape i _ _ = (False, [], [], i)
 
@@ -186,8 +187,7 @@ isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS
     any (\bs -> all (`elem` bs) as) bss && checkEnv ass bss
   checkEnv [] _ = True
 
-  deq dyn1 dyn2 = dynTypeRep dyn1 `teq` dynTypeRep dyn2
-  teq ty1  ty2  = rawTypeRep ty1   ==   rawTypeRep ty2
+  deq dyn1 dyn2 = dynTypeRep dyn1 == dynTypeRep dyn2
 
   -- group a list of tuples by first element (the tag) and then discard it.
   sortGroupTagged = map (map snd) . groupBy ((==) `on` fst) . sortOn fst
@@ -225,12 +225,12 @@ findInstance eG eS
 --
 -- - Applying the second argument to a commutative function produces
 --   @Nothing@, even if well-typed, if it is @<@ the first argument.
-($$) :: Ord h => Expr s m h -> Expr s m h -> Maybe (Expr s m h)
+($$) :: forall s m h. (Typeable s, Typeable m, Ord h) => Expr s m h -> Expr s m h -> Maybe (Expr s m h)
 f $$ e = case funTys (exprTypeRep f) of
     Just (fArgTy, fResTy) ->
       -- check if the formal parameter is of type @m Ignore@ and the
       -- actual parameter is of type @m a@.
-      if fArgTy == ignoreTypeRep && isJust (unmonad $ exprTypeRep e)
+      if fArgTy == (ignoreTypeRep (Proxy :: Proxy m)) && isJust (unmonad e)
       then mkfun fResTy
       else mkfun =<< exprTypeRep f `funResultTy` exprTypeRep e
     Nothing -> Nothing
@@ -243,58 +243,60 @@ f $$ e = case funTys (exprTypeRep f) of
 -- numbering of unbound holes may be changed by this function.
 --
 -- @fmap exprSize (bind is b e) == Just (1 + exprSize b + exprSize e)@
-bind :: [Int] -- ^ Holes.
-     -> Expr s m h -- ^ Expression to bind
-     -> Expr s m h -- ^ Expression to bind variable in
-     -> Maybe (Expr s m h)
+bind :: (Typeable s, Typeable m)
+  => [Int] -- ^ Holes.
+  -> Expr s m h -- ^ Expression to bind
+  -> Expr s m h -- ^ Expression to bind variable in
+  -> Maybe (Expr s m h)
 bind is binder body = do
-  _ <- unmonad (exprTypeRep body)
-  innerTy <- unmonad (exprTypeRep binder)
-  Let (exprTypeRep body) True is binder <$> letHelper is innerTy body
+  _ <- unmonad body
+  inner <- unmonad binder
+  Let (exprTypeRep body) True is binder <$> letHelper is inner body
 
 -- | A typed hole.
 --
 -- @exprSize (hole proxy) == 1@
-hole :: HasTypeRep s m a => proxy a -> Expr s m ()
+hole :: Typeable a => proxy a -> Expr s m ()
 hole p = Var (typeRep p) (Hole ())
 
 -- | A typed hole (from a 'TypeRep'). If given the state type, this is
 -- equivalent to 'stateVar'.
 --
 -- @exprSize (holeOf ty) == 1@
-holeOf :: TypeRep s m -> Expr s m ()
+holeOf :: forall s m. Typeable s => TypeRep -> Expr s m ()
 holeOf ty
-  | ty == stateTypeRep = stateVar
+  | ty == typeRep (Proxy :: Proxy s) = stateVar
   | otherwise = Var ty (Hole ())
 
 -- | Bind a value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.
 --
 -- @fmap exprSize (let_ is b e) == Just (1 + exprSize b + exprSize e)@
-let_ :: [Int] -- ^ Holes.
-     -> Expr s m h -- ^ Expression to bind
-     -> Expr s m h -- ^ Expression to bind variable in
-     -> Maybe (Expr s m h)
+let_ :: Typeable s
+  => [Int] -- ^ Holes.
+  -> Expr s m h -- ^ Expression to bind
+  -> Expr s m h -- ^ Expression to bind variable in
+  -> Maybe (Expr s m h)
 let_ is binder body =
   Let (exprTypeRep body) False is binder <$> letHelper is (exprTypeRep binder) body
 
 -- | A literal value.
 --
 -- @exprSize (lit "foo" foo) == 1@
-lit :: HasTypeRep s m a => String -> a -> Expr s m h
+lit :: Typeable a => String -> a -> Expr s m h
 lit s a = Lit False s (toDyn a)
 
 -- | A commutative binary function. Used to avoid redundancies in term
 -- generation.
 --
 -- @commLit "foo" foo == 1@
-commLit :: HasTypeRep s m a => String -> a -> Expr s m h
+commLit :: Typeable a => String -> a -> Expr s m h
 commLit s a = Lit True s (toDyn a)
 
 -- | A literal value from a type which can be shown.
 --
 -- @exprSize (showLit foo) == 1@
-showLit :: (Show a, HasTypeRep s m a) => a -> Expr s m h
+showLit :: (Show a, Typeable a) => a -> Expr s m h
 showLit a = lit (show a) a
 
 -- | The state variable
@@ -335,12 +337,12 @@ envbind is e0 = (\(e,_,_) -> e) <$> go [] 0 e0 where
   go env i e = Just (e, env, i)
 
 -- | Get all the environment variables in an expression.
-environment :: Expr s m h -> [(String, TypeRep s m)]
+environment :: Expr s m h -> [(String, TypeRep)]
 environment = nub . environment'
 
 -- | Get all the environment variables in an expression, with
 -- repetition, in the order in which they appear in the expression.
-environment' :: Expr s m h -> [(String, TypeRep s m)]
+environment' :: Expr s m h -> [(String, TypeRep)]
 environment' = go where
   go (Var ty (Named s)) = [(s, ty)]
   go (Let _ _ _ b e) = go b ++ go e
@@ -358,7 +360,7 @@ rename rs = go where
   go e = e
 
 -- | Get all holes in an expression, tagged with their position.
-holes :: Expr s m h -> [(Int, TypeRep s m)]
+holes :: Expr s m h -> [(Int, TypeRep)]
 holes = fst . go 0 where
   go i (Var ty (Hole _)) = ([(i, ty)], i + 1)
   go i (Let _ _ _ b e) =
@@ -417,7 +419,7 @@ unLet (Let _ False is b e) = Just (is, b, e)
 unLet _ = Nothing
 
 -- | Deconstruct a literal.
-unLit :: Expr s m h -> Maybe (String, Dynamic s m)
+unLit :: Expr s m h -> Maybe (String, Dynamic)
 unLit (Lit _ s dyn) = Just (s, dyn)
 unLit _ = Nothing
 
@@ -431,11 +433,11 @@ unLit _ = Nothing
 -- If the outer 'Maybe' is @Nothing@, the environment is
 -- incomplete. If the inner 'Maybe' is @Nothing@, the type is
 -- incorrect.
-evaluate :: (Monad m, HasTypeRep s m a) => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Maybe a)
+evaluate :: (Monad m, Typeable s, Typeable m, Typeable a) => Term s m -> [(String, Dynamic)] -> Maybe (s -> Maybe a)
 evaluate e0 globals = (fromDyn .) <$> evaluateDyn e0 globals
 
 -- | Evaluate an expression, if the environment is complete.
-evaluateDyn :: Monad m => Term s m -> [(String, Dynamic s m)] -> Maybe (s -> Dynamic s m)
+evaluateDyn :: forall s m. (Monad m, Typeable s, Typeable m) => Term s m -> [(String, Dynamic)] -> Maybe (s -> Dynamic)
 evaluateDyn e0 globals
     | all check (environment e0) = Just (go [] e0)
     | otherwise = Nothing
@@ -447,8 +449,8 @@ evaluateDyn e0 globals
     go locals (Var _ var) _ =
       unmaybe ("unexpected free variable " ++ show var ++ " in expression") $ env locals var
     go locals (Let ty True _ b e) s =
-      let mx = unmaybe ("can't bind non-monadic expression " ++ show b ++ " in body " ++ show e) $ unwrapMonadicDyn (go locals b s)
-      in unsafeWrapMonadicDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e) (unwrapMonadicDyn (go (x:locals) e s))
+      let mx = unmaybe ("can't bind non-monadic expression " ++ show b ++ " in body " ++ show e) $ unFunctor (go locals b s)
+      in unsafeWrapFunctorDyn ty $ mx >>= \x -> unmaybe ("non-monadic result of bind: " ++ show e) (unFunctor (go (x:locals) e s))
     go locals (Let _ False _ b e) s =
       let x = go locals b s
       in go (x:locals) e s
@@ -463,16 +465,19 @@ evaluateDyn e0 globals
     env _ (Hole _) = Nothing -- unreachable
 
     ignoreArg fdyn = case funTys (dynTypeRep fdyn) of
-      Just (fArgTy, _) -> fArgTy == ignoreTypeRep
+      Just (fArgTy, _) -> fArgTy == ignoreTypeRep (Proxy :: Proxy m)
       Nothing -> error ("can't handle non-function type " ++ show fdyn)
 
-    ignore dyn = case unwrapMonadicDyn dyn of
-      Just ma -> unsafeToDyn (rawTypeRep ignoreTypeRep) (const Ignore <$> ma)
+    ignore dyn = case unFunctor dyn of
+      Just ma -> unsafeToDyn (ignoreTypeRep (Proxy :: Proxy m)) (const Ignore <$> ma)
       Nothing -> error ("can't ignore non-monadic value " ++ show dyn)
 
     check (s, ty) = case lookup s globals of
       Just dyn -> dynTypeRep dyn == ty
       Nothing -> False
+
+    unFunctor :: Dynamic -> Maybe (m Dynamic)
+    unFunctor = unwrapFunctorDyn
 
 
 -------------------------------------------------------------------------------
@@ -489,16 +494,16 @@ data Ignore = Ignore
 
 -- | Get the arity of an expression. Non-function types have an arity
 -- of 0.
-exprTypeArity :: Expr s m h -> Int
+exprTypeArity :: Typeable s => Expr s m h -> Int
 exprTypeArity = typeArity . exprTypeRep
 
 -- | Get the type of an expression.
-exprTypeRep :: Expr s m h -> TypeRep s m
+exprTypeRep :: forall s m h. Typeable s => Expr s m h -> TypeRep
 exprTypeRep (Lit _ _ dyn) = dynTypeRep dyn
 exprTypeRep (Var ty _) = ty
 exprTypeRep (Let ty _ _ _ _) = ty
 exprTypeRep (Ap ty _ _) = ty
-exprTypeRep StateVar = stateTypeRep
+exprTypeRep StateVar = typeRep (Proxy :: Proxy s)
 
 -- | Get the size of an expression.
 exprSize :: Expr s m h -> Int
@@ -509,27 +514,27 @@ exprSize _ = 1
 -- | Check if two expressions are equal, disregarding monad, state,
 -- and hole types.
 eq :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> Bool
-eq (Lit _ _ dyn1) (Lit _ _ dyn2) = rawTypeRep (dynTypeRep dyn1) == rawTypeRep (dynTypeRep dyn2)
-eq (Var ty1 v1) (Var ty2 v2) = rawTypeRep ty1 == rawTypeRep ty2 && case (v1, v2) of
+eq (Lit _ _ dyn1) (Lit _ _ dyn2) = dynTypeRep dyn1 == dynTypeRep dyn2
+eq (Var ty1 v1) (Var ty2 v2) = ty1 == ty2 && case (v1, v2) of
   (Hole _, Hole _) -> True
   (Bound i1, Bound i2) -> i1 == i2
   (Named s1, Named s2) -> s1 == s2
   _ -> False
 eq (Let ty1 m1 is1 b1 e1) (Let ty2 m2 is2 b2 e2) =
-  rawTypeRep ty1 == rawTypeRep ty2 &&
+  ty1 == ty2 &&
   m1  == m2  &&
   is1 == is2 &&
   b1 `eq` b2 &&
   e1 `eq` e2
 eq (Ap ty1 f1 e1) (Ap ty2 f2 e2) =
-  rawTypeRep ty1 == rawTypeRep ty2 &&
+  ty1 == ty2 &&
   f1 `eq` f2 &&
   e1 `eq` e2
 eq StateVar StateVar = True
 eq _ _ = False
 
 -- | Pretty-print an expression.
-pp :: (T.TypeRep -> Char) -> Expr s m h -> String
+pp :: (Typeable s, Typeable m) => (TypeRep -> Char) -> Expr s m h -> String
 pp nf e0 = go [] True e0 where
   go _ _ (Lit _ s _) = toPrefix s
   go env top (Var ty v) = case v of
@@ -539,7 +544,7 @@ pp nf e0 = go [] True e0 where
   go _ _ StateVar = "@"
   go env top e = wrap top . unwords $ case e of
     Let _ True is b x ->
-      let v = fresh env (fromJust . unmonad $ exprTypeRep b)
+      let v = fresh env . fromJust $ unmonad b
           sb = go env top b
           se = go (v:env) top x
       in if null is
@@ -573,15 +578,13 @@ pp nf e0 = go [] True e0 where
   isSymbolic = not . all (\c -> isAlphaNum c || c == '_' || c == '\'')
 
   fresh env = head . dropWhile (\v -> v `elem` env || any ((==v) . fst) (environment e0)) . names
-  names ty =
-    let ty' = rawTypeRep ty
-    in [nf ty'] : [ nf ty' : show (i::Int) | i <- [1..]]
+  names ty = [nf ty] : [ nf ty : show (i::Int) | i <- [1..]]
 
 -------------------------------------------------------------------------------
 -- Utils
 
 -- | Helper for 'bind' and 'let_': bind holes to the top of the expression.
-letHelper :: [Int] -> TypeRep s m -> Expr s m h -> Maybe (Expr s m h)
+letHelper :: [Int] -> TypeRep -> Expr s m h -> Maybe (Expr s m h)
 letHelper is boundTy e0 = fst <$> go 0 0 e0 where
   go n i (Var ty (Hole h))
     | i `elem` is = if boundTy == ty then Just (Var ty (Bound n), i + 1) else Nothing
@@ -596,6 +599,10 @@ letHelper is boundTy e0 = fst <$> go 0 0 e0 where
     Just (Ap ty f' e', i'')
   go _ i e = Just (e, i)
 
--- | The typerep for @m Ignore@.
-ignoreTypeRep :: TypeRep s m
-ignoreTypeRep = monadTypeRep (T.typeOf Ignore)
+-- | The typerep for @f Ignore@.
+ignoreTypeRep :: forall proxy f. Typeable f => proxy (f :: * -> *) -> TypeRep
+ignoreTypeRep _ = typeRep (Proxy :: Proxy (f Ignore))
+
+-- | Peel off the monad tycon
+unmonad :: forall s m h. (Typeable s, Typeable m) => Expr s m h -> Maybe TypeRep
+unmonad = innerTy (Proxy :: Proxy m) . exprTypeRep

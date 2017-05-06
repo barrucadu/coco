@@ -10,9 +10,10 @@
 module Test.CoCo.Sig where
 
 import Data.List (nub)
+import Data.Typeable (Typeable, TypeRep)
 
-import Test.CoCo.Expr (Schema, holeOf, unLit)
-import Test.CoCo.Type (TypeRep, dynTypeRep, funTys, stateTypeRep)
+import Test.CoCo.Expr (Schema, holeOf, unLit, stateVar)
+import Test.CoCo.Type (dynTypeRep, funTys)
 
 -- | A collection of expressions.
 data Sig s m o x = Sig
@@ -37,17 +38,21 @@ data Sig s m o x = Sig
 
 -- | Complete a signature: add missing holes and the state variable to
 -- the background.
-complete :: Sig s m o x -> Sig s m o x
+complete :: Typeable s => Sig s m o x -> Sig s m o x
 complete sig =
-  let holes = [ h
-              | h <- map holeOf (stateTypeRep : inferHoles sig)
+  let state = [ stateVar
+              | stateVar `notElem` expressions           sig
+              , stateVar `notElem` backgroundExpressions sig
+              ]
+      holes = [ h
+              | h <- map holeOf (inferHoles sig)
               , h `notElem` expressions           sig
               , h `notElem` backgroundExpressions sig
               ]
-  in sig { backgroundExpressions = holes ++ backgroundExpressions sig }
+  in sig { backgroundExpressions = state ++ holes ++ backgroundExpressions sig }
 
 -- | Infer necessary hole types in a signature.
-inferHoles :: Sig s m o x -> [TypeRep s m]
+inferHoles :: Sig s m o x -> [TypeRep]
 inferHoles sig = nub $ concatMap holesFor (expressions sig) ++ concatMap holesFor (backgroundExpressions sig) where
   holesFor = maybe [] (funTyHoles . dynTypeRep . snd) . unLit
   funTyHoles ty = case funTys ty of
