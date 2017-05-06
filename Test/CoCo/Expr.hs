@@ -64,6 +64,7 @@ module Test.CoCo.Expr
   , ($$)
   , bind
   , hole
+  , holeOf
   , let_
   , lit
   , commLit
@@ -298,6 +299,15 @@ bind is binder body = do
 -- @exprSize (hole proxy) == 1@
 hole :: HasTypeRep s m a => proxy a -> Expr s m ()
 hole p = Var (typeRep p) (Hole ())
+
+-- | A typed hole (from a 'TypeRep'). If given the state type, this is
+-- equivalent to 'stateVar'.
+--
+-- @exprSize (holeOf ty) == 1@
+holeOf :: TypeRep s m -> Expr s m ()
+holeOf ty
+  | ty == stateTypeRep = stateVar
+  | otherwise = Var ty (Hole ())
 
 -- | Bind a value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.

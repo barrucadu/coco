@@ -35,7 +35,7 @@ import Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
 import Test.CoCo.Util
 import Test.CoCo.Logic
 import Test.CoCo.Eval (runSingle)
-import Test.CoCo.Sig (Sig(..))
+import Test.CoCo.Sig (Sig(..), complete)
 
 -- | Attempt to discover properties of the given set of concurrent
 -- operations. Returns three sets of observations about, respectively:
@@ -124,8 +124,9 @@ discoverSingleWithSeeds' :: forall s t o x. (NFData o, NFData x, Ord o, Ord x)
   -> Int
   -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) o x), Ann s (ConcST t) o x), [Observation])
 discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
-    let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           sig] ++
-                          [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sig])
+    let sigc = complete sig
+        g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           sigc] ++
+                          [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sigc])
     in second crun <$> findObservations g 0
   where
     -- check every term on the current tier for equality and

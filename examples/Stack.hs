@@ -46,9 +46,6 @@ sigLS = Sig
                                                         -> Maybe Int
                                                         -> ConcST t ())
     , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , hole (Proxy :: Proxy Int)
-    , hole (Proxy :: Proxy (Maybe Int))
-    , stateVar
     ]
   , observation = toListLS
   , backToSeed = toListLS
@@ -89,8 +86,6 @@ sigCAS = Sig
                                                         -> Maybe Int
                                                         -> ConcST t ())
     , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , hole (Proxy :: Proxy (Maybe Int))
-    , stateVar
     ]
   , observation = toListCAS
   , backToSeed = toListCAS

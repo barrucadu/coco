@@ -15,10 +15,7 @@ sig = Sig
     , lit "readMVar" (readMVar :: MVar (ConcST t) Int -> ConcST t Int)
     ]
   , backgroundExpressions =
-    [ commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
-    , hole (Proxy :: Proxy Int)
-    , stateVar
-    ]
+    [ commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ()) ]
   , observation = tryTakeMVar
   , backToSeed = tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
