@@ -23,6 +23,7 @@ library
                      , Test.CoCo.Expr
                      , Test.CoCo.Gen
                      , Test.CoCo.Logic
+                     , Test.CoCo.Monad
                      , Test.CoCo.Rename
                      , Test.CoCo.Sig
                      , Test.CoCo.Type
@@ -31,9 +32,10 @@ library
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
-                     , concurrency
+                     , concurrency ==1.1.*
                      , containers >=0.5.8 && <0.6
                      , deepseq >=1.1 && <2
+                     , exceptions >=0.7
                      , dejafu >=0.5.1.1 && <0.7
                      , leancheck >=0.6 && <0.7
                      , template-haskell >=2.11 && <3
