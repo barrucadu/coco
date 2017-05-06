@@ -6,8 +6,8 @@ import Control.Monad
 
 import Test.CoCo
 
-exprs :: forall t. Exprs (MVar (ConcST t) Int) (ConcST t) (Maybe Int) (Maybe Int)
-exprs = Exprs
+sig :: forall t. Sig (MVar (ConcST t) Int) (ConcST t) (Maybe Int) (Maybe Int)
+sig = Sig
   { initialState = maybe newEmptyMVar newMVar
   , expressions =
     [ lit "putMVar"  (putMVar  :: MVar (ConcST t) Int -> Int -> ConcST t ())
@@ -29,7 +29,7 @@ seedPreds = []
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example n = prettyPrint defaultTypeInfos $ runST $ discoverSingle defaultTypeInfos seedPreds exprs n
+example n = prettyPrint defaultTypeInfos $ runST $ discoverSingle defaultTypeInfos seedPreds sig n
 
 main :: IO ()
 main = example 7

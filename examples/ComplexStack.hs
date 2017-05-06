@@ -47,8 +47,8 @@ fromListLS as = LockStack <$> newMVar as
 toListLS :: MonadConc m => LockStack m a -> m [a]
 toListLS (LockStack v) = readMVar v
 
-exprsLS :: forall t. Exprs (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
-exprsLS = Exprs
+sigLS :: forall t. Sig (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
+sigLS = Sig
   { initialState = fromListLS
   , expressions =
     [ lit "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
@@ -113,8 +113,8 @@ fromListCAS as = CASStack <$> newCRef as
 toListCAS :: MonadConc m => CASStack m a -> m [a]
 toListCAS (CASStack r) = readCRef r
 
-exprsCAS :: forall t. Exprs (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
-exprsCAS = Exprs
+sigCAS :: forall t. Sig (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
+sigCAS = Sig
   { initialState = fromListCAS
   , expressions =
     [ lit "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
@@ -147,7 +147,7 @@ seedPreds = []
 
 example :: Int -> IO ()
 example n = do
-  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos seedPreds exprsLS exprsCAS n
+  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos seedPreds sigLS sigCAS n
   prettyPrint defaultTypeInfos obs1
   putStrLn ""
   prettyPrint defaultTypeInfos obs2

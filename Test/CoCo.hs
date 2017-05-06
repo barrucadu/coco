@@ -14,7 +14,7 @@ module Test.CoCo
   , D.discover
   , D.discoverSingle
     -- * Signatures
-  , D.Exprs(..)
+  , S.Sig(..)
   , E.Ignore(..)
   , E.lit
   , E.commLit
@@ -42,6 +42,7 @@ import Data.Proxy (Proxy(..))
 import Data.Typeable (TypeRep)
 import Test.DejaFu.Conc (ConcST)
 
+import qualified Test.CoCo.Sig as S
 import qualified Test.CoCo.Discover as D
 import qualified Test.CoCo.Expr as E
 import qualified Test.CoCo.Logic as L

@@ -24,6 +24,7 @@ library
                      , Test.CoCo.Gen
                      , Test.CoCo.Logic
                      , Test.CoCo.Rename
+                     , Test.CoCo.Sig
                      , Test.CoCo.Type
                      , Test.CoCo.TypeInfo
                      , Test.CoCo.Util

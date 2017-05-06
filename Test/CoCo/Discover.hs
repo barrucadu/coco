@@ -35,27 +35,7 @@ import Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
 import Test.CoCo.Util
 import Test.CoCo.Logic
 import Test.CoCo.Eval (runSingle)
-
--- | A collection of expressions.
-data Exprs s m o x = Exprs
-  { initialState :: x -> m s
-  -- ^ Create a new instance of the state variable.
-  , expressions :: [Schema s m]
-  -- ^ The primitive expressions to use.
-  , backgroundExpressions :: [Schema s m]
-  -- ^ Expressions to use as helpers for building new
-  -- expressions. Observations will not be reported about terms which
-  -- are entirely composed of background expressions.
-  , observation :: s -> m o
-  -- ^ The observation to make.
-  , backToSeed :: s -> m x
-  -- ^ Convert the state back to the seed (used to determine if a term
-  -- is boring).
-  , setState :: s -> x -> m ()
-  -- ^ Set the state value. This doesn't need to be atomic, or even
-  -- guaranteed to work, its purpose is to cause interference when
-  -- evaluating other terms.
-  }
+import Test.CoCo.Sig (Sig(..))
 
 -- | Attempt to discover properties of the given set of concurrent
 -- operations. Returns three sets of observations about, respectively:
@@ -67,32 +47,32 @@ discover :: forall s1 s2 t o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
   -> [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover properties which
   -- only hold with certain seeds.
-  -> Exprs s1 (ConcST t) o x
+  -> Sig s1 (ConcST t) o x
   -- ^ A collection of expressions
-  -> Exprs s2 (ConcST t) o x
+  -> Sig s2 (ConcST t) o x
   -- ^ Another collection of expressions.
   -> Int
   -- ^ Term size limit
   -> ST t ([Observation], [Observation], [Observation])
-discover typeInfos seedPreds exprs1 exprs2 =
+discover typeInfos seedPreds sig1 sig2 =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds
+      in discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds
     Nothing  -> \_ -> pure ([], [], [])
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s1 (ConcST t) o x
-  -> Exprs s2 (ConcST t) o x
+  -> Sig s1 (ConcST t) o x
+  -> Sig s2 (ConcST t) o x
   -> [x]
   -> Int
   -> ST t ([Observation], [Observation], [Observation])
-discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds lim = do
-    (g1, obs1) <- discoverSingleWithSeeds' typeInfos seedPreds exprs1 seeds lim
-    (g2, obs2) <- discoverSingleWithSeeds' typeInfos seedPreds exprs2 seeds lim
+discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim = do
+    (g1, obs1) <- discoverSingleWithSeeds' typeInfos seedPreds sig1 seeds lim
+    (g2, obs2) <- discoverSingleWithSeeds' typeInfos seedPreds sig2 seeds lim
     let obs3 = crun (findObservations g1 g2 0)
     pure (obs1, obs2, obs3)
   where
@@ -114,38 +94,38 @@ discoverWithSeeds typeInfos seedPreds exprs1 exprs2 seeds lim = do
 discoverSingle :: forall s t o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) o x
+  -> Sig s (ConcST t) o x
   -> Int
   -> ST t [Observation]
-discoverSingle typeInfos seedPreds exprs =
+discoverSingle typeInfos seedPreds sig =
   case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe unsafeFromDyn (listValues tyI)
-      in discoverSingleWithSeeds typeInfos seedPreds exprs seeds
+      in discoverSingleWithSeeds typeInfos seedPreds sig seeds
     Nothing  -> \_ -> pure []
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) o x
+  -> Sig s (ConcST t) o x
   -> [x]
   -> Int
   -> ST t [Observation]
-discoverSingleWithSeeds typeInfos seedPreds exprs seeds lim =
-  snd <$> discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim
+discoverSingleWithSeeds typeInfos seedPreds sig seeds lim =
+  snd <$> discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s t o x. (NFData o, NFData x, Ord o, Ord x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Exprs s (ConcST t) o x
+  -> Sig s (ConcST t) o x
   -> [x]
   -> Int
   -> ST t (Generator s (ConcST t) (Maybe (Ann s (ConcST t) o x), Ann s (ConcST t) o x), [Observation])
-discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
-    let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           exprs] ++
-                          [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions exprs])
+discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
+    let g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           sig] ++
+                          [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sig])
     in second crun <$> findObservations g 0
   where
     -- check every term on the current tier for equality and
@@ -187,10 +167,10 @@ discoverSingleWithSeeds' typeInfos seedPreds exprs seeds lim =
     run :: Bool -> Term s (ConcST t) -> ST t (Maybe (Bool, VarResults o x))
     run interference term =
       shoveMaybe (runSingle typeInfos
-                            (initialState exprs)
-                            (if interference then Just (setState exprs) else Nothing)
-                            (observation exprs)
-                            (backToSeed exprs)
+                            (initialState sig)
+                            (if interference then Just (setState sig) else Nothing)
+                            (observation sig)
+                            (backToSeed sig)
                             seeds
                             term)
 
