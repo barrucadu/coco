@@ -45,9 +45,9 @@ runSingle :: (Ord x, NFData o, NFData x, Ord o)
   -- ^ Create a new instance of the state variable.
   -> Maybe (s -> x -> ConcST t ())
   -- ^ State interference function, if applicable.
-  -> (s -> ConcST t o)
+  -> (s -> x -> ConcST t o)
   -- ^ The observation to make.
-  -> (s -> ConcST t x)
+  -> (s -> x -> ConcST t x)
   -- ^ Convert the state back to the seed.
   -> [x]
   -- ^ The seed values to use.
@@ -64,17 +64,18 @@ runSingle typeInfos mkstate interfere observe unstate seeds expr
 
     go (varassign, eval_expr) = do
       rs <- runSCT' defaultWay defaultMemType $ do
-        s <- mkstate (seedVal varassign)
+        let x = seedVal varassign
+        s <- mkstate x
         r <- subconcurrency $ case interfere of
           Just interfereFunc -> do
-            i <- C.spawn . interfereFunc s $ seedVal varassign
+            i <- C.spawn (interfereFunc s x)
             o <- shoveMaybe (eval_expr s)
             C.readMVar i
             pure o
           Nothing ->
             shoveMaybe (eval_expr s)
-        o  <- observe s
-        x' <- unstate s
+        o  <- observe s x
+        x' <- unstate s x
         pure (either Just (const Nothing) r, x', o)
       -- very rough interpretation of atomicity: the trace has one
       -- thing in it other than the stop!

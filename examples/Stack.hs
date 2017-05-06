@@ -47,8 +47,8 @@ sigLS = Sig
                                                         -> ConcST t ())
     , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     ]
-  , observation = toListLS
-  , backToSeed = toListLS
+  , observation = const . toListLS
+  , backToSeed = const . toListLS
   , setState = \(LockStack v) -> modifyMVar_ v . const . pure
   }
 
@@ -87,8 +87,8 @@ sigCAS = Sig
                                                         -> ConcST t ())
     , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
     ]
-  , observation = toListCAS
-  , backToSeed = toListCAS
+  , observation = const . toListCAS
+  , backToSeed = const . toListCAS
   , setState = \(CASStack r) -> modifyCRefCAS_ r . const
   }
 

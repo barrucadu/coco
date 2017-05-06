@@ -16,8 +16,8 @@ sig = Sig
     ]
   , backgroundExpressions =
     [ commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ()) ]
-  , observation = tryTakeMVar
-  , backToSeed = tryTakeMVar
+  , observation = const . tryTakeMVar
+  , backToSeed = const . tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   }
 

@@ -24,9 +24,9 @@ data Sig s m o x = Sig
   -- ^ Expressions to use as helpers for building new
   -- expressions. Observations will not be reported about terms which
   -- are entirely composed of background expressions.
-  , observation :: s -> m o
+  , observation :: s -> x -> m o
   -- ^ The observation to make.
-  , backToSeed :: s -> m x
+  , backToSeed :: s -> x -> m x
   -- ^ Convert the state back to the seed (used to determine if a term
   -- is boring).
   , setState :: s -> x -> m ()
