@@ -14,7 +14,7 @@ sig = Sig
     , lit "readMVar" (readMVar :: MVar Concurrency Int -> Concurrency Int)
     ]
   , backgroundExpressions =
-    [ commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ()) ]
+    [ commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ()) ]
   , observation = const . tryTakeMVar
   , backToSeed = const . tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi

@@ -44,7 +44,7 @@ sigLS = Sig
                                                         -> LockStack Concurrency Int
                                                         -> Maybe Int
                                                         -> Concurrency ())
-    , commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ())
+    , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
   , observation = const . toListLS
   , backToSeed = const . toListLS
@@ -84,7 +84,7 @@ sigCAS = Sig
                                                         -> CASStack Concurrency Int
                                                         -> Maybe Int
                                                         -> Concurrency ())
-    , commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ())
+    , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
   , observation = const . toListCAS
   , backToSeed = const . toListCAS

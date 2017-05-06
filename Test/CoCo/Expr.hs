@@ -49,7 +49,6 @@ module Test.CoCo.Expr
   , evaluate
   , evaluateDyn
   -- ** Miscellaneous
-  , Ignore(..)
   , exprSize
   , exprTypeArity
   , exprTypeRep
@@ -219,26 +218,20 @@ findInstance eG eS
 --
 -- @fmap exprSize (f $$ e) == Just (exprSize f + exprSize e)@
 --
--- There are two special cases:
---
--- - See the comment of the 'Ignore' type for when it 'Ignore' is used
---   in a monadic parameter
---
--- - Applying the second argument to a commutative function produces
---   @Nothing@, even if well-typed, if it is @<@ the first argument.
-($$) :: forall s h. (Typeable s, Ord h) => Expr s h -> Expr s h -> Maybe (Expr s h)
-f $$ e = case funTys (exprTypeRep f) of
-    Just (fArgTy, fResTy) ->
-      -- check if the formal parameter is of type @m Ignore@ and the
-      -- actual parameter is of type @m a@.
-      if fArgTy == ignoreTypeRep && isJust (unmonad e)
-      then mkfun fResTy
-      else mkfun =<< exprTypeRep f `funResultTy` exprTypeRep e
-    Nothing -> Nothing
-  where
-    mkfun ty = case f of
-      Ap _ (Lit True _ _) e0 | e < e0 -> Nothing
-      _ -> Just (Ap ty f e)
+-- Applying the second argument to a commutative function produces
+-- @Nothing@, even if well-typed, if it is @<@ the first argument.
+($$) :: (Typeable s, Ord h) => Expr s h -> Expr s h -> Maybe (Expr s h)
+f0 $$ e0 = mkfun =<< exprTypeRep f0 `polyFunResultTy` exprTypeRep e0 where
+  mkfun (env, ty) = case f0 of
+    Ap _ (Lit True _ _) e | e0 < e -> Nothing
+    _ -> Just (Ap ty (instantiateTys env f0) e0)
+
+  instantiateTys env = go where
+    go (Lit b s d) = Lit b s (assignDynTys env d)
+    go (Var ty v) = Var (assignTys env ty) v
+    go (Let ty m is b e) = Let (assignTys env ty) m is (go b) (go e)
+    go (Ap ty f e) = Ap (assignTys env ty) (go f) (go e)
+    go e = e
 
 -- | Bind a monadic value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.
@@ -458,20 +451,12 @@ evaluateDyn e0 globals
     go locals (Ap _ f e) s =
       let f' = go locals f s
           e' = go locals e s
-      in unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ f' `dynApp` (if ignoreArg f' then ignore e' else e')
+      in unmaybe ("can't apply function " ++ show f ++ " to argument " ++ show e) $ f' `dynApp` e'
     go _ StateVar s = toDyn s
 
     env locals (Bound i) = Just (locals !! i)
     env _ (Named s) = lookup s globals
     env _ (Hole _) = Nothing -- unreachable
-
-    ignoreArg fdyn = case funTys (dynTypeRep fdyn) of
-      Just (fArgTy, _) -> fArgTy == ignoreTypeRep
-      Nothing -> error ("can't handle non-function type " ++ show fdyn)
-
-    ignore dyn = case unFunctor dyn of
-      Just ma -> unsafeToDyn ignoreTypeRep (const Ignore <$> ma)
-      Nothing -> error ("can't ignore non-monadic value " ++ show dyn)
 
     check (s, ty) = case lookup s globals of
       Just dyn -> dynTypeRep dyn == ty
@@ -483,15 +468,6 @@ evaluateDyn e0 globals
 
 -------------------------------------------------------------------------------
 -- Misc
-
--- | A special type for enabling basic polymorphism.
---
--- A function parameter of type @m Ignore@ unifies with values of any
--- type @m a@, where @fmap (const Ignore)@ is applied to the parameter
--- automatically. This avoids the need to clutter expressions with
--- calls to 'void', or some other such function.
-data Ignore = Ignore
-  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -- | Get the arity of an expression. Non-function types have an arity
 -- of 0.
@@ -600,10 +576,6 @@ letHelper is boundTy e0 = fst <$> go 0 0 e0 where
     (e', i'') <- go n i' e
     Just (Ap ty f' e', i'')
   go _ i e = Just (e, i)
-
--- | The typerep for @Concurrency Ignore@.
-ignoreTypeRep :: TypeRep
-ignoreTypeRep = typeRep (Proxy :: Proxy (Concurrency Ignore))
 
 -- | Peel off the @Concurrency@ tycon
 unmonad :: forall s h. Typeable s => Expr s h -> Maybe TypeRep

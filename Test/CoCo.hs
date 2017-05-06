@@ -16,7 +16,10 @@ module Test.CoCo
     -- * Signatures
   , M.Concurrency
   , S.Sig(..)
-  , E.Ignore(..)
+  , T.A
+  , T.B
+  , T.C
+  , T.D
   , E.lit
   , E.commLit
   , E.showLit
