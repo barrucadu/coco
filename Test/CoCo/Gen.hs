@@ -9,27 +9,6 @@
 -- Portability : StrictData
 --
 -- Generating well-typed dynamic expressions from smaller components.
---
--- @
--- > :{
--- let baseTerms = [ constant "putMVar_int"  (putMVar  :: MVar Int -> Int -> IO ())
---                 , constant "takeMVar_int" (takeMVar :: MVar Int -> IO Int)
---                 , constant "readMVar_int" (readMVar :: MVar Int -> IO Int)
---                 , constant "succ_int"     (succ     :: Int -> Int)
---                 , variable "x"            (Proxy    :: Proxy Int)
---                 , stateVariable
---                 ] :: [Expr (MVar Int) IO]
--- :}
--- > mapM_ print . (!!8) $ enumerate baseTerms
--- succ_int (succ_int (succ_int (succ_int x)))
--- putMVar_int :state: (succ_int (succ_int x))
--- takeMVar_int :state: >> putMVar_int :state: x
--- takeMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- readMVar_int :state: >> putMVar_int :state: x
--- readMVar_int :state: >>= \\x' -> putMVar_int :state: x'
--- putMVar_int :state: x >> takeMVar_int :state:
--- putMVar_int :state: x >> readMVar_int :state:
--- @
 module Test.CoCo.Gen
   ( -- * Generating Terms
     Generator
