@@ -31,8 +31,8 @@ import Test.CoCo.Expr (Term)
 -- combining two schemas will yield the smallest in its new
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
-data Ann s m o x = Ann
-  { allResults :: Maybe (Results s m o x)
+data Ann s o x = Ann
+  { allResults :: Maybe (Results s o x)
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
   -- untested. Only tested terms can be checked for refinement. The
   -- first 'Results' set is the results of executing the term with no
@@ -58,7 +58,7 @@ data Ann s m o x = Ann
   }
   deriving (Eq, Ord, Show)
 
-instance Semigroup (Ann s m o x) where
+instance Semigroup (Ann s o x) where
   ann1 <> ann2 = Ann
     { allResults   = Nothing
     , isBackground = isBackground ann1 && isBackground ann2
@@ -69,8 +69,8 @@ instance Semigroup (Ann s m o x) where
     }
 
 -- | The results of evaluating a schema.
-data Results s m o x
-  = Some [(Term s m, (VarResults o x, VarResults o x))]
+data Results s o x
+  = Some [(Term s, (VarResults o x, VarResults o x))]
   -- ^ The schema has some results, with the given variable
   -- assignments. The left results have no interference. The right
   -- results have some. This is used to disambiguate between
@@ -95,7 +95,7 @@ instance NFData x => NFData (VarAssignment x) where
 type VarResults o x = NonEmpty (VarAssignment x, Set (Maybe Failure, x, o))
 
 -- | The \"default\" annotation.
-initialAnn :: Bool -> Ann s m o x
+initialAnn :: Bool -> Ann s o x
 initialAnn background = Ann
   { allResults   = Nothing
   , isBackground = background
@@ -106,7 +106,7 @@ initialAnn background = Ann
   }
 
 -- | Update an annotation with expression-evaluation results.
-update :: Eq x => Bool -> Results s m o x -> Ann s m o x -> Ann s m o x
+update :: Eq x => Bool -> Results s o x -> Ann s o x -> Ann s o x
 update atomic results ann = ann
   { allResults  = Just results
   , isFailing   = case results of { Some rs -> checkIsFailing rs; None -> isFailing ann }
@@ -115,14 +115,14 @@ update atomic results ann = ann
   }
 
 -- | Check if a set of results corresponds to a failing term.
-checkIsFailing :: [(Term s m, (VarResults o x, VarResults o x))] -> Bool
+checkIsFailing :: [(Term s, (VarResults o x, VarResults o x))] -> Bool
 checkIsFailing results =
   let term_results = map snd results
       is_failing (mf, _, _) = isJust mf
   in all (all (all is_failing . snd) . fst) term_results
 
 -- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> [(Term s m, (VarResults o x, VarResults o x))] -> Bool
+checkIsBoring :: Eq x => Bool -> [(Term s, (VarResults o x, VarResults o x))] -> Bool
 checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) where
   ch (va, rs) = all (\(f, x, _) -> isNothing f && x == seedVal va) rs
 

@@ -38,25 +38,25 @@ import Test.CoCo.Expr
 -- Controlled generation
 
 -- | A generator of expressions.
-data Generator s m ann = Generator { tiers :: IntMap (Set (Schema s m, ann)), sofar :: Int }
+data Generator s ann = Generator { tiers :: IntMap (Set (Schema s, ann)), sofar :: Int }
   deriving (Eq, Ord, Show)
 
 -- | Create a new generator from a collection of basic expressions.
-newGenerator :: (Monoid ann, Ord ann) => [Schema s m] -> Generator s m ann
+newGenerator :: (Monoid ann, Ord ann) => [Schema s] -> Generator s ann
 newGenerator = newGenerator' . map (\e -> (e, mempty))
 
 -- | Like 'newGenerator', but use an explicit default value.
-newGenerator' :: Ord ann => [(Schema s m, ann)] -> Generator s m ann
+newGenerator' :: Ord ann => [(Schema s, ann)] -> Generator s ann
 newGenerator' baseTerms = Generator
   { tiers = merge [M.singleton (exprSize e) (S.singleton s) | s@(e,_) <- baseTerms]
   , sofar = 0
   }
 
 -- | Generate the next tier.
-stepGenerator :: (Semigroup ann, Ord ann, Typeable s, Typeable m)
-  => (ann -> ann -> Schema s m -> Bool)
+stepGenerator :: (Semigroup ann, Ord ann, Typeable s)
+  => (ann -> ann -> Schema s -> Bool)
   -- ^ Annotation of first expr, annotation of second expr, combined expr.
-  -> Generator s m ann -> Generator s m ann
+  -> Generator s ann -> Generator s ann
 stepGenerator check g = Generator newTiers (sofar g + 1) where
   newTiers = merge
     [ tiers g
@@ -94,7 +94,7 @@ stepGenerator check g = Generator newTiers (sofar g + 1) where
   powerset = filterM (const [False,True])
 
 -- | Get the terms of a given size.
-getTier :: Int -> Generator s m ann -> Set (Schema s m, ann)
+getTier :: Int -> Generator s ann -> Set (Schema s, ann)
 getTier tier = M.findWithDefault S.empty tier . tiers
 
 -- | Apply a function to every expression in a tier.
@@ -103,11 +103,11 @@ getTier tier = M.findWithDefault S.empty tier . tiers
 -- larger or smaller! 'stepGenerator' assumes that every expression in
 -- a tier is of the correct size, and it WILL NOT behave properly if
 -- this invariant is broken!
-mapTier :: Ord ann => ((Schema s m, ann) -> (Schema s m, ann)) -> Int -> Generator s m ann -> Generator s m ann
+mapTier :: Ord ann => ((Schema s, ann) -> (Schema s, ann)) -> Int -> Generator s ann -> Generator s ann
 mapTier = adjustTier . S.map
 
 -- | Filter expressions in a tier.
-filterTier :: ((Schema s m, ann) -> Bool) -> Int -> Generator s m ann -> Generator s m ann
+filterTier :: ((Schema s, ann) -> Bool) -> Int -> Generator s ann -> Generator s ann
 filterTier = adjustTier . S.filter
 
 -- | Apply a function to a tier.
@@ -116,11 +116,11 @@ filterTier = adjustTier . S.filter
 -- larger or smaller! 'stepGenerator' assumes that every expression in
 -- a tier is of the correct size, and it WILL NOT behave properly if
 -- this invariant is broken!
-adjustTier :: (Set (Schema s m, ann) -> Set (Schema s m, ann)) -> Int -> Generator s m ann -> Generator s m ann
+adjustTier :: (Set (Schema s, ann) -> Set (Schema s, ann)) -> Int -> Generator s ann -> Generator s ann
 adjustTier f tier g = g { tiers = M.adjust f tier (tiers g) }
 
 -- | Get the highest size generated so far.
-maxTier :: Generator s m ann -> Int
+maxTier :: Generator s ann -> Int
 maxTier = sofar
 
 

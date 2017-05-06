@@ -30,7 +30,7 @@ fromListLS as = LockStack <$> newMVar as
 toListLS :: MonadConc m => LockStack m a -> m [a]
 toListLS (LockStack v) = readMVar v
 
-sigLS :: Sig (LockStack Concurrency Int) Concurrency [Int] [Int]
+sigLS :: Sig (LockStack Concurrency Int) [Int] [Int]
 sigLS = Sig
   { initialState = fromListLS
   , expressions =
@@ -71,7 +71,7 @@ fromListCAS as = CASStack <$> newCRef as
 toListCAS :: MonadConc m => CASStack m a -> m [a]
 toListCAS (CASStack r) = readCRef r
 
-sigCAS :: Sig (CASStack Concurrency Int) Concurrency [Int] [Int]
+sigCAS :: Sig (CASStack Concurrency Int) [Int] [Int]
 sigCAS = Sig
   { initialState = fromListCAS
   , expressions =

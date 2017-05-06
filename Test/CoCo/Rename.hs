@@ -28,7 +28,7 @@ data These a b
 type Projection = [(These String String, TypeRep)]
 
 -- | Find all type-correct ways of associating environment variables.
-projections :: Expr s1 m1 h1 -> Expr s2 m2 h2 -> [Projection]
+projections :: Expr s1 h1 -> Expr s2 h2 -> [Projection]
 projections e1 e2 = projectionsFromEnv (environment e1) (environment e2)
 
 -- | Like 'projections' but takes the lists of environment variables
@@ -60,7 +60,7 @@ renaming varf = go [] ([], []) where
     These vL vR -> go ((name, n):e) ((vL, name'):l, (vR, name'):r)
 
 -- | Find all consistent renamings of a pair of expressions.
-renamings :: (TypeRep -> Char) -> Expr s1 m1 h1 -> Expr s2 m2 h2 -> [([(String, String)], [(String, String)])]
+renamings :: (TypeRep -> Char) -> Expr s1 h1 -> Expr s2 h2 -> [([(String, String)], [(String, String)])]
 renamings varf t1 t2 = map (renaming varf) (projections t1 t2)
 
 -- | Check if one projection is more general than another (this is a

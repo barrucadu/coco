@@ -34,7 +34,6 @@ import Test.CoCo.Util
 import Test.CoCo.Logic
 import Test.CoCo.Eval (runSingle)
 import Test.CoCo.Sig (Sig(..), complete)
-import Test.CoCo.Monad (Concurrency)
 
 -- | Attempt to discover properties of the given set of concurrent
 -- operations. Returns three sets of observations about, respectively:
@@ -46,9 +45,9 @@ discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, 
   -> [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover properties which
   -- only hold with certain seeds.
-  -> Sig s1 Concurrency o x
+  -> Sig s1 o x
   -- ^ A collection of expressions
-  -> Sig s2 Concurrency o x
+  -> Sig s2 o x
   -- ^ Another collection of expressions.
   -> Int
   -- ^ Term size limit
@@ -64,8 +63,8 @@ discover typeInfos seedPreds sig1 sig2 =
 discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeable s2)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Sig s1 Concurrency o x
-  -> Sig s2 Concurrency o x
+  -> Sig s1 o x
+  -> Sig s2 o x
   -> [x]
   -> Int
   -> ([Observation], [Observation], [Observation])
@@ -94,7 +93,7 @@ discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim =
 discoverSingle :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s, T.Typeable x)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Sig s Concurrency o x
+  -> Sig s o x
   -> Int
   -> [Observation]
 discoverSingle typeInfos seedPreds sig =
@@ -108,7 +107,7 @@ discoverSingle typeInfos seedPreds sig =
 discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Sig s Concurrency o x
+  -> Sig s o x
   -> [x]
   -> Int
   -> [Observation]
@@ -119,10 +118,10 @@ discoverSingleWithSeeds typeInfos seedPreds sig seeds =
 discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   => [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
-  -> Sig s Concurrency o x
+  -> Sig s o x
   -> [x]
   -> Int
-  -> (Generator s Concurrency (Maybe (Ann s Concurrency o x), Ann s Concurrency o x), [Observation])
+  -> (Generator s (Maybe (Ann s o x), Ann s o x), [Observation])
 discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
     let sigc = complete sig
         g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           sigc] ++
@@ -166,7 +165,7 @@ discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
         pure (atomic, no_interference, interference)
 
     -- evaluate a term with optional interference
-    run :: Bool -> Term s Concurrency -> Maybe (Bool, VarResults o x)
+    run :: Bool -> Term s -> Maybe (Bool, VarResults o x)
     run interference term =
       runSingle typeInfos
                 (initialState sig)
@@ -181,9 +180,9 @@ discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
 
 -- | Get the results of a more specific term from a more general one
 getResultsFrom
-  :: Term s m       -- ^ The general term.
+  :: Term s         -- ^ The general term.
   -> VarResults o x -- ^ Its results.
-  -> Term s m       -- ^ The specific term.
+  -> Term s         -- ^ The specific term.
   -> Maybe (VarResults o x)
 getResultsFrom generic results specific = case findInstance generic specific of
     Just nameMap -> L.nonEmpty $ mapMaybe (juggleVariables nameMap) (toList results)
@@ -209,7 +208,7 @@ getResultsFrom generic results specific = case findInstance generic specific of
 
 -- | Filter for term generation: only generate out of non-boring
 -- terms; and only generate binds out of smallest terms.
-checkNewTerm :: (a, Ann s m o x) -> (a, Ann s m o x) -> Schema s m -> Bool
+checkNewTerm :: (a, Ann s o x) -> (a, Ann s o x) -> Schema s -> Bool
 checkNewTerm (_, ann1) (_, ann2) expr
   | isBoring ann1 || isBoring ann2 = False
   | otherwise = case unBind expr of

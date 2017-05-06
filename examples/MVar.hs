@@ -5,7 +5,7 @@ import Control.Monad
 
 import Test.CoCo
 
-sig :: Sig (MVar Concurrency Int) Concurrency (Maybe Int) (Maybe Int)
+sig :: Sig (MVar Concurrency Int) (Maybe Int) (Maybe Int)
 sig = Sig
   { initialState = maybe newEmptyMVar newMVar
   , expressions =

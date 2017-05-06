@@ -26,8 +26,8 @@ import Test.CoCo.Util (ChurchList, cappend, cnil, csnoc, discardLater)
 
 -- | Observations about pairs of terms.
 data Observation where
-  Equiv   :: (Typeable s1, Typeable s2, Typeable m) => Term s1 m -> Term s2 m -> Observation
-  Refines :: (Typeable s1, Typeable s2, Typeable m) => Term s1 m -> Term s2 m -> Observation
+  Equiv   :: (Typeable s1, Typeable s2) => Term s1 -> Term s2 -> Observation
+  Refines :: (Typeable s1, Typeable s2) => Term s1 -> Term s2 -> Observation
   Implied :: String -> Observation -> Observation
 
 instance Eq Observation where
@@ -40,7 +40,7 @@ instance Eq Observation where
 -- ** Discovery
 
 -- | Find observations and either annotate a schema or throw it away.
-observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
+observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typeable s2)
   => [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover observations which only hold with certain
   -- seeds.
@@ -49,11 +49,11 @@ observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typ
   -> (schema1 -> schema2 -> Bool)
   -- ^ Some predicate on schemas: if the right schema refines the left schema, normally the left is
   -- marked as \"not the smallest\" UNLESS this predicate holds.
-  -> f1 (f2 (schema1, (Maybe (Ann s1 m o x), Ann s1 m o x)))
+  -> f1 (f2 (schema1, (Maybe (Ann s1 o x), Ann s1 o x)))
   -- ^ First set of schemas. Observations are made between schemas of the two sets.
-  -> f3 (schema2, (Maybe (Ann s2 m o x), Ann s2 m o x))
+  -> f3 (schema2, (Maybe (Ann s2 o x), Ann s2 o x))
   -- ^ Second set of schemas.
-  -> (ChurchList (schema2, (Maybe (Ann s2 m o x), Ann s2 m o x)), ChurchList Observation)
+  -> (ChurchList (schema2, (Maybe (Ann s2 o x), Ann s2 o x)), ChurchList Observation)
 observe preconditions varf p smallers = foldl' go (cnil, cnil) where
   go (ckept, cobs) z@(schema_a, a0@(old_ann_a, ann_a))
       | isBackground ann_a = (csnoc ckept z, cobs)
@@ -79,11 +79,11 @@ observe preconditions varf p smallers = foldl' go (cnil, cnil) where
         | otherwise = acc
 
 -- | Helper for 'observations': all interestingly-distinct observations for a pair of schemas.
-allObservations :: (Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
+allObservations :: (Eq x, Ord o, Typeable s1, Typeable s2)
   => [(String, x -> Bool)]
   -> (TypeRep -> Char)
-  -> (Maybe (Ann s1 m o x), Ann s1 m o x)
-  -> (Maybe (Ann s2 m o x), Ann s2 m o x)
+  -> (Maybe (Ann s1 o x), Ann s1 o x)
+  -> (Maybe (Ann s2 o x), Ann s2 o x)
   -> [(Bool, Bool, Maybe Observation)]
 allObservations preconditions varf (old_ann_a, ann_a) (old_ann_b, ann_b) =
   (makeConditionalObservations . keepWeakestPreconditions)
@@ -105,16 +105,16 @@ allObservations preconditions varf (old_ann_a, ann_a) (old_ann_b, ann_b) =
 
 -- | Helper for 'allObservations': construct an appropriate 'Observation' given the results of
 -- execution.
-makeObservation :: (Eq x, Ord o, Typeable s1, Typeable s2, Typeable m)
+makeObservation :: (Eq x, Ord o, Typeable s1, Typeable s2)
   => (x -> Bool) -- ^ The predicate on the seed value.
-  -> (Term s1 m, (VarResults o x, VarResults o x)) -- ^ The left expression and results.
-  -> (Term s2 m, (VarResults o x, VarResults o x)) -- ^ The right expression and results.
+  -> (Term s1, (VarResults o x, VarResults o x)) -- ^ The left expression and results.
+  -> (Term s2, (VarResults o x, VarResults o x)) -- ^ The right expression and results.
   -> [(String, String)] -- ^ A projection of the variable names in the left term into a consistent namespace.
   -> [(String, String)] -- ^ A projection of the variable names in the right term into a consistent namespace.
-  -> Maybe (Ann s1 m o x) -- ^ The old left annotation.
-  -> Ann s1 m o x -- ^ The current left annotation.
-  -> Maybe (Ann s2 m o x) -- ^ The old right annotation.
-  -> Ann s2 m o x -- ^ The current right annotation.
+  -> Maybe (Ann s1 o x) -- ^ The old left annotation.
+  -> Ann s1 o x -- ^ The current left annotation.
+  -> Maybe (Ann s2 o x) -- ^ The old right annotation.
+  -> Ann s2 o x -- ^ The current right annotation.
   -> (Bool, Bool, Maybe Observation)
 makeObservation p (term_a, results_a) (term_b, results_b) renaming_a renaming_b old_ann_a ann_a old_ann_b ann_b =
     (refines_ab, refines_ba, obs)

@@ -48,7 +48,7 @@ runSingle :: (Ord x, NFData o, NFData x, Ord o, T.Typeable s)
   -- ^ Convert the state back to the seed.
   -> [x]
   -- ^ The seed values to use.
-  -> Term s Concurrency
+  -> Term s
   -- ^ The term to evaluate.  This must have a monadic result type.
   -> Maybe (Bool, VarResults o x)
 runSingle typeInfos mkstate interfere observe unstate seeds expr
@@ -104,7 +104,7 @@ varassigns :: forall s x. T.Typeable s
   -- type!
   -> [x]
   -- ^ The seed values to use.
-  -> Term s Concurrency
+  -> Term s
   -- ^ The term to evaluate.  This must have a result in the monad.
   -> [(VarAssignment x, s -> Maybe (Concurrency ()))]
 varassigns typeInfos seeds term =
@@ -122,12 +122,12 @@ varassigns typeInfos seeds term =
 
     vars = ordNubOn fst (map (second enumerateValues) (environment term))
 
-    evoid :: Term s Concurrency -> Maybe (Term s Concurrency)
+    evoid :: Term s -> Maybe (Term s)
     evoid e = bind [] e (lit "" (pure () :: Concurrency ()))
 
     enumerateValues = getTypeValues typeInfos
 
-    eval :: (Term s Concurrency -> [(String, Dynamic)] -> Maybe (s -> Maybe (Concurrency ())))
+    eval :: (Term s -> [(String, Dynamic)] -> Maybe (s -> Maybe (Concurrency ())))
     eval = evaluate
 
 -- | Number of variants of a value to consider.
