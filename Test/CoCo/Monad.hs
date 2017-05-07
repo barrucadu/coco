@@ -18,14 +18,14 @@ module Test.CoCo.Monad
   , runSCT'
   ) where
 
-import Control.Monad.Conc.Class (MonadConc(..))
-import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
-import qualified Test.DejaFu as D
-import qualified Test.DejaFu.Conc as D
-import qualified Test.DejaFu.SCT as D
-import Data.Proxy (Proxy(..))
-import System.IO.Unsafe (unsafePerformIO)
-import Control.DeepSeq (NFData)
+import           Control.DeepSeq          (NFData)
+import           Control.Monad.Catch      (MonadCatch, MonadMask, MonadThrow)
+import           Control.Monad.Conc.Class (MonadConc(..))
+import           Data.Proxy               (Proxy(..))
+import           System.IO.Unsafe         (unsafePerformIO)
+import qualified Test.DejaFu              as D
+import qualified Test.DejaFu.Conc         as D
+import qualified Test.DejaFu.SCT          as D
 
 -- | The concurrency monad.
 newtype Concurrency a = Concurrency { toConcIO :: D.ConcIO a }

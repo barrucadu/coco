@@ -39,11 +39,11 @@ module Test.CoCo.Type
   , innerTy
   ) where
 
-import Data.Function (on)
-import Data.Proxy (Proxy(..))
-import Data.Typeable
-import GHC.Base (Any)
-import Unsafe.Coerce (unsafeCoerce)
+import           Data.Function (on)
+import           Data.Proxy    (Proxy(..))
+import           Data.Typeable
+import           GHC.Base      (Any)
+import           Unsafe.Coerce (unsafeCoerce)
 
 -------------------------------------------------------------------------------
 -- Dynamic

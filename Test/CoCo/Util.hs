@@ -11,10 +11,10 @@
 -- Utility functions.
 module Test.CoCo.Util where
 
-import Data.Maybe (fromJust, isJust)
-import Data.Set (Set)
-import qualified Data.Set as S
-import Language.Haskell.TH.Syntax (Type(AppT))
+import           Data.Maybe                 (fromJust, isJust)
+import           Data.Set                   (Set)
+import qualified Data.Set                   as S
+import           Language.Haskell.TH.Syntax (Type(AppT))
 
 -- | Remove duplicates from a list efficiently.
 ordNub :: Ord a => [a] -> [a]

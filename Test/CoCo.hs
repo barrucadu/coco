@@ -32,18 +32,18 @@ module Test.CoCo
   , prettyPrint
   ) where
 
-import Control.Monad (void)
-import Control.Monad.Conc.Class (spawn, readMVar)
-import Data.List (sortOn)
-import Data.Typeable (TypeRep)
+import           Control.Monad            (void)
+import           Control.Monad.Conc.Class (readMVar, spawn)
+import           Data.List                (sortOn)
+import           Data.Typeable            (TypeRep)
 
-import qualified Test.CoCo.Sig as S
-import qualified Test.CoCo.Discover as D
-import qualified Test.CoCo.Expr as E
-import qualified Test.CoCo.Logic as L
-import qualified Test.CoCo.Monad as M
-import qualified Test.CoCo.Type as T
-import qualified Test.CoCo.TypeInfo as T
+import qualified Test.CoCo.Discover       as D
+import qualified Test.CoCo.Expr           as E
+import qualified Test.CoCo.Logic          as L
+import qualified Test.CoCo.Monad          as M
+import qualified Test.CoCo.Sig            as S
+import qualified Test.CoCo.Type           as T
+import qualified Test.CoCo.TypeInfo       as T
 
 -- | Concurrent composition. Waits for both component computations to
 -- finish.

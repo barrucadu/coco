@@ -12,15 +12,15 @@
 -- Information about types.
 module Test.CoCo.TypeInfo where
 
-import Control.Monad (forM)
-import Data.Char (isAlpha, toLower)
-import Data.Proxy (Proxy(..))
-import qualified Data.Typeable as T
-import Language.Haskell.TH.Syntax (Exp(..), Type(..))
-import Test.LeanCheck (Listable, list)
+import           Control.Monad              (forM)
+import           Data.Char                  (isAlpha, toLower)
+import           Data.Proxy                 (Proxy(..))
+import qualified Data.Typeable              as T
+import           Language.Haskell.TH.Syntax (Exp(..), Type(..))
+import           Test.LeanCheck             (Listable, list)
 
-import Test.CoCo.Type (Dynamic, unsafeToDyn)
-import Test.CoCo.Util
+import           Test.CoCo.Type             (Dynamic, unsafeToDyn)
+import           Test.CoCo.Util
 
 -- | Information about a type.
 data TypeInfo = TypeInfo

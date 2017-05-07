@@ -22,16 +22,16 @@ module Test.CoCo.Gen
   , maxTier
   ) where
 
-import Control.Monad (filterM)
-import Data.IntMap.Strict (IntMap)
+import           Control.Monad      (filterM)
+import           Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
-import Data.Maybe (maybeToList)
-import Data.Semigroup (Semigroup, (<>))
-import Data.Set (Set)
-import qualified Data.Set as S
-import Data.Typeable (Typeable)
+import           Data.Maybe         (maybeToList)
+import           Data.Semigroup     (Semigroup, (<>))
+import           Data.Set           (Set)
+import qualified Data.Set           as S
+import           Data.Typeable      (Typeable)
 
-import Test.CoCo.Expr
+import           Test.CoCo.Expr
 
 
 -------------------------------------------------------------------------------

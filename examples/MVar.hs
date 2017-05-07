@@ -1,9 +1,9 @@
 module Main where
 
-import Control.Concurrent.Classy
-import Control.Monad
+import           Control.Concurrent.Classy
+import           Control.Monad
 
-import Test.CoCo
+import           Test.CoCo
 
 sig :: Sig (MVar Concurrency Int) (Maybe Int) (Maybe Int)
 sig = Sig

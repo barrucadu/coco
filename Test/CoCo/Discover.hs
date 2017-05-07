@@ -14,26 +14,28 @@
 -- concurrent functions.
 module Test.CoCo.Discover where
 
-import Control.Arrow (first, second)
-import Control.DeepSeq (NFData)
-import Data.Function (on)
-import Data.Foldable (toList)
+import           Control.Arrow      (first, second)
+import           Control.DeepSeq    (NFData)
+import           Data.Foldable      (toList)
+import           Data.Function      (on)
 import qualified Data.List.NonEmpty as L
-import qualified Data.Map.Strict as M
-import Data.Maybe (fromJust, mapMaybe)
-import Data.Proxy (Proxy(..))
-import qualified Data.Set as S
-import qualified Data.Typeable as T
+import qualified Data.Map.Strict    as M
+import           Data.Maybe         (fromJust, mapMaybe)
+import           Data.Proxy         (Proxy(..))
+import qualified Data.Set           as S
+import qualified Data.Typeable      as T
 
-import Test.CoCo.Ann
-import Test.CoCo.Expr (Schema, Term, allTerms, findInstance, exprTypeRep, environment, unBind)
-import Test.CoCo.Gen (Generator, newGenerator', stepGenerator, getTier, adjustTier)
-import Test.CoCo.Type (fromDyn)
-import Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
-import Test.CoCo.Util
-import Test.CoCo.Logic
-import Test.CoCo.Eval (runSingle)
-import Test.CoCo.Sig (Sig(..), complete)
+import           Test.CoCo.Ann
+import           Test.CoCo.Eval     (runSingle)
+import           Test.CoCo.Expr     (Schema, Term, allTerms, environment,
+                                     exprTypeRep, findInstance, unBind)
+import           Test.CoCo.Gen      (Generator, adjustTier, getTier,
+                                     newGenerator', stepGenerator)
+import           Test.CoCo.Logic
+import           Test.CoCo.Sig      (Sig(..), complete)
+import           Test.CoCo.Type     (fromDyn)
+import           Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
+import           Test.CoCo.Util
 
 -- | Attempt to discover properties of the given set of concurrent
 -- operations. Returns three sets of observations about, respectively:

@@ -9,12 +9,12 @@
 -- Expression signatures for property discovery.
 module Test.CoCo.Sig where
 
-import Data.List (nub)
-import Data.Typeable (Typeable, TypeRep)
+import           Data.List       (nub)
+import           Data.Typeable   (TypeRep, Typeable)
 
-import Test.CoCo.Expr (Schema, holeOf, unLit, stateVar)
-import Test.CoCo.Type (dynTypeRep, funTys)
-import Test.CoCo.Monad (Concurrency)
+import           Test.CoCo.Expr  (Schema, holeOf, stateVar, unLit)
+import           Test.CoCo.Monad (Concurrency)
+import           Test.CoCo.Type  (dynTypeRep, funTys)
 
 -- | A collection of expressions.
 data Sig s o x = Sig

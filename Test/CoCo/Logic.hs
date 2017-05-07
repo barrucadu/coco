@@ -11,15 +11,17 @@
 -- Observations and stuff about them.
 module Test.CoCo.Logic where
 
-import Control.Arrow (second)
-import Data.List (foldl', sortOn)
-import Data.Maybe (isJust, isNothing)
-import Data.Typeable (Typeable, TypeRep)
+import           Control.Arrow    (second)
+import           Data.List        (foldl', sortOn)
+import           Data.Maybe       (isJust, isNothing)
+import           Data.Typeable    (TypeRep, Typeable)
 
-import Test.CoCo.Ann (Ann(..), Results(..), VarResults, refines)
-import Test.CoCo.Expr (Term, eq, exprSize, isInstanceOf, rename)
-import Test.CoCo.Rename (Projection, isMoreGeneralThan, projections, renaming)
-import Test.CoCo.Util (ChurchList, cappend, cnil, csnoc, discardLater)
+import           Test.CoCo.Ann    (Ann(..), Results(..), VarResults, refines)
+import           Test.CoCo.Expr   (Term, eq, exprSize, isInstanceOf, rename)
+import           Test.CoCo.Rename (Projection, isMoreGeneralThan, projections,
+                                   renaming)
+import           Test.CoCo.Util   (ChurchList, cappend, cnil, csnoc,
+                                   discardLater)
 
 -------------------------------------------------------------------------------
 -- * Observations about Terms

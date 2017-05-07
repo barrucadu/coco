@@ -11,22 +11,23 @@
 -- Evaluate concurrency terms.
 module Test.CoCo.Eval where
 
-import Control.Arrow ((***), second)
+import           Control.Arrow             (second, (***))
 import qualified Control.Concurrent.Classy as C
-import Control.DeepSeq (NFData, force)
-import qualified Data.List.NonEmpty as L
-import qualified Data.Map.Strict as M
-import Data.Maybe (maybeToList)
-import qualified Data.Set as S
-import qualified Data.Typeable as T
-import Test.DejaFu.Common (ThreadAction(..))
+import           Control.DeepSeq           (NFData, force)
+import qualified Data.List.NonEmpty        as L
+import qualified Data.Map.Strict           as M
+import           Data.Maybe                (maybeToList)
+import qualified Data.Set                  as S
+import qualified Data.Typeable             as T
+import           Test.DejaFu.Common        (ThreadAction(..))
 
-import Test.CoCo.Ann
-import Test.CoCo.Expr (Term, bind, lit, environment, evaluate)
-import Test.CoCo.Type (Dynamic)
-import Test.CoCo.TypeInfo (TypeInfo(..), getTypeValues)
-import Test.CoCo.Util
-import Test.CoCo.Monad
+import           Test.CoCo.Ann
+import           Test.CoCo.Expr            (Term, bind, environment, evaluate,
+                                            lit)
+import           Test.CoCo.Monad
+import           Test.CoCo.Type            (Dynamic)
+import           Test.CoCo.TypeInfo        (TypeInfo(..), getTypeValues)
+import           Test.CoCo.Util
 
 -- | Run a concurrent program many times, gathering the results.  Up
 -- to 'numVariants' values of every free variable, including the seed,

@@ -11,19 +11,19 @@
 -- Expression annotations.
 module Test.CoCo.Ann where
 
-import Control.DeepSeq (NFData(..))
-import Data.List (foldl')
-import Data.List.NonEmpty (NonEmpty)
+import           Control.DeepSeq    (NFData(..))
+import           Data.List          (foldl')
+import           Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as L
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as M
-import Data.Maybe (fromMaybe, isJust, isNothing)
-import Data.Semigroup (Semigroup(..))
-import Data.Set (Set)
-import qualified Data.Set as S
-import Test.DejaFu (Failure)
+import           Data.Map.Strict    (Map)
+import qualified Data.Map.Strict    as M
+import           Data.Maybe         (fromMaybe, isJust, isNothing)
+import           Data.Semigroup     (Semigroup(..))
+import           Data.Set           (Set)
+import qualified Data.Set           as S
+import           Test.DejaFu        (Failure)
 
-import Test.CoCo.Expr (Term)
+import           Test.CoCo.Expr     (Term)
 
 -- | An annotation on a schema.
 --

@@ -11,9 +11,9 @@
 -- Functions for projecting expressions into a consistent namespace.
 module Test.CoCo.Rename where
 
-import Data.Typeable (TypeRep)
+import           Data.Typeable  (TypeRep)
 
-import Test.CoCo.Expr (Expr, environment)
+import           Test.CoCo.Expr (Expr, environment)
 
 -- | The @These@ type is like 'Either', but also has the case for when
 -- we have both values.

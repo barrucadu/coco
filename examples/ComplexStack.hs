@@ -1,10 +1,10 @@
 module Main where
 
-import Control.Arrow ((&&&))
-import Control.Concurrent.Classy
-import Data.Maybe (listToMaybe)
+import           Control.Arrow             ((&&&))
+import           Control.Concurrent.Classy
+import           Data.Maybe                (listToMaybe)
 
-import Test.CoCo
+import           Test.CoCo
 
 -------------------------------------------------------------------------------
 -- Lock-based stack

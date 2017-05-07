@@ -57,17 +57,18 @@ module Test.CoCo.Expr
   , pp
   ) where
 
-import Data.Char (isAlphaNum)
-import Data.Function (on)
-import Data.List (groupBy, nub, sortOn)
-import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe, maybeToList)
-import Data.Ord (Down(..))
-import Data.Typeable
-import Data.Void (Void)
+import           Data.Char       (isAlphaNum)
+import           Data.Function   (on)
+import           Data.List       (groupBy, nub, sortOn)
+import           Data.Maybe      (fromJust, fromMaybe, isJust, mapMaybe,
+                                  maybeToList)
+import           Data.Ord        (Down(..))
+import           Data.Typeable
+import           Data.Void       (Void)
 
-import Test.CoCo.Type
-import Test.CoCo.Util
-import Test.CoCo.Monad (Concurrency)
+import           Test.CoCo.Monad (Concurrency)
+import           Test.CoCo.Type
+import           Test.CoCo.Util
 
 -------------------------------------------------------------------------------
 -- Expressions
