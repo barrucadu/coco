@@ -52,6 +52,7 @@ module Test.CoCo.Expr
   , exprSize
   , exprTypeArity
   , exprTypeRep
+  , instantiateTys
   , eq
   , pp
   ) where
@@ -225,13 +226,6 @@ f0 $$ e0 = mkfun =<< exprTypeRep f0 `polyFunResultTy` exprTypeRep e0 where
   mkfun (env, ty) = case f0 of
     Ap _ (Lit True _ _) e | e0 < e -> Nothing
     _ -> Just (Ap ty (instantiateTys env f0) e0)
-
-  instantiateTys env = go where
-    go (Lit b s d) = Lit b s (assignDynTys env d)
-    go (Var ty v) = Var (assignTys env ty) v
-    go (Let ty m is b e) = Let (assignTys env ty) m is (go b) (go e)
-    go (Ap ty f e) = Ap (assignTys env ty) (go f) (go e)
-    go e = e
 
 -- | Bind a monadic value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.
@@ -487,6 +481,16 @@ exprSize :: Expr s h -> Int
 exprSize (Let _ _ _ b e) = 1 + exprSize b + exprSize e
 exprSize (Ap _ f e) = exprSize f + exprSize e
 exprSize _ = 1
+
+-- | Instantiate polymorphic type variables according to a provided
+-- environment.
+instantiateTys :: [(TypeRep, TypeRep)] -> Expr s h -> Expr s h
+instantiateTys env = go where
+ go (Lit b s d) = Lit b s (assignDynTys env d)
+ go (Var ty v) = Var (assignTys env ty) v
+ go (Let ty m is b e) = Let (assignTys env ty) m is (go b) (go e)
+ go (Ap ty f e) = Ap (assignTys env ty) (go f) (go e)
+ go e = e
 
 -- | Check if two expressions are equal, disregarding state and hole
 -- types.

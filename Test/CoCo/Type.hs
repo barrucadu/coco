@@ -35,6 +35,7 @@ module Test.CoCo.Type
   , unsafeWrapFunctorDyn
   -- * Types
   , funTys
+  , funArgTys
   , typeArity
   , innerTy
   -- ** Polymorphism
@@ -42,6 +43,10 @@ module Test.CoCo.Type
   , B(..)
   , C(..)
   , D(..)
+  , unify
+  , unify'
+  , unifyAccum
+  , unifyList
   , polyFunResultTy
   , assignTys
   , assignDynTys
@@ -148,41 +153,65 @@ data C = C
 data D = D
   deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
 
+-- | Attempt to unify two types.
+unify :: TypeRep -> TypeRep -> Maybe [(TypeRep, TypeRep)]
+unify = unify' True
+
+-- | Attempt to unify two types.
+unify'
+  :: Bool
+  -- ^ Whether to allow either type to be a naked type variable at
+  -- this level (always true in lower levels).
+  -> TypeRep -> TypeRep -> Maybe [(TypeRep, TypeRep)]
+unify' b tyA tyB
+    -- check equality
+    | tyA == tyB = Just []
+    -- check if one is a naked type variable
+    | tyA `elem` tyvars = if not b || occurs tyA tyB then Nothing else Just [(tyA, tyB)]
+    | tyB `elem` tyvars = if not b || occurs tyB tyA then Nothing else Just [(tyB, tyA)]
+    -- deconstruct each and attempt to unify subcomponents
+    | otherwise =
+      let (conA, argsA) = splitTyConApp tyA
+          (conB, argsB) = splitTyConApp tyB
+      in if conA == conB && length argsA == length argsB
+         then unifyAccum True argsA argsB
+         else Nothing
+  where
+    -- check if a type occurs in another
+    occurs needle haystack = needle == haystack || any (occurs needle) (snd (splitTyConApp haystack))
+
+-- | An accumulating unify: attempts to unify two lists of types
+-- pairwise and checks that the resulting assignments do not conflict
+-- with the current type environment.
+unifyAccum :: Bool -> [TypeRep] -> [TypeRep] -> Maybe [(TypeRep, TypeRep)]
+unifyAccum b as bs = foldr go (Just []) (zip as bs) where
+  go (tyA, tyB) (Just env) = do
+    assignments <- unify' b tyA tyB
+    let env' = nub (env ++ assignments)
+    guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
+    pure env'
+  go _ Nothing = Nothing
+
+-- | A listy unify: attempts to unify one type against every member of
+-- a list of types, and checks that the successful assignments do not
+-- conflict with the current type environment.
+unifyList :: Bool -> TypeRep -> [TypeRep] -> Maybe [(TypeRep, TypeRep)]
+unifyList b ty0 = foldr go (Just []) where
+  go ty (Just env) = do
+    let assignments = fromMaybe [] (unify' b ty0 ty)
+    let env' = nub (env ++ assignments)
+    guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
+    pure env'
+  go _ Nothing = Nothing
+
 -- | Applies a type to a given function type, if the types match. This
 -- performs unification if the @A@, @B@, @C@, or @D@ types are
 -- involved.
 polyFunResultTy :: TypeRep -> TypeRep -> Maybe ([(TypeRep, TypeRep)], TypeRep)
 polyFunResultTy fty aty = do
-    (argTy, resultTy) <- funTys fty
-    assignments       <- unify aty argTy
-    pure (assignments, assignTys assignments resultTy)
-  where
-    unify tyA tyB
-      -- check equality
-      | tyA == tyB = Just []
-      -- check if one is a naked type variable
-      | tyA `elem` tyvars = if occurs tyA tyB then Nothing else Just [(tyA, tyB)]
-      | tyB `elem` tyvars = if occurs tyB tyA then Nothing else Just [(tyB, tyA)]
-      -- deconstruct each and attempt to unify subcomponents
-      | otherwise =
-        let (conA, argsA) = splitTyConApp tyA
-            (conB, argsB) = splitTyConApp tyB
-        in if conA == conB && length argsA == length argsB
-           then foldr unifyAccum (Just []) (zip argsA argsB)
-           else Nothing
-
-    -- an accumulatng unify: attempts to unify two types and checks
-    -- that the resulting assignments do not conflict with the current
-    -- type environment
-    unifyAccum (tyA, tyB) (Just env) = do
-      assignments <- unify tyA tyB
-      let env' = nub (env ++ assignments)
-      guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
-      pure env'
-    unifyAccum _ Nothing = Nothing
-
-    -- check if a type occurs in another
-    occurs needle haystack = needle == haystack || any (occurs needle) (snd (splitTyConApp haystack))
+  (argTy, resultTy) <- funTys fty
+  assignments       <- unify aty argTy
+  pure (assignments, assignTys assignments resultTy)
 
 -- | Assign type variables in a type
 assignTys :: [(TypeRep, TypeRep)] -> TypeRep -> TypeRep
@@ -220,6 +249,17 @@ funTys :: TypeRep -> Maybe (TypeRep, TypeRep)
 funTys ty = case splitTyConApp ty of
   (con, [argTy, resultTy]) | con == funTyCon -> Just (argTy, resultTy)
   _ -> Nothing
+
+-- | Like 'funTys', but returns the list of all arguments and the
+-- final result.
+funArgTys :: TypeRep -> Maybe ([TypeRep], TypeRep)
+funArgTys ty = case funTys ty of
+    Just (argTy, resultTy) -> Just (go [argTy] resultTy)
+    Nothing -> Nothing
+  where
+    go argTys resultTy = case funTys resultTy of
+      Just (argTy, resultTy') -> go (argTy:argTys) resultTy'
+      Nothing -> (reverse argTys, resultTy)
 
 -- | The function arrow.
 funTyCon :: TyCon

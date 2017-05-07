@@ -34,15 +34,15 @@ sigLS :: Sig (LockStack Concurrency Int) [Int] [Int]
 sigLS = Sig
   { initialState = fromListLS
   , expressions =
-    [ lit "pushLS"  (pushLS  :: Int -> LockStack Concurrency Int -> Concurrency ())
-    , lit "push2LS" (push2LS :: Int -> Int -> LockStack Concurrency Int -> Concurrency ())
-    , lit "popLS"   (popLS   :: LockStack Concurrency Int -> Concurrency (Maybe Int))
-    , lit "peekLS"  (peekLS  :: LockStack Concurrency Int -> Concurrency (Maybe Int))
+    [ lit "pushLS"  (pushLS  :: A -> LockStack Concurrency A -> Concurrency ())
+    , lit "push2LS" (push2LS :: A -> A -> LockStack Concurrency A -> Concurrency ())
+    , lit "popLS"   (popLS   :: LockStack Concurrency A -> Concurrency (Maybe A))
+    , lit "peekLS"  (peekLS  :: LockStack Concurrency A -> Concurrency (Maybe A))
     ]
   , backgroundExpressions =
-    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack Concurrency Int -> Concurrency ())
-                                                        -> LockStack Concurrency Int
-                                                        -> Maybe Int
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (A -> LockStack Concurrency A -> Concurrency ())
+                                                        -> LockStack Concurrency A
+                                                        -> Maybe A
                                                         -> Concurrency ())
     , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
@@ -75,14 +75,14 @@ sigCAS :: Sig (CASStack Concurrency Int) [Int] [Int]
 sigCAS = Sig
   { initialState = fromListCAS
   , expressions =
-    [ lit "pushCAS"  (pushCAS  :: Int -> CASStack Concurrency Int -> Concurrency ())
-    , lit "popCAS"   (popCAS   :: CASStack Concurrency Int -> Concurrency (Maybe Int))
-    , lit "peekCAS"  (peekCAS  :: CASStack Concurrency Int -> Concurrency (Maybe Int))
+    [ lit "pushCAS"  (pushCAS  :: A -> CASStack Concurrency A -> Concurrency ())
+    , lit "popCAS"   (popCAS   :: CASStack Concurrency A -> Concurrency (Maybe A))
+    , lit "peekCAS"  (peekCAS  :: CASStack Concurrency A -> Concurrency (Maybe A))
     ]
   , backgroundExpressions =
-    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack Concurrency Int -> Concurrency ())
-                                                        -> CASStack Concurrency Int
-                                                        -> Maybe Int
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (A -> CASStack Concurrency A -> Concurrency ())
+                                                        -> CASStack Concurrency A
+                                                        -> Maybe A
                                                         -> Concurrency ())
     , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
