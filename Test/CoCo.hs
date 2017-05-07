@@ -23,8 +23,6 @@ module Test.CoCo
   , E.lit
   , E.commLit
   , E.showLit
-  , E.hole
-  , E.stateVar
     -- * Types
   , T.TypeInfo(..)
   , T.defaultTypeInfos
