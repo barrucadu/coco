@@ -14,6 +14,7 @@ module Test.CoCo
   , D.discover
   , D.discoverSingle
     -- * Signatures
+  , M.Concurrency
   , S.Sig(..)
   , E.Ignore(..)
   , E.lit
@@ -27,31 +28,26 @@ module Test.CoCo
   , T.makeTypeInfo
   , T.toDyn
     -- * Miscellaneous
-  , ConcST
-  , Proxy(..)
-  , runST
   , (|||)
   , prettyPrint
   ) where
 
 import Control.Monad (void)
 import Control.Monad.Conc.Class (spawn, readMVar)
-import Control.Monad.ST (runST)
 import Data.List (sortOn)
-import Data.Proxy (Proxy(..))
 import Data.Typeable (TypeRep)
-import Test.DejaFu.Conc (ConcST)
 
 import qualified Test.CoCo.Sig as S
 import qualified Test.CoCo.Discover as D
 import qualified Test.CoCo.Expr as E
 import qualified Test.CoCo.Logic as L
+import qualified Test.CoCo.Monad as M
 import qualified Test.CoCo.Type as T
 import qualified Test.CoCo.TypeInfo as T
 
 -- | Concurrent composition. Waits for both component computations to
 -- finish.
-(|||) :: ConcST t a -> ConcST t b -> ConcST t ()
+(|||) :: M.Concurrency a -> M.Concurrency b -> M.Concurrency ()
 a ||| b = do
   j <- spawn a
   void b

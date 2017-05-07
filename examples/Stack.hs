@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Control.Arrow ((&&&))
@@ -31,21 +30,21 @@ fromListLS as = LockStack <$> newMVar as
 toListLS :: MonadConc m => LockStack m a -> m [a]
 toListLS (LockStack v) = readMVar v
 
-sigLS :: forall t. Sig (LockStack (ConcST t) Int) (ConcST t) [Int] [Int]
+sigLS :: Sig (LockStack Concurrency Int) [Int] [Int]
 sigLS = Sig
   { initialState = fromListLS
   , expressions =
-    [ lit "pushLS"  (pushLS  :: Int -> LockStack (ConcST t) Int -> ConcST t ())
-    , lit "push2LS" (push2LS :: Int -> Int -> LockStack (ConcST t) Int -> ConcST t ())
-    , lit "popLS"   (popLS   :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , lit "peekLS"  (peekLS  :: LockStack (ConcST t) Int -> ConcST t (Maybe Int))
+    [ lit "pushLS"  (pushLS  :: Int -> LockStack Concurrency Int -> Concurrency ())
+    , lit "push2LS" (push2LS :: Int -> Int -> LockStack Concurrency Int -> Concurrency ())
+    , lit "popLS"   (popLS   :: LockStack Concurrency Int -> Concurrency (Maybe Int))
+    , lit "peekLS"  (peekLS  :: LockStack Concurrency Int -> Concurrency (Maybe Int))
     ]
   , backgroundExpressions =
-    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack (ConcST t) Int -> ConcST t ())
-                                                        -> LockStack (ConcST t) Int
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> LockStack Concurrency Int -> Concurrency ())
+                                                        -> LockStack Concurrency Int
                                                         -> Maybe Int
-                                                        -> ConcST t ())
-    , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+                                                        -> Concurrency ())
+    , commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ())
     ]
   , observation = const . toListLS
   , backToSeed = const . toListLS
@@ -72,20 +71,20 @@ fromListCAS as = CASStack <$> newCRef as
 toListCAS :: MonadConc m => CASStack m a -> m [a]
 toListCAS (CASStack r) = readCRef r
 
-sigCAS :: forall t. Sig (CASStack (ConcST t) Int) (ConcST t) [Int] [Int]
+sigCAS :: Sig (CASStack Concurrency Int) [Int] [Int]
 sigCAS = Sig
   { initialState = fromListCAS
   , expressions =
-    [ lit "pushCAS"  (pushCAS  :: Int -> CASStack (ConcST t) Int -> ConcST t ())
-    , lit "popCAS"   (popCAS   :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
-    , lit "peekCAS"  (peekCAS  :: CASStack (ConcST t) Int -> ConcST t (Maybe Int))
+    [ lit "pushCAS"  (pushCAS  :: Int -> CASStack Concurrency Int -> Concurrency ())
+    , lit "popCAS"   (popCAS   :: CASStack Concurrency Int -> Concurrency (Maybe Int))
+    , lit "peekCAS"  (peekCAS  :: CASStack Concurrency Int -> Concurrency (Maybe Int))
     ]
   , backgroundExpressions =
-    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack (ConcST t) Int -> ConcST t ())
-                                                        -> CASStack (ConcST t) Int
+    [ lit "whenJust" ((\f s -> maybe (pure ()) (`f` s)) :: (Int -> CASStack Concurrency Int -> Concurrency ())
+                                                        -> CASStack Concurrency Int
                                                         -> Maybe Int
-                                                        -> ConcST t ())
-    , commLit "|||" ((|||) :: ConcST t Ignore -> ConcST t Ignore -> ConcST t ())
+                                                        -> Concurrency ())
+    , commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ())
     ]
   , observation = const . toListCAS
   , backToSeed = const . toListCAS
@@ -100,7 +99,7 @@ seedPreds = []
 
 example :: Int -> IO ()
 example n = do
-  let (obs1, obs2, obs3) = runST $ discover defaultTypeInfos seedPreds sigLS sigCAS n
+  let (obs1, obs2, obs3) = discover defaultTypeInfos seedPreds sigLS sigCAS n
   prettyPrint defaultTypeInfos obs1
   putStrLn ""
   prettyPrint defaultTypeInfos obs2
