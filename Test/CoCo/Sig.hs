@@ -19,7 +19,7 @@ import           Data.Typeable   (TypeRep, Typeable, typeRep)
 import           Test.CoCo.Expr  (Schema, exprTypeRep, holeOf, instantiateTys,
                                   stateVar, unLit)
 import           Test.CoCo.Monad (Concurrency)
-import           Test.CoCo.Type  (dynTypeRep, funArgTys, unifyList)
+import           Test.CoCo.Type  (dynTypeRep, funArgTys, unifyAccum)
 
 -- | A collection of expressions.
 data Sig s o x = Sig
@@ -81,7 +81,7 @@ monomorphiseState sig = sig { expressions = map monomorphise (expressions sig)
   where
     monomorphise e = fromMaybe e $ do
       (argTys, _) <- funArgTys (exprTypeRep e)
-      assignments <- unifyList False stateTy argTys
+      assignments <- unifyAccum False (maybe (Just []) Just) (repeat stateTy) argTys
       pure (instantiateTys assignments e)
 
     stateTy = typeRep (Proxy :: Proxy s)

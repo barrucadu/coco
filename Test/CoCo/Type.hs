@@ -46,7 +46,6 @@ module Test.CoCo.Type
   , unify
   , unify'
   , unifyAccum
-  , unifyList
   , polyFunResultTy
   , assignTys
   , assignDynTys
@@ -177,7 +176,7 @@ unify' b tyA tyB
       let (conA, argsA) = splitTyConApp tyA
           (conB, argsB) = splitTyConApp tyB
       in if conA == conB && length argsA == length argsB
-         then unifyAccum True argsA argsB
+         then unifyAccum True id argsA argsB
          else Nothing
   where
     -- check if a type occurs in another
@@ -186,22 +185,10 @@ unify' b tyA tyB
 -- | An accumulating unify: attempts to unify two lists of types
 -- pairwise and checks that the resulting assignments do not conflict
 -- with the current type environment.
-unifyAccum b as bs = foldr go (Just []) (zip as bs) where
-unifyAccum :: Bool -> [TypeRep] -> [TypeRep] -> Maybe TypeEnv
+unifyAccum :: Bool -> (Maybe TypeEnv -> Maybe TypeEnv) -> [TypeRep] -> [TypeRep] -> Maybe TypeEnv
+unifyAccum b f as bs = foldr go (Just []) (zip as bs) where
   go (tyA, tyB) (Just env) = do
-    assignments <- unify' b tyA tyB
-    let env' = nub (env ++ assignments)
-    guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
-    pure env'
-  go _ Nothing = Nothing
-
--- | A listy unify: attempts to unify one type against every member of
--- a list of types, and checks that the successful assignments do not
--- conflict with the current type environment.
-unifyList :: Bool -> TypeRep -> [TypeRep] -> Maybe [(TypeRep, TypeRep)]
-unifyList b ty0 = foldr go (Just []) where
-  go ty (Just env) = do
-    let assignments = fromMaybe [] (unify' b ty0 ty)
+    assignments <- f (unify' b tyA tyB)
     let env' = nub (env ++ assignments)
     guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
     pure env'
