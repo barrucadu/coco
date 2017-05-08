@@ -153,8 +153,11 @@ data C = C
 data D = D
   deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
 
+-- | An environment of type bindings.
+type TypeEnv = [(TypeRep, TypeRep)]
+
 -- | Attempt to unify two types.
-unify :: TypeRep -> TypeRep -> Maybe [(TypeRep, TypeRep)]
+unify :: TypeRep -> TypeRep -> Maybe TypeEnv
 unify = unify' True
 
 -- | Attempt to unify two types.
@@ -162,7 +165,7 @@ unify'
   :: Bool
   -- ^ Whether to allow either type to be a naked type variable at
   -- this level (always true in lower levels).
-  -> TypeRep -> TypeRep -> Maybe [(TypeRep, TypeRep)]
+  -> TypeRep -> TypeRep -> Maybe TypeEnv
 unify' b tyA tyB
     -- check equality
     | tyA == tyB = Just []
@@ -183,8 +186,8 @@ unify' b tyA tyB
 -- | An accumulating unify: attempts to unify two lists of types
 -- pairwise and checks that the resulting assignments do not conflict
 -- with the current type environment.
-unifyAccum :: Bool -> [TypeRep] -> [TypeRep] -> Maybe [(TypeRep, TypeRep)]
 unifyAccum b as bs = foldr go (Just []) (zip as bs) where
+unifyAccum :: Bool -> [TypeRep] -> [TypeRep] -> Maybe TypeEnv
   go (tyA, tyB) (Just env) = do
     assignments <- unify' b tyA tyB
     let env' = nub (env ++ assignments)
@@ -207,20 +210,20 @@ unifyList b ty0 = foldr go (Just []) where
 -- | Applies a type to a given function type, if the types match. This
 -- performs unification if the @A@, @B@, @C@, or @D@ types are
 -- involved.
-polyFunResultTy :: TypeRep -> TypeRep -> Maybe ([(TypeRep, TypeRep)], TypeRep)
+polyFunResultTy :: TypeRep -> TypeRep -> Maybe (TypeEnv, TypeRep)
 polyFunResultTy fty aty = do
   (argTy, resultTy) <- funTys fty
   assignments       <- unify aty argTy
   pure (assignments, assignTys assignments resultTy)
 
 -- | Assign type variables in a type
-assignTys :: [(TypeRep, TypeRep)] -> TypeRep -> TypeRep
+assignTys :: TypeEnv -> TypeRep -> TypeRep
 assignTys assignments ty
   | ty `elem` tyvars = fromMaybe ty (lookup ty assignments)
   | otherwise = let (con, args) = splitTyConApp ty in mkTyConApp con (map (assignTys assignments) args)
 
 -- | Assign type variables in a dynamic value
-assignDynTys :: [(TypeRep, TypeRep)] -> Dynamic -> Dynamic
+assignDynTys :: TypeEnv -> Dynamic -> Dynamic
 assignDynTys assignments (Dynamic ty x) = Dynamic (assignTys assignments ty) x
 
 -- | Type variables.
