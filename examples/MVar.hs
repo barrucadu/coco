@@ -9,12 +9,12 @@ sig :: Sig (MVar Concurrency Int) (Maybe Int) (Maybe Int)
 sig = Sig
   { initialState = maybe newEmptyMVar newMVar
   , expressions =
-    [ lit "putMVar"  (putMVar  :: MVar Concurrency Int -> Int -> Concurrency ())
-    , lit "takeMVar" (takeMVar :: MVar Concurrency Int -> Concurrency Int)
-    , lit "readMVar" (readMVar :: MVar Concurrency Int -> Concurrency Int)
+    [ lit "putMVar"  (putMVar  :: MVar Concurrency A -> A -> Concurrency ())
+    , lit "takeMVar" (takeMVar :: MVar Concurrency A -> Concurrency A)
+    , lit "readMVar" (readMVar :: MVar Concurrency A -> Concurrency A)
     ]
   , backgroundExpressions =
-    [ commLit "|||" ((|||) :: Concurrency Ignore -> Concurrency Ignore -> Concurrency ()) ]
+    [ commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ()) ]
   , observation = const . tryTakeMVar
   , backToSeed = const . tryTakeMVar
   , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
