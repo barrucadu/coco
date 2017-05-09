@@ -52,10 +52,8 @@ module Test.CoCo.Type
   , tyvars
   ) where
 
-import           Control.Monad (guard)
 import           Data.Function (on)
-import           Data.List     (nub)
-import           Data.Maybe    (fromMaybe)
+import           Data.Maybe    (fromMaybe, isJust)
 import           Data.Proxy    (Proxy(..))
 import           Data.Typeable
 import           GHC.Base      (Any)
@@ -187,11 +185,22 @@ unify' b tyA tyB
 -- with the current type environment.
 unifyAccum :: Bool -> (Maybe TypeEnv -> Maybe TypeEnv) -> [TypeRep] -> [TypeRep] -> Maybe TypeEnv
 unifyAccum b f as bs = foldr go (Just []) (zip as bs) where
-  go (tyA, tyB) (Just env) = do
-    assignments <- f (unify' b tyA tyB)
-    let env' = nub (env ++ assignments)
-    guard $ all (\v -> length (filter ((==v) . fst) env') <= 1) tyvars
-    pure env'
+  go (tyA, tyB) (Just env) =
+    unifyTypeEnvs b env =<< f (unify' b tyA tyB)
+  go _ Nothing = Nothing
+
+-- | Unify two type environments, if possible.
+unifyTypeEnvs :: Bool -> TypeEnv -> TypeEnv -> Maybe TypeEnv
+unifyTypeEnvs b env1 env2 = foldr go (Just []) tyvars where
+  go tyvar acc@(Just env) = case (lookup tyvar env, lookup tyvar env1, lookup tyvar env2) of
+    (_, Just ty1, Just ty2) -> unifyTypeEnvs b env . ((tyvar, ty1):) =<< unify' b ty1 ty2
+    (x, Just ty1, _)
+      | isJust x  -> unifyTypeEnvs b env [(tyvar, ty1)]
+      | otherwise -> Just ((tyvar, ty1):env)
+    (x, _, Just ty2)
+      | isJust x  -> unifyTypeEnvs b env [(tyvar, ty2)]
+      | otherwise -> Just ((tyvar, ty2):env)
+    _ -> acc
   go _ Nothing = Nothing
 
 -- | Applies a type to a given function type, if the types match. This
