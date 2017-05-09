@@ -225,7 +225,7 @@ findInstance eG eS
 f0 $$ e0 = mkfun =<< exprTypeRep f0 `polyFunResultTy` exprTypeRep e0 where
   mkfun (env, ty) = case f0 of
     Ap _ (Lit True _ _) e | e0 < e -> Nothing
-    _ -> Just (Ap ty (instantiateTys env f0) e0)
+    _ -> Just (Ap ty (instantiateTys env f0) (instantiateTys env e0))
 
 -- | Bind a monadic value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.
