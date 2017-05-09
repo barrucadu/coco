@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -39,20 +41,26 @@ module Test.CoCo.Type
   , typeArity
   , innerTy
   -- ** Polymorphism
-  , A(..)
-  , B(..)
-  , C(..)
-  , D(..)
+  -- *** Type variables
+  , TyVar(..)
+  , A
+  , B
+  , C
+  , D
+  , isTyVar
+  -- *** Unification
   , unify
   , unify'
   , unifyAccum
   , polyFunResultTy
+  -- *** Environments
+  , TypeEnv
   , assignTys
   , assignDynTys
-  , tyvars
   ) where
 
 import           Data.Function (on)
+import           Data.List     (nub)
 import           Data.Maybe    (fromMaybe, isJust)
 import           Data.Proxy    (Proxy(..))
 import           Data.Typeable
@@ -134,21 +142,26 @@ unsafeWrapFunctorDyn ty fdyn = Dynamic ty (unsafeCoerce $ fmap anyFromDyn fdyn)
 -------------------------------------------------------------------------------
 -- Types
 
--- | A polymorphic type variable.
-data A = A
-  deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
+-- | A polymorphic type variable.  The parameter uniquely identifies
+-- this variable within a type.
+data TyVar t = TyVar
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -- | A polymorphic type variable.
-data B = B
-  deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
+type A = TyVar 0
 
 -- | A polymorphic type variable.
-data C = C
-  deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
+type B = TyVar 1
 
 -- | A polymorphic type variable.
-data D = D
-  deriving (Bounded, Enum, Eq, Ord, Read, Show, Typeable)
+type C = TyVar 2
+
+-- | A polymorphic type variable.
+type D = TyVar 3
+
+-- | Check if a type is a variable.
+isTyVar :: TypeRep -> Bool
+isTyVar = ((==) `on` (fst . splitTyConApp)) (typeRep (Proxy :: Proxy A))
 
 -- | An environment of type bindings.
 type TypeEnv = [(TypeRep, TypeRep)]
@@ -167,8 +180,8 @@ unify' b tyA tyB
     -- check equality
     | tyA == tyB = Just []
     -- check if one is a naked type variable
-    | tyA `elem` tyvars = if not b || occurs tyA tyB then Nothing else Just [(tyA, tyB)]
-    | tyB `elem` tyvars = if not b || occurs tyB tyA then Nothing else Just [(tyB, tyA)]
+    | isTyVar tyA = if not b || occurs tyA tyB then Nothing else Just [(tyA, tyB)]
+    | isTyVar tyB = if not b || occurs tyB tyA then Nothing else Just [(tyB, tyA)]
     -- deconstruct each and attempt to unify subcomponents
     | otherwise =
       let (conA, argsA) = splitTyConApp tyA
@@ -191,7 +204,7 @@ unifyAccum b f as bs = foldr go (Just []) (zip as bs) where
 
 -- | Unify two type environments, if possible.
 unifyTypeEnvs :: Bool -> TypeEnv -> TypeEnv -> Maybe TypeEnv
-unifyTypeEnvs b env1 env2 = foldr go (Just []) tyvars where
+unifyTypeEnvs b env1 env2 = foldr go (Just []) (nub $ map fst env1 ++ map fst env2) where
   go tyvar acc@(Just env) = case (lookup tyvar env, lookup tyvar env1, lookup tyvar env2) of
     (_, Just ty1, Just ty2) -> unifyTypeEnvs b env . ((tyvar, ty1):) =<< unify' b ty1 ty2
     (x, Just ty1, _)
@@ -215,16 +228,12 @@ polyFunResultTy fty aty = do
 -- | Assign type variables in a type
 assignTys :: TypeEnv -> TypeRep -> TypeRep
 assignTys assignments ty
-  | ty `elem` tyvars = fromMaybe ty (lookup ty assignments)
+  | isTyVar ty = fromMaybe ty (lookup ty assignments)
   | otherwise = let (con, args) = splitTyConApp ty in mkTyConApp con (map (assignTys assignments) args)
 
 -- | Assign type variables in a dynamic value
 assignDynTys :: TypeEnv -> Dynamic -> Dynamic
 assignDynTys assignments (Dynamic ty x) = Dynamic (assignTys assignments ty) x
-
--- | Type variables.
-tyvars :: [TypeRep]
-tyvars = [typeOf A, typeOf B, typeOf C, typeOf D]
 
 -- | The arity of a type. Non-function types have an arity of 0.
 typeArity :: TypeRep -> Int
