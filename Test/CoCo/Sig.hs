@@ -12,14 +12,14 @@
 module Test.CoCo.Sig where
 
 import           Data.List       (nub)
-import           Data.Maybe      (fromMaybe)
+import           Data.Maybe      (fromMaybe, mapMaybe)
 import           Data.Proxy      (Proxy(..))
 import           Data.Typeable   (TypeRep, Typeable, typeRep)
 
 import           Test.CoCo.Expr  (Schema, exprTypeRep, holeOf, instantiateTys,
                                   stateVar, unLit)
 import           Test.CoCo.Monad (Concurrency)
-import           Test.CoCo.Type  (dynTypeRep, funArgTys, unifyAccum)
+import           Test.CoCo.Type  (dynTypeRep, funArgTys, innerTy, unifyAccum)
 
 -- | A collection of expressions.
 data Sig s o x = Sig
@@ -89,5 +89,8 @@ monomorphiseState sig = sig { expressions = map monomorphise (expressions sig)
 -- | Infer necessary hole types in a signature.
 inferHoles :: Sig s o x -> [TypeRep]
 inferHoles sig = nub $ concatMap holesFor (expressions sig) ++ concatMap holesFor (backgroundExpressions sig) where
-  holesFor = maybe [] (funTyHoles . dynTypeRep . snd) . unLit
-  funTyHoles = maybe [] fst . funArgTys
+  holesFor e = fromMaybe [] $ do
+    (_, dyn)    <- unLit e
+    (aTys, rTy) <- funArgTys (dynTypeRep dyn)
+    pure $ mapMaybe unmonad (rTy:aTys) ++ (rTy:aTys)
+  unmonad = innerTy (Proxy :: Proxy Concurrency)
