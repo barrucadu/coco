@@ -59,7 +59,7 @@ prettyPrint :: [(TypeRep, T.TypeInfo)] -> [L.Observation] -> IO ()
 prettyPrint typeInfos obss0 = mapM_ (putStrLn . pad) (sortOn cmp obss) where
   obss = map go obss0 where
     go (L.Equiv   e1 e2) = (Nothing, E.pp nf e1, "===", E.pp nf e2)
-    go (L.Refines e1 e2) = (Nothing, E.pp nf e1, "=[=", E.pp nf e2)
+    go (L.Refines e1 e2) = (Nothing, E.pp nf e1, "-[-", E.pp nf e2)
     go (L.Implied p obs) = let (Nothing, e1, t, e2) = go obs in (Just p, e1, t, e2)
 
   cmp (p, e1, _, e2) = (maybe 0 length p, p, length e1, e1, length e2, e2)

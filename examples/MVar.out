@@ -1,7 +1,7 @@
  readMVar @  ===  readMVar @ >> readMVar @
  readMVar @  ===  (readMVar @) ||| (readMVar @)
- readMVar @  =[=  takeMVar @ >>= \x -> putMVar @ x
+ readMVar @  -[-  takeMVar @ >>= \x -> putMVar @ x
  takeMVar @  ===  readMVar @ >> takeMVar @
- takeMVar @  =[=  (readMVar @) ||| (takeMVar @)
-putMVar @ x  =[=  putMVar @ x >> readMVar @
-putMVar @ x  =[=  (readMVar @) ||| (putMVar @ x)
+ takeMVar @  -[-  (readMVar @) ||| (takeMVar @)
+putMVar @ x  -[-  putMVar @ x >> readMVar @
+putMVar @ x  -[-  (readMVar @) ||| (putMVar @ x)

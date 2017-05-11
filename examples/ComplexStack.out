@@ -1,58 +1,58 @@
-                      dupLS @  =[=  dupLS @ >> swapLS @
-                      dupLS @  =[=  (dupLS @) ||| (rotLS @)
-                      dupLS @  =[=  (dupLS @) ||| (swapLS @)
-                      popLS @  =[=  popLS @ >> rotLS @
-                      popLS @  =[=  (popLS @) ||| (rotLS @)
-                      popLS @  =[=  (popLS @) ||| (swapLS @)
-                     overLS @  =[=  (overLS @) ||| (rotLS @)
-                     peekLS @  =[=  dupLS @ >> popLS @
-                     peekLS @  =[=  swapLS @ >> swapLS @
-                     peekLS @  =[=  pushLS x @ >> popLS @
-                     peekLS @  =[=  (popLS @) ||| (dupLS @)
-                     peekLS @  =[=  (swapLS @) ||| (swapLS @)
-                     peekLS @  =[=  (popLS @) ||| (pushLS x @)
-                     peekLS @  =[=  popLS @ >>= \m -> whenJust pushLS @ m
-     pushLS x @ >> pushLS x @  =[=  (pushLS x @) ||| (dupLS @)
-(pushLS x @) ||| (pushLS x @)  =[=  (pushLS x @) ||| (dupLS @)
+                      dupLS @  -[-  dupLS @ >> swapLS @
+                      dupLS @  -[-  (dupLS @) ||| (rotLS @)
+                      dupLS @  -[-  (dupLS @) ||| (swapLS @)
+                      popLS @  -[-  popLS @ >> rotLS @
+                      popLS @  -[-  (popLS @) ||| (rotLS @)
+                      popLS @  -[-  (popLS @) ||| (swapLS @)
+                     overLS @  -[-  (overLS @) ||| (rotLS @)
+                     peekLS @  -[-  dupLS @ >> popLS @
+                     peekLS @  -[-  swapLS @ >> swapLS @
+                     peekLS @  -[-  pushLS x @ >> popLS @
+                     peekLS @  -[-  (popLS @) ||| (dupLS @)
+                     peekLS @  -[-  (swapLS @) ||| (swapLS @)
+                     peekLS @  -[-  (popLS @) ||| (pushLS x @)
+                     peekLS @  -[-  popLS @ >>= \m -> whenJust pushLS @ m
+     pushLS x @ >> pushLS x @  -[-  (pushLS x @) ||| (dupLS @)
+(pushLS x @) ||| (pushLS x @)  -[-  (pushLS x @) ||| (dupLS @)
 
-                       dupCAS @  =[=  dupCAS @ >> swapCAS @
-                       dupCAS @  =[=  (dupCAS @) ||| (rotCAS @)
-                       dupCAS @  =[=  (dupCAS @) ||| (swapCAS @)
-                       popCAS @  =[=  popCAS @ >> rotCAS @
-                       popCAS @  =[=  (popCAS @) ||| (rotCAS @)
-                       popCAS @  =[=  (popCAS @) ||| (swapCAS @)
-                      overCAS @  =[=  (overCAS @) ||| (rotCAS @)
-                      peekCAS @  =[=  dupCAS @ >> popCAS @
-                      peekCAS @  =[=  swapCAS @ >> swapCAS @
-                      peekCAS @  =[=  pushCAS x @ >> popCAS @
-                      peekCAS @  =[=  (popCAS @) ||| (dupCAS @)
-                      peekCAS @  =[=  (swapCAS @) ||| (swapCAS @)
-                      peekCAS @  =[=  (popCAS @) ||| (pushCAS x @)
-                      peekCAS @  =[=  popCAS @ >>= \m -> whenJust pushCAS @ m
-     pushCAS x @ >> pushCAS x @  =[=  (pushCAS x @) ||| (dupCAS @)
-(pushCAS x @) ||| (pushCAS x @)  =[=  (pushCAS x @) ||| (dupCAS @)
+                       dupCAS @  -[-  dupCAS @ >> swapCAS @
+                       dupCAS @  -[-  (dupCAS @) ||| (rotCAS @)
+                       dupCAS @  -[-  (dupCAS @) ||| (swapCAS @)
+                       popCAS @  -[-  popCAS @ >> rotCAS @
+                       popCAS @  -[-  (popCAS @) ||| (rotCAS @)
+                       popCAS @  -[-  (popCAS @) ||| (swapCAS @)
+                      overCAS @  -[-  (overCAS @) ||| (rotCAS @)
+                      peekCAS @  -[-  dupCAS @ >> popCAS @
+                      peekCAS @  -[-  swapCAS @ >> swapCAS @
+                      peekCAS @  -[-  pushCAS x @ >> popCAS @
+                      peekCAS @  -[-  (popCAS @) ||| (dupCAS @)
+                      peekCAS @  -[-  (swapCAS @) ||| (swapCAS @)
+                      peekCAS @  -[-  (popCAS @) ||| (pushCAS x @)
+                      peekCAS @  -[-  popCAS @ >>= \m -> whenJust pushCAS @ m
+     pushCAS x @ >> pushCAS x @  -[-  (pushCAS x @) ||| (dupCAS @)
+(pushCAS x @) ||| (pushCAS x @)  -[-  (pushCAS x @) ||| (dupCAS @)
 
                              dupLS @  ===  dupCAS @
                              popLS @  ===  popCAS @
                              rotLS @  ===  rotCAS @
-                            dupCAS @  =[=  (dupLS @) ||| (rotLS @)
-                            dupCAS @  =[=  (dupLS @) ||| (swapLS @)
+                            dupCAS @  -[-  (dupLS @) ||| (rotLS @)
+                            dupCAS @  -[-  (dupLS @) ||| (swapLS @)
                             overLS @  ===  overCAS @
                             peekLS @  ===  peekCAS @
-                            popCAS @  =[=  popLS @ >> rotLS @
-                            popCAS @  =[=  (popLS @) ||| (rotLS @)
-                            popCAS @  =[=  (popLS @) ||| (swapLS @)
+                            popCAS @  -[-  popLS @ >> rotLS @
+                            popCAS @  -[-  (popLS @) ||| (rotLS @)
+                            popCAS @  -[-  (popLS @) ||| (swapLS @)
                             swapLS @  ===  swapCAS @
-                           overCAS @  =[=  (overLS @) ||| (rotLS @)
-                           peekCAS @  =[=  swapLS @ >> swapLS @
-                           peekCAS @  =[=  (popLS @) ||| (dupLS @)
-                           peekCAS @  =[=  (swapLS @) ||| (swapLS @)
-                           peekCAS @  =[=  (popLS @) ||| (pushLS x @)
-                           peekCAS @  =[=  popLS @ >>= \m -> whenJust pushLS @ m
+                           overCAS @  -[-  (overLS @) ||| (rotLS @)
+                           peekCAS @  -[-  swapLS @ >> swapLS @
+                           peekCAS @  -[-  (popLS @) ||| (dupLS @)
+                           peekCAS @  -[-  (swapLS @) ||| (swapLS @)
+                           peekCAS @  -[-  (popLS @) ||| (pushLS x @)
+                           peekCAS @  -[-  popLS @ >>= \m -> whenJust pushLS @ m
                           pushLS x @  ===  pushCAS x @
                   dupLS @ >> dupLS @  ===  dupCAS @ >> dupCAS @
                   dupLS @ >> dupLS @  ===  (dupCAS @) ||| (dupCAS @)
-                  dupLS @ >> dupLS @  =[=  (dupCAS @) ||| (overCAS @)
+                  dupLS @ >> dupLS @  -[-  (dupCAS @) ||| (overCAS @)
                   dupLS @ >> rotLS @  ===  dupCAS @ >> rotCAS @
                   popLS @ >> dupLS @  ===  popCAS @ >> dupCAS @
                   popLS @ >> popLS @  ===  popCAS @ >> popCAS @
@@ -62,130 +62,130 @@
                   rotLS @ >> rotLS @  ===  rotCAS @ >> rotCAS @
                   rotLS @ >> rotLS @  ===  (rotCAS @) ||| (rotCAS @)
                  dupLS @ >> overLS @  ===  dupCAS @ >> overCAS @
-                 dupLS @ >> overLS @  =[=  (dupCAS @) ||| (overCAS @)
+                 dupLS @ >> overLS @  -[-  (dupCAS @) ||| (overCAS @)
                  overLS @ >> dupLS @  ===  overCAS @ >> dupCAS @
-                 overLS @ >> dupLS @  =[=  (dupCAS @) ||| (overCAS @)
+                 overLS @ >> dupLS @  -[-  (dupCAS @) ||| (overCAS @)
                  overLS @ >> popLS @  ===  overCAS @ >> popCAS @
-                 overLS @ >> popLS @  =[=  (popCAS @) ||| (overCAS @)
+                 overLS @ >> popLS @  -[-  (popCAS @) ||| (overCAS @)
                  overLS @ >> rotLS @  ===  overCAS @ >> rotCAS @
                  popLS @ >> overLS @  ===  popCAS @ >> overCAS @
-                 popLS @ >> overLS @  =[=  (popCAS @) ||| (overCAS @)
+                 popLS @ >> overLS @  -[-  (popCAS @) ||| (overCAS @)
                  popLS @ >> swapLS @  ===  popCAS @ >> swapCAS @
                  rotLS @ >> overLS @  ===  rotCAS @ >> overCAS @
                  rotLS @ >> swapLS @  ===  rotCAS @ >> swapCAS @
-                 rotLS @ >> swapLS @  =[=  (rotCAS @) ||| (swapCAS @)
+                 rotLS @ >> swapLS @  -[-  (rotCAS @) ||| (swapCAS @)
                  swapLS @ >> dupLS @  ===  swapCAS @ >> dupCAS @
                  swapLS @ >> popLS @  ===  swapCAS @ >> popCAS @
                  swapLS @ >> rotLS @  ===  swapCAS @ >> rotCAS @
-                 swapLS @ >> rotLS @  =[=  (rotCAS @) ||| (swapCAS @)
+                 swapLS @ >> rotLS @  -[-  (rotCAS @) ||| (swapCAS @)
                  whenJust pushLS @ m  ===  whenJust pushCAS @ m
-                dupCAS @ >> dupCAS @  =[=  (dupLS @) ||| (overLS @)
-                dupCAS @ >> rotCAS @  =[=  (dupLS @) ||| (rotLS @)
+                dupCAS @ >> dupCAS @  -[-  (dupLS @) ||| (overLS @)
+                dupCAS @ >> rotCAS @  -[-  (dupLS @) ||| (rotLS @)
                 overLS @ >> overLS @  ===  overCAS @ >> overCAS @
                 overLS @ >> overLS @  ===  (overCAS @) ||| (overCAS @)
                 overLS @ >> swapLS @  ===  overCAS @ >> swapCAS @
-                overLS @ >> swapLS @  =[=  (overCAS @) ||| (swapCAS @)
-                popCAS @ >> dupCAS @  =[=  (popLS @) ||| (dupLS @)
-                rotCAS @ >> dupCAS @  =[=  (dupLS @) ||| (rotLS @)
-                rotCAS @ >> popCAS @  =[=  (popLS @) ||| (rotLS @)
+                overLS @ >> swapLS @  -[-  (overCAS @) ||| (swapCAS @)
+                popCAS @ >> dupCAS @  -[-  (popLS @) ||| (dupLS @)
+                rotCAS @ >> dupCAS @  -[-  (dupLS @) ||| (rotLS @)
+                rotCAS @ >> popCAS @  -[-  (popLS @) ||| (rotLS @)
                 swapLS @ >> overLS @  ===  swapCAS @ >> overCAS @
-                swapLS @ >> overLS @  =[=  (overCAS @) ||| (swapCAS @)
-               dupCAS @ >> overCAS @  =[=  (dupLS @) ||| (overLS @)
+                swapLS @ >> overLS @  -[-  (overCAS @) ||| (swapCAS @)
+               dupCAS @ >> overCAS @  -[-  (dupLS @) ||| (overLS @)
                dupLS @ >> pushLS x @  ===  dupCAS @ >> pushCAS x @
-               dupLS @ >> pushLS x @  =[=  (pushCAS x @) ||| (dupCAS @)
-               overCAS @ >> dupCAS @  =[=  (dupLS @) ||| (overLS @)
-               overCAS @ >> popCAS @  =[=  (popLS @) ||| (dupLS @)
-               overCAS @ >> popCAS @  =[=  (popLS @) ||| (overLS @)
-               overCAS @ >> rotCAS @  =[=  (overLS @) ||| (rotLS @)
-               popCAS @ >> overCAS @  =[=  (popLS @) ||| (overLS @)
-               popCAS @ >> swapCAS @  =[=  (popLS @) ||| (swapLS @)
+               dupLS @ >> pushLS x @  -[-  (pushCAS x @) ||| (dupCAS @)
+               overCAS @ >> dupCAS @  -[-  (dupLS @) ||| (overLS @)
+               overCAS @ >> popCAS @  -[-  (popLS @) ||| (dupLS @)
+               overCAS @ >> popCAS @  -[-  (popLS @) ||| (overLS @)
+               overCAS @ >> rotCAS @  -[-  (overLS @) ||| (rotLS @)
+               popCAS @ >> overCAS @  -[-  (popLS @) ||| (overLS @)
+               popCAS @ >> swapCAS @  -[-  (popLS @) ||| (swapLS @)
                popLS @ >> pushLS x @  ===  popCAS @ >> pushCAS x @
                pushLS x @ >> dupLS @  ===  pushCAS x @ >> dupCAS @
-               pushLS x @ >> dupLS @  =[=  (pushCAS x @) ||| (dupCAS @)
+               pushLS x @ >> dupLS @  -[-  (pushCAS x @) ||| (dupCAS @)
                pushLS x @ >> rotLS @  ===  pushCAS x @ >> rotCAS @
-               pushLS x @ >> rotLS @  =[=  (pushCAS x @) ||| (rotCAS @)
-               rotCAS @ >> overCAS @  =[=  (overLS @) ||| (rotLS @)
-               rotCAS @ >> swapCAS @  =[=  (rotLS @) ||| (swapLS @)
+               pushLS x @ >> rotLS @  -[-  (pushCAS x @) ||| (rotCAS @)
+               rotCAS @ >> overCAS @  -[-  (overLS @) ||| (rotLS @)
+               rotCAS @ >> swapCAS @  -[-  (rotLS @) ||| (swapLS @)
                rotLS @ >> pushLS x @  ===  rotCAS @ >> pushCAS x @
-               rotLS @ >> pushLS x @  =[=  (pushCAS x @) ||| (rotCAS @)
-               swapCAS @ >> dupCAS @  =[=  (dupLS @) ||| (swapLS @)
-               swapCAS @ >> popCAS @  =[=  (popLS @) ||| (swapLS @)
-               swapCAS @ >> rotCAS @  =[=  (rotLS @) ||| (swapLS @)
-              overCAS @ >> swapCAS @  =[=  (overLS @) ||| (swapLS @)
+               rotLS @ >> pushLS x @  -[-  (pushCAS x @) ||| (rotCAS @)
+               swapCAS @ >> dupCAS @  -[-  (dupLS @) ||| (swapLS @)
+               swapCAS @ >> popCAS @  -[-  (popLS @) ||| (swapLS @)
+               swapCAS @ >> rotCAS @  -[-  (rotLS @) ||| (swapLS @)
+              overCAS @ >> swapCAS @  -[-  (overLS @) ||| (swapLS @)
               overLS @ >> pushLS x @  ===  overCAS @ >> pushCAS x @
-              overLS @ >> pushLS x @  =[=  (pushCAS x @) ||| (overCAS @)
+              overLS @ >> pushLS x @  -[-  (pushCAS x @) ||| (overCAS @)
               pushLS x @ >> overLS @  ===  pushCAS x @ >> overCAS @
-              pushLS x @ >> overLS @  =[=  (pushCAS x @) ||| (overCAS @)
+              pushLS x @ >> overLS @  -[-  (pushCAS x @) ||| (overCAS @)
               pushLS x @ >> swapLS @  ===  pushCAS x @ >> swapCAS @
-              pushLS x @ >> swapLS @  =[=  (pushCAS x @) ||| (swapCAS @)
-              swapCAS @ >> overCAS @  =[=  (overLS @) ||| (swapLS @)
+              pushLS x @ >> swapLS @  -[-  (pushCAS x @) ||| (swapCAS @)
+              swapCAS @ >> overCAS @  -[-  (overLS @) ||| (swapLS @)
               swapLS @ >> pushLS x @  ===  swapCAS @ >> pushCAS x @
-              swapLS @ >> pushLS x @  =[=  (pushCAS x @) ||| (swapCAS @)
+              swapLS @ >> pushLS x @  -[-  (pushCAS x @) ||| (swapCAS @)
              (dupLS @) ||| (dupLS @)  ===  dupCAS @ >> dupCAS @
              (dupLS @) ||| (dupLS @)  ===  (dupCAS @) ||| (dupCAS @)
-             (dupLS @) ||| (dupLS @)  =[=  (dupCAS @) ||| (overCAS @)
+             (dupLS @) ||| (dupLS @)  -[-  (dupCAS @) ||| (overCAS @)
              (popLS @) ||| (popLS @)  ===  popCAS @ >> popCAS @
              (popLS @) ||| (popLS @)  ===  (popCAS @) ||| (popCAS @)
              (rotLS @) ||| (rotLS @)  ===  rotCAS @ >> rotCAS @
              (rotLS @) ||| (rotLS @)  ===  (rotCAS @) ||| (rotCAS @)
-             dupCAS @ >> pushCAS x @  =[=  (pushLS x @) ||| (dupLS @)
-             popCAS @ >> pushCAS x @  =[=  (popLS @) ||| (pushLS x @)
-             pushCAS x @ >> dupCAS @  =[=  (pushLS x @) ||| (dupLS @)
-             pushCAS x @ >> rotCAS @  =[=  (pushLS x @) ||| (rotLS @)
-             rotCAS @ >> pushCAS x @  =[=  (pushLS x @) ||| (rotLS @)
+             dupCAS @ >> pushCAS x @  -[-  (pushLS x @) ||| (dupLS @)
+             popCAS @ >> pushCAS x @  -[-  (popLS @) ||| (pushLS x @)
+             pushCAS x @ >> dupCAS @  -[-  (pushLS x @) ||| (dupLS @)
+             pushCAS x @ >> rotCAS @  -[-  (pushLS x @) ||| (rotLS @)
+             rotCAS @ >> pushCAS x @  -[-  (pushLS x @) ||| (rotLS @)
             (dupLS @) ||| (overLS @)  ===  (dupCAS @) ||| (overCAS @)
             (popLS @) ||| (overLS @)  ===  (popCAS @) ||| (overCAS @)
             (rotLS @) ||| (swapLS @)  ===  (rotCAS @) ||| (swapCAS @)
-            overCAS @ >> pushCAS x @  =[=  (pushLS x @) ||| (overLS @)
-            pushCAS x @ >> overCAS @  =[=  (pushLS x @) ||| (overLS @)
-            pushCAS x @ >> swapCAS @  =[=  (pushLS x @) ||| (swapLS @)
-            pushLS x @ >> pushLS x @  =[=  (pushCAS x @) ||| (dupCAS @)
+            overCAS @ >> pushCAS x @  -[-  (pushLS x @) ||| (overLS @)
+            pushCAS x @ >> overCAS @  -[-  (pushLS x @) ||| (overLS @)
+            pushCAS x @ >> swapCAS @  -[-  (pushLS x @) ||| (swapLS @)
+            pushLS x @ >> pushLS x @  -[-  (pushCAS x @) ||| (dupCAS @)
             pushLS x @ >> pushLS x @  ===  (pushCAS x @) ||| (pushCAS x @)
-            swapCAS @ >> pushCAS x @  =[=  (pushLS x @) ||| (swapLS @)
-           (dupCAS @) ||| (dupCAS @)  =[=  (dupLS @) ||| (overLS @)
+            swapCAS @ >> pushCAS x @  -[-  (pushLS x @) ||| (swapLS @)
+           (dupCAS @) ||| (dupCAS @)  -[-  (dupLS @) ||| (overLS @)
            (overLS @) ||| (overLS @)  ===  overCAS @ >> overCAS @
            (overLS @) ||| (overLS @)  ===  (overCAS @) ||| (overCAS @)
            (overLS @) ||| (swapLS @)  ===  (overCAS @) ||| (swapCAS @)
            pushLS x @ >> pushLS x1 @  ===  pushCAS x @ >> pushCAS x1 @
-           pushLS x @ >> pushLS x1 @  =[=  (pushCAS x @) ||| (pushCAS x1 @)
+           pushLS x @ >> pushLS x1 @  -[-  (pushCAS x @) ||| (pushCAS x1 @)
           (pushLS x @) ||| (dupLS @)  ===  (pushCAS x @) ||| (dupCAS @)
           (pushLS x @) ||| (rotLS @)  ===  (pushCAS x @) ||| (rotCAS @)
          (pushLS x @) ||| (overLS @)  ===  (pushCAS x @) ||| (overCAS @)
          (pushLS x @) ||| (swapLS @)  ===  (pushCAS x @) ||| (swapCAS @)
-         pushCAS x @ >> pushCAS x1 @  =[=  (pushLS x @) ||| (pushLS x1 @)
+         pushCAS x @ >> pushCAS x1 @  -[-  (pushLS x @) ||| (pushLS x1 @)
        (pushLS x @) ||| (pushLS x @)  ===  pushCAS x @ >> pushCAS x @
-       (pushLS x @) ||| (pushLS x @)  =[=  (pushCAS x @) ||| (dupCAS @)
+       (pushLS x @) ||| (pushLS x @)  -[-  (pushCAS x @) ||| (dupCAS @)
       (pushLS x @) ||| (pushLS x1 @)  ===  (pushCAS x @) ||| (pushCAS x1 @)
       dupLS @ >> whenJust pushLS @ m  ===  dupCAS @ >> whenJust pushCAS @ m
-      dupLS @ >> whenJust pushLS @ m  =[=  (whenJust pushCAS @ m) ||| (dupCAS @)
+      dupLS @ >> whenJust pushLS @ m  -[-  (whenJust pushCAS @ m) ||| (dupCAS @)
       popLS @ >> whenJust pushLS @ m  ===  popCAS @ >> whenJust pushCAS @ m
-      popLS @ >> whenJust pushLS @ m  =[=  (popCAS @) ||| (whenJust pushCAS @ m)
+      popLS @ >> whenJust pushLS @ m  -[-  (popCAS @) ||| (whenJust pushCAS @ m)
       rotLS @ >> whenJust pushLS @ m  ===  rotCAS @ >> whenJust pushCAS @ m
-      rotLS @ >> whenJust pushLS @ m  =[=  (whenJust pushCAS @ m) ||| (rotCAS @)
+      rotLS @ >> whenJust pushLS @ m  -[-  (whenJust pushCAS @ m) ||| (rotCAS @)
       whenJust pushLS @ m >> dupLS @  ===  whenJust pushCAS @ m >> dupCAS @
-      whenJust pushLS @ m >> dupLS @  =[=  (whenJust pushCAS @ m) ||| (dupCAS @)
+      whenJust pushLS @ m >> dupLS @  -[-  (whenJust pushCAS @ m) ||| (dupCAS @)
       whenJust pushLS @ m >> popLS @  ===  whenJust pushCAS @ m >> popCAS @
-      whenJust pushLS @ m >> popLS @  =[=  (popCAS @) ||| (whenJust pushCAS @ m)
+      whenJust pushLS @ m >> popLS @  -[-  (popCAS @) ||| (whenJust pushCAS @ m)
       whenJust pushLS @ m >> rotLS @  ===  whenJust pushCAS @ m >> rotCAS @
-      whenJust pushLS @ m >> rotLS @  =[=  (whenJust pushCAS @ m) ||| (rotCAS @)
+      whenJust pushLS @ m >> rotLS @  -[-  (whenJust pushCAS @ m) ||| (rotCAS @)
      overLS @ >> whenJust pushLS @ m  ===  overCAS @ >> whenJust pushCAS @ m
-     overLS @ >> whenJust pushLS @ m  =[=  (whenJust pushCAS @ m) ||| (overCAS @)
+     overLS @ >> whenJust pushLS @ m  -[-  (whenJust pushCAS @ m) ||| (overCAS @)
      swapLS @ >> whenJust pushLS @ m  ===  swapCAS @ >> whenJust pushCAS @ m
-     swapLS @ >> whenJust pushLS @ m  =[=  (whenJust pushCAS @ m) ||| (swapCAS @)
+     swapLS @ >> whenJust pushLS @ m  -[-  (whenJust pushCAS @ m) ||| (swapCAS @)
      whenJust pushLS @ m >> overLS @  ===  whenJust pushCAS @ m >> overCAS @
-     whenJust pushLS @ m >> overLS @  =[=  (whenJust pushCAS @ m) ||| (overCAS @)
+     whenJust pushLS @ m >> overLS @  -[-  (whenJust pushCAS @ m) ||| (overCAS @)
      whenJust pushLS @ m >> swapLS @  ===  whenJust pushCAS @ m >> swapCAS @
-     whenJust pushLS @ m >> swapLS @  =[=  (whenJust pushCAS @ m) ||| (swapCAS @)
-    dupCAS @ >> whenJust pushCAS @ m  =[=  (whenJust pushLS @ m) ||| (dupLS @)
-    popCAS @ >> whenJust pushCAS @ m  =[=  (popLS @) ||| (whenJust pushLS @ m)
-    rotCAS @ >> whenJust pushCAS @ m  =[=  (whenJust pushLS @ m) ||| (rotLS @)
-    whenJust pushCAS @ m >> dupCAS @  =[=  (whenJust pushLS @ m) ||| (dupLS @)
-    whenJust pushCAS @ m >> popCAS @  =[=  (popLS @) ||| (whenJust pushLS @ m)
-    whenJust pushCAS @ m >> rotCAS @  =[=  (whenJust pushLS @ m) ||| (rotLS @)
-   overCAS @ >> whenJust pushCAS @ m  =[=  (whenJust pushLS @ m) ||| (overLS @)
-   swapCAS @ >> whenJust pushCAS @ m  =[=  (whenJust pushLS @ m) ||| (swapLS @)
-   whenJust pushCAS @ m >> overCAS @  =[=  (whenJust pushLS @ m) ||| (overLS @)
-   whenJust pushCAS @ m >> swapCAS @  =[=  (whenJust pushLS @ m) ||| (swapLS @)
+     whenJust pushLS @ m >> swapLS @  -[-  (whenJust pushCAS @ m) ||| (swapCAS @)
+    dupCAS @ >> whenJust pushCAS @ m  -[-  (whenJust pushLS @ m) ||| (dupLS @)
+    popCAS @ >> whenJust pushCAS @ m  -[-  (popLS @) ||| (whenJust pushLS @ m)
+    rotCAS @ >> whenJust pushCAS @ m  -[-  (whenJust pushLS @ m) ||| (rotLS @)
+    whenJust pushCAS @ m >> dupCAS @  -[-  (whenJust pushLS @ m) ||| (dupLS @)
+    whenJust pushCAS @ m >> popCAS @  -[-  (popLS @) ||| (whenJust pushLS @ m)
+    whenJust pushCAS @ m >> rotCAS @  -[-  (whenJust pushLS @ m) ||| (rotLS @)
+   overCAS @ >> whenJust pushCAS @ m  -[-  (whenJust pushLS @ m) ||| (overLS @)
+   swapCAS @ >> whenJust pushCAS @ m  -[-  (whenJust pushLS @ m) ||| (swapLS @)
+   whenJust pushCAS @ m >> overCAS @  -[-  (whenJust pushLS @ m) ||| (overLS @)
+   whenJust pushCAS @ m >> swapCAS @  -[-  (whenJust pushLS @ m) ||| (swapLS @)
  (popLS @) ||| (whenJust pushLS @ m)  ===  (popCAS @) ||| (whenJust pushCAS @ m)
  (whenJust pushLS @ m) ||| (dupLS @)  ===  (whenJust pushCAS @ m) ||| (dupCAS @)
  (whenJust pushLS @ m) ||| (rotLS @)  ===  (whenJust pushCAS @ m) ||| (rotCAS @)
