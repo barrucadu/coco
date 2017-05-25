@@ -9,31 +9,28 @@
 -- Portability : StrictData
 --
 -- Generating well-typed dynamic expressions from smaller components.
-module Test.CoCo.Gen
-  ( -- * Generating Terms
-    Generator
-  , newGenerator
-  , newGenerator'
-  , stepGenerator
-  , getTier
-  , mapTier
-  , filterTier
-  , adjustTier
-  , maxTier
-  ) where
+module Test.CoCo.Gen where
 
+import           Control.Arrow      (second)
 import           Control.Monad      (filterM, guard)
+import           Data.Function      (on)
 import           Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
-import           Data.Maybe         (fromMaybe, isJust, maybeToList)
+import           Data.Maybe         (fromMaybe, maybeToList)
+import           Data.Proxy         (Proxy(..))
 import           Data.Semigroup     (Semigroup, (<>))
 import           Data.Set           (Set)
 import qualified Data.Set           as S
-import           Data.Typeable      (TypeRep, Typeable)
+import           Data.Typeable      (TypeRep, Typeable, splitTyConApp, typeRep)
 
+import           Test.CoCo.Eval     (numVariants)
 import           Test.CoCo.Expr
-import           Test.CoCo.Type     (Dynamic, dynTypeRep)
-import           Test.CoCo.TypeInfo (TypeInfo(..))
+import           Test.CoCo.Monad    (Concurrency)
+import           Test.CoCo.Rename   (renamings)
+import           Test.CoCo.Type     (Dynamic)
+import           Test.CoCo.TypeInfo (TypeInfo(..), getTypeValues,
+                                     getVariableBaseName)
+import           Test.CoCo.Util     (ordNubOn)
 
 
 -------------------------------------------------------------------------------
@@ -48,11 +45,11 @@ data Generator s ann = Generator
   }
 
 -- | Create a new generator from a collection of basic expressions.
-newGenerator :: (Monoid ann, Ord ann) => [(TypeRep, TypeInfo)] -> [Schema s] -> Generator s ann
+newGenerator :: (Monoid ann, Ord ann, Typeable s) => [(TypeRep, TypeInfo)] -> [Schema s] -> Generator s ann
 newGenerator typeInfos = newGenerator' typeInfos . map (\e -> (e, mempty))
 
 -- | Like 'newGenerator', but use an explicit default value.
-newGenerator' :: Ord ann => [(TypeRep, TypeInfo)] -> [(Schema s, ann)] -> Generator s ann
+newGenerator' :: (Ord ann, Typeable s) => [(TypeRep, TypeInfo)] -> [(Schema s, ann)] -> Generator s ann
 newGenerator' typeInfos baseTerms = Generator
   { tiers   = merge [M.singleton (exprSize e) (S.singleton s) | s@(e,_) <- baseTerms]
   , sofar   = 0
@@ -148,20 +145,48 @@ merge :: Ord a => [IntMap (Set a)] -> IntMap (Set a)
 merge = M.unionsWith S.union
 
 -- | Check if a schema is pure (has a non-monadic result type).
-isPure :: Schema s -> Bool
-isPure = isJust . pureResult
+isPure :: Typeable s => Schema s -> Bool
+isPure e = not $ exprTypeRep e `ceq` typeRep (Proxy :: Proxy (Concurrency ())) where
+  ceq = (==) `on` fst . splitTyConApp
 
 -- | Check if two pure schemas are equivalent.
-equivalent :: [(TypeRep, TypeInfo)] -> Schema s -> Schema s -> Bool
+equivalent :: Typeable s => [(TypeRep, TypeInfo)] -> Schema s -> Schema s -> Bool
 equivalent typeInfos e1 e2 = fromMaybe False $ do
-  d1 <- pureResult e1
-  d2 <- pureResult e2
-  let ty1 = dynTypeRep d1
-  let ty2 = dynTypeRep d2
-  guard (ty1 == ty2)
-  tyinfo <- lookup ty1 typeInfos
-  pure (dynEq tyinfo d1 d2)
+  let varf = getVariableBaseName typeInfos
+  let t1s = allTerms varf e1
+  let t2s = allTerms varf e2
+  guard (exprTypeRep e2 == exprTypeRep e2)
+  tyinfo <- lookup (exprTypeRep e1) typeInfos
+  pure (and [ dynEq tyinfo d1 d2
+            | t1 <- t1s
+            , t2 <- t2s
+            , r  <- renamings varf t1 t2
+            , let t1' = rename (fst r) t1
+            , let t2' = rename (snd r) t2
+            , as  <- assign typeInfos $ environment t1' ++ environment t2'
+            , d1  <- maybeToList (evaluateDynPure t1' as)
+            , d2  <- maybeToList (evaluateDynPure t2' as)
+            ])
 
--- | Get the result of a pure schema.
-pureResult :: Schema s -> Maybe Dynamic
-pureResult e = (`evaluateDynPure` []) =<< toTerm e
+-- | Produce a list of assignments to free variables in an
+-- environment.
+--
+-- 'numVariants' values will be taken of each and zipped together
+-- (producing @numVariants^(length env)@ assignments).
+assign
+  :: [(TypeRep, TypeInfo)]
+  -- ^ Information about types.  There MUST be an entry for every hole
+  -- type!
+  -> [(String, TypeRep)]
+  -- ^ The free variables.
+  -> [[(String, Dynamic)]]
+assign typeInfos = go . ordNubOn fst . map (second enumerateValues) where
+  go :: [(String, [Dynamic])] -> [[(String, Dynamic)]]
+  go ((var, dyns):free) =
+    [ (var, dyn) : as
+    | dyn <- take numVariants dyns
+    , as  <- go free
+    ]
+  go [] = [[]]
+
+  enumerateValues = getTypeValues typeInfos
