@@ -208,11 +208,11 @@ getResultsFrom generic results specific = case findInstance generic specific of
 -------------------------------------------------------------------------------
 -- Utilities
 
--- | Filter for term generation: only generate out of non-boring
+-- | Filter for term generation: only generate out of non-neutral
 -- terms; and only generate binds out of smallest terms.
 checkNewTerm :: (a, Ann s o x) -> (a, Ann s o x) -> Schema s -> Bool
 checkNewTerm (_, ann1) (_, ann2) expr
-  | isBoring ann1 || isBoring ann2 = False
+  | isNeutral ann1 || isNeutral ann2 = False
   | otherwise = case unBind expr of
       Just ([], _, _) -> isSmallest ann1 && isSmallest ann2
       Just _ -> isSmallest ann2

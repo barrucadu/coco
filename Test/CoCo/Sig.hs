@@ -35,7 +35,7 @@ data Sig s o x = Sig
   -- ^ The observation to make.
   , backToSeed :: s -> x -> Concurrency x
   -- ^ Convert the state back to the seed (used to determine if a term
-  -- is boring).
+  -- is neutral).
   , setState :: s -> x -> Concurrency ()
   -- ^ Set the state value. This doesn't need to be atomic, or even
   -- guaranteed to work, its purpose is to cause interference when

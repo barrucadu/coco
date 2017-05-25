@@ -50,11 +50,11 @@ data Ann s o x = Ann
   , isAtomic   :: Bool
   -- ^ If executing the term is atomic. Initially, it is assumed a
   -- term is not atomic.
-  , isBoring   :: Bool
+  , isNeutral   :: Bool
   -- ^ If this term is nonfailing, atomic, and has no effect on the
-  -- state. Boring terms are all equivalent, and aren't used when
+  -- state. Neutral terms are all equivalent, and aren't used when
   -- generating further terms. Initially, it is assumed a term is not
-  -- boring.
+  -- neutral.
   }
   deriving (Eq, Ord, Show)
 
@@ -65,7 +65,7 @@ instance Semigroup (Ann s o x) where
     , isFailing    = isFailing ann1 || isFailing ann2
     , isSmallest   = True
     , isAtomic     = False
-    , isBoring     = False
+    , isNeutral    = False
     }
 
 -- | The results of evaluating a schema.
@@ -102,7 +102,7 @@ initialAnn background = Ann
   , isFailing    = False
   , isSmallest   = True
   , isAtomic     = False
-  , isBoring     = False
+  , isNeutral    = False
   }
 
 -- | Update an annotation with expression-evaluation results.
@@ -111,7 +111,7 @@ update atomic results ann = ann
   { allResults  = Just results
   , isFailing   = case results of { Some rs -> checkIsFailing rs; None -> isFailing ann }
   , isAtomic    = atomic
-  , isBoring    = case results of { Some rs -> checkIsBoring atomic rs; None -> isBoring ann }
+  , isNeutral   = case results of { Some rs -> checkIsNeutral atomic rs; None -> isNeutral ann }
   }
 
 -- | Check if a set of results corresponds to a failing term.
@@ -121,9 +121,9 @@ checkIsFailing results =
       is_failing (mf, _, _) = isJust mf
   in all (all (all is_failing . snd) . fst) term_results
 
--- | Check if a set of results corresponds to a boring term.
-checkIsBoring :: Eq x => Bool -> [(Term s, (VarResults o x, VarResults o x))] -> Bool
-checkIsBoring atomic results = atomic && all (all ch . fst) (map snd results) where
+-- | Check if a set of results corresponds to a neutral term.
+checkIsNeutral :: Eq x => Bool -> [(Term s, (VarResults o x, VarResults o x))] -> Bool
+checkIsNeutral atomic results = atomic && all (all ch . fst) (map snd results) where
   ch (va, rs) = all (\(f, x, _) -> isNothing f && x == seedVal va) rs
 
 -- | Check if the left term (defined by its results) refines the right
