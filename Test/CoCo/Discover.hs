@@ -126,8 +126,9 @@ discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.T
   -> (Generator s (Maybe (Ann s o x), Ann s o x), [Observation])
 discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
     let sigc = complete sig
-        g = newGenerator'([(e, (Nothing, initialAnn False)) | e <- expressions           sigc] ++
-                          [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sigc])
+        g = newGenerator' typeInfos
+                          ([(e, (Nothing, initialAnn False)) | e <- expressions           sigc] ++
+                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sigc])
     in second crun $ findObservations g 0
   where
     -- check every term on the current tier for equality and

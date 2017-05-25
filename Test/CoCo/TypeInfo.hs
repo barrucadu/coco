@@ -19,14 +19,16 @@ import qualified Data.Typeable              as T
 import           Language.Haskell.TH.Syntax (Exp(..), Type(..))
 import           Test.LeanCheck             (Listable, list)
 
-import           Test.CoCo.Type             (Dynamic, unsafeToDyn)
+import           Test.CoCo.Type             (Dynamic, fromDyn, unsafeToDyn)
 import           Test.CoCo.Util
 
 -- | Information about a type.
 data TypeInfo = TypeInfo
   { listValues :: [Dynamic]
-    -- ^ Produce a (possibly infinite) list of values of this type.
-  , varName    :: Char
+  -- ^ Produce a (possibly infinite) list of values of this type.
+  , dynEq :: Dynamic -> Dynamic -> Bool
+  -- ^ Check two dynamic values of this type are equal.
+  , varName :: Char
   -- ^ Base name for variables of this type. Conflicting names will be
   -- made distinct with a numeric suffix.
   }
@@ -60,8 +62,8 @@ defaultTypeInfos =
    )
 
 -- | Make the 'TypeInfo' for a listable type.
-makeTypeInfo :: (Listable a, T.Typeable a) => proxy a -> (T.TypeRep, TypeInfo)
-makeTypeInfo p = (T.typeRep p, TypeInfo { listValues = dynamicListValues p, varName = variableName p })
+makeTypeInfo :: (Listable a, Eq a, T.Typeable a) => proxy a -> (T.TypeRep, TypeInfo)
+makeTypeInfo p = (T.typeRep p, TypeInfo { listValues = dynamicListValues p, dynEq = dynamicEq p, varName = variableName p })
 
 -- | Produce dynamic values from a 'Listable' instance.
 dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic]
@@ -70,6 +72,16 @@ dynamicListValues p = map (unsafeToDyn $ T.typeRep p) (list :: [a])
 -- | Like 'dynamicListValues' but takes an actual value, not a proxy.
 dynamicListValues' :: forall a. (Listable a, T.Typeable a) => a -> [Dynamic]
 dynamicListValues' _ = dynamicListValues (Proxy :: Proxy a)
+
+-- | Produce an equality predicate from a type from an 'Eq' instance.
+dynamicEq :: forall a proxy. (Eq a, T.Typeable a) => proxy a -> Dynamic -> Dynamic -> Bool
+dynamicEq _ d1 d2 = case (,) <$> fromDyn d1 <*> fromDyn d2 of
+  Just (a1, a2) -> (a1 :: a) == (a2 :: a)
+  Nothing -> False
+
+-- | Like 'dynamicEq' but takes an actual value, not a proxy.
+dynamicEq' :: forall a. (Eq a, T.Typeable a) => a -> Dynamic -> Dynamic -> Bool
+dynamicEq' _ = dynamicEq (Proxy :: Proxy a)
 
 -- | Produce a variable name from a type. This is mostly just @show@
 -- of the 'T.TypeRep', but with some special cases.

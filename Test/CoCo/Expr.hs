@@ -48,6 +48,7 @@ module Test.CoCo.Expr
   -- ** Evaluation
   , evaluate
   , evaluateDyn
+  , evaluateDynPure
   -- ** Miscellaneous
   , exprSize
   , exprTypeArity
@@ -458,6 +459,26 @@ evaluateDyn e0 globals
 
     unFunctor :: Dynamic -> Maybe (Concurrency Dynamic)
     unFunctor = unwrapFunctorDyn
+
+-- | Evaluate a pure expression, if the environment is complete.
+-- Evaluation fails if the seed or a monadic bind is involved
+-- anywhere.
+evaluateDynPure :: Term s -> [(String, Dynamic)] -> Maybe Dynamic
+evaluateDynPure e0 globals = go [] e0 where
+  go _ (Lit _ _ dyn) = Just dyn
+  go locals (Var _ var) = env locals var
+  go locals (Let _ False _ b e) = do
+    x <- go locals b
+    go (x:locals) e
+  go locals (Ap _ f e) = do
+    f' <- go locals f
+    e' <- go locals e
+    f' `dynApp` e'
+  go _ _ = Nothing
+
+  env locals (Bound i) = Just (locals !! i)
+  env _ (Named s) = lookup s globals
+  env _ (Hole _) = Nothing
 
 
 -------------------------------------------------------------------------------

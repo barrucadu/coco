@@ -22,34 +22,42 @@ module Test.CoCo.Gen
   , maxTier
   ) where
 
-import           Control.Monad      (filterM)
+import           Control.Monad      (filterM, guard)
 import           Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
-import           Data.Maybe         (maybeToList)
+import           Data.Maybe         (fromMaybe, isJust, maybeToList)
 import           Data.Semigroup     (Semigroup, (<>))
 import           Data.Set           (Set)
 import qualified Data.Set           as S
-import           Data.Typeable      (Typeable)
+import           Data.Typeable      (TypeRep, Typeable)
 
 import           Test.CoCo.Expr
+import           Test.CoCo.Type     (Dynamic, dynTypeRep)
+import           Test.CoCo.TypeInfo (TypeInfo(..))
 
 
 -------------------------------------------------------------------------------
 -- Controlled generation
 
 -- | A generator of expressions.
-data Generator s ann = Generator { tiers :: IntMap (Set (Schema s, ann)), sofar :: Int }
-  deriving (Eq, Ord, Show)
+data Generator s ann = Generator
+  { tiers   :: IntMap (Set (Schema s, ann))
+  , sofar   :: Int
+  , pures   :: Set (Schema s)
+  , tyinfos :: [(TypeRep, TypeInfo)]
+  }
 
 -- | Create a new generator from a collection of basic expressions.
-newGenerator :: (Monoid ann, Ord ann) => [Schema s] -> Generator s ann
-newGenerator = newGenerator' . map (\e -> (e, mempty))
+newGenerator :: (Monoid ann, Ord ann) => [(TypeRep, TypeInfo)] -> [Schema s] -> Generator s ann
+newGenerator typeInfos = newGenerator' typeInfos . map (\e -> (e, mempty))
 
 -- | Like 'newGenerator', but use an explicit default value.
-newGenerator' :: Ord ann => [(Schema s, ann)] -> Generator s ann
-newGenerator' baseTerms = Generator
-  { tiers = merge [M.singleton (exprSize e) (S.singleton s) | s@(e,_) <- baseTerms]
-  , sofar = 0
+newGenerator' :: Ord ann => [(TypeRep, TypeInfo)] -> [(Schema s, ann)] -> Generator s ann
+newGenerator' typeInfos baseTerms = Generator
+  { tiers   = merge [M.singleton (exprSize e) (S.singleton s) | s@(e,_) <- baseTerms]
+  , sofar   = 0
+  , pures   = S.fromList [e | (e,_) <- baseTerms, isPure e]
+  , tyinfos = typeInfos
   }
 
 -- | Generate the next tier.
@@ -57,12 +65,16 @@ stepGenerator :: (Semigroup ann, Ord ann, Typeable s)
   => (ann -> ann -> Schema s -> Bool)
   -- ^ Annotation of first expr, annotation of second expr, combined expr.
   -> Generator s ann -> Generator s ann
-stepGenerator check g = Generator newTiers (sofar g + 1) where
-  newTiers = merge
+stepGenerator check g = g { tiers = tiers', sofar = sofar', pures = pures' } where
+  sofar' = sofar g + 1
+  tiers' = merge
     [ tiers g
-    , M.singleton (sofar g + 1) funAps
-    , M.singleton (sofar g + 1) binds
+    , M.singleton sofar' funAps
+    , M.singleton sofar' binds
     ]
+  pures' =
+    let new = (map fst . S.toList) (M.findWithDefault S.empty sofar' tiers')
+    in pures g `S.union` S.fromList (filter isPure new)
 
   -- produce new terms by function application.
   funAps = mkTerms 0 $ \terms candidates ->
@@ -71,6 +83,10 @@ stepGenerator check g = Generator newTiers (sofar g + 1) where
       , (e, eAnn) <- candidates
       , new <- maybeToList (f $$ e)
       , check fAnn eAnn new
+      , if isPure new
+        -- new pure schemas cannot be equivalent to any existing ones
+        then all (not . equivalent (tyinfos g) new) (pures g)
+        else True
     ]
 
   -- produce new terms by monad-binding variables.
@@ -130,3 +146,22 @@ maxTier = sofar
 -- | Merge a list of maps of lists.
 merge :: Ord a => [IntMap (Set a)] -> IntMap (Set a)
 merge = M.unionsWith S.union
+
+-- | Check if a schema is pure (has a non-monadic result type).
+isPure :: Schema s -> Bool
+isPure = isJust . pureResult
+
+-- | Check if two pure schemas are equivalent.
+equivalent :: [(TypeRep, TypeInfo)] -> Schema s -> Schema s -> Bool
+equivalent typeInfos e1 e2 = fromMaybe False $ do
+  d1 <- pureResult e1
+  d2 <- pureResult e2
+  let ty1 = dynTypeRep d1
+  let ty2 = dynTypeRep d2
+  guard (ty1 == ty2)
+  tyinfo <- lookup ty1 typeInfos
+  pure (dynEq tyinfo d1 d2)
+
+-- | Get the result of a pure schema.
+pureResult :: Schema s -> Maybe Dynamic
+pureResult e = (`evaluateDynPure` []) =<< toTerm e
