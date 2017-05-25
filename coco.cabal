@@ -60,3 +60,9 @@ executable examples-mvar
   main-is: MVar.hs
   build-depends: base, concurrency, dejafu, coco
   ghc-options: -Wall -fprof-auto
+
+executable examples-sem
+  hs-source-dirs: examples
+  main-is: Sem.hs
+  build-depends: base, concurrency, dejafu, exceptions, coco
+  ghc-options: -Wall -fprof-auto

@@ -8,3 +8,6 @@ time stack exec examples-stack        > examples/Stack.out
 
 echo -ne "\nComplex Stack:"
 time stack exec examples-complexstack > examples/ComplexStack.out
+
+echo -ne "\nSemaphore:"
+time stack exec examples-sem          > examples/Sem.out
