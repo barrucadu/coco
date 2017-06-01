@@ -39,22 +39,27 @@ data Ann s o x = Ann
   -- interference, the second is the results of executing with
   -- interference.
   , isBackground :: Bool
-  -- ^ If the term is entirely composed of background schemas or not.
+  -- ^ If the schema is entirely composed of background schemas or
+  -- not.
   , isFailing  :: Bool
   -- ^ If every execution is a failure. Initially, it is assumed a
-  -- term is failing if either of its two subterms is, with none of
-  -- the base terms failing.
+  -- schema is failing if either of its two subschemas is, with none
+  -- of the base schemas failing.
   , isSmallest :: Bool
   -- ^ If this is the smallest observationally-equivalent
-  -- term. Initially, it is assumed a term is the smallest.
+  -- schema. Initially, it is assumed a schema is the smallest.
   , isAtomic   :: Bool
-  -- ^ If executing the term is atomic. Initially, it is assumed a
-  -- term is not atomic.
+  -- ^ If executing the schema is atomic. Initially, it is assumed a
+  -- schema is not atomic.
   , isNeutral   :: Bool
-  -- ^ If this term is nonfailing, atomic, and has no effect on the
-  -- state. Neutral terms are all equivalent, and aren't used when
-  -- generating further terms. Initially, it is assumed a term is not
-  -- neutral.
+  -- ^ If this schema is nonfailing, atomic, and has no effect on the
+  -- state. Neutral schemas are all equivalent, and aren't used when
+  -- generating further schemas. Initially, it is assumed a schema is
+  -- not neutral.
+  , theTerms    :: [Term s]
+  -- ^ Terms of the schema which are not equivalent to any
+  -- previously-known terms.  This is populated by the equivalence
+  -- check in Test.CoCo.Gen.
   }
   deriving (Eq, Ord, Show)
 
@@ -66,6 +71,7 @@ instance Semigroup (Ann s o x) where
     , isSmallest   = True
     , isAtomic     = False
     , isNeutral    = False
+    , theTerms     = []
     }
 
 -- | The results of evaluating a schema.
@@ -79,7 +85,7 @@ data Results s o x
   -- is not very useful if that's only the case when there is no
   -- interference!
   | None
-  -- ^ The schema has no results (eg, has a function type, has holes).
+  -- ^ The schema has no results (eg, has a function type).
   deriving (Eq, Ord, Show)
 
 -- | A variable assignment.
@@ -103,6 +109,7 @@ initialAnn background = Ann
   , isSmallest   = True
   , isAtomic     = False
   , isNeutral    = False
+  , theTerms     = []
   }
 
 -- | Update an annotation with expression-evaluation results.

@@ -27,10 +27,10 @@ import qualified Data.Typeable      as T
 
 import           Test.CoCo.Ann
 import           Test.CoCo.Eval     (runSingle)
-import           Test.CoCo.Expr     (Schema, Term, allTerms, environment,
-                                     exprTypeRep, findInstance, unBind)
+import           Test.CoCo.Expr     (Schema, Term, environment, exprTypeRep,
+                                     findInstance, unBind)
 import           Test.CoCo.Gen      (Generator, adjustTier, getTier,
-                                     newGenerator', stepGenerator)
+                                     newGenerator, stepGenerator)
 import           Test.CoCo.Logic
 import           Test.CoCo.Sig      (Sig(..), complete)
 import           Test.CoCo.Type     (fromDyn)
@@ -123,12 +123,12 @@ discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.T
   -> Sig s o x
   -> [x]
   -> Int
-  -> (Generator s (Maybe (Ann s o x), Ann s o x), [Observation])
+  -> (Generator s o x, [Observation])
 discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
     let sigc = complete sig
-        g = newGenerator' typeInfos
-                          ([(e, (Nothing, initialAnn False)) | e <- expressions           sigc] ++
-                           [(e, (Nothing, initialAnn True))  | e <- backgroundExpressions sigc])
+        g = newGenerator typeInfos
+                         ([(e, initialAnn False) | e <- expressions           sigc] ++
+                          [(e, initialAnn True)  | e <- backgroundExpressions sigc])
     in second crun $ findObservations g 0
   where
     -- check every term on the current tier for equality and
@@ -144,7 +144,7 @@ discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
          else findObservations (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate all terms of a schema and store their results
-    evalSchema (schema, (_, ann)) = case allTerms varfun schema of
+    evalSchema (schema, (_, ann)) = case theTerms ann of
       (mostGeneralTerm:rest) ->
         let mresult = evalTerm mostGeneralTerm
             new_ann = case mresult of
@@ -211,8 +211,8 @@ getResultsFrom generic results specific = case findInstance generic specific of
 
 -- | Filter for term generation: only generate out of non-neutral
 -- terms; and only generate binds out of smallest terms.
-checkNewTerm :: (a, Ann s o x) -> (a, Ann s o x) -> Schema s -> Bool
-checkNewTerm (_, ann1) (_, ann2) expr
+checkNewTerm :: Ann s o x -> Ann s o x -> Schema s -> Bool
+checkNewTerm ann1 ann2 expr
   | isNeutral ann1 || isNeutral ann2 = False
   | otherwise = case unBind expr of
       Just ([], _, _) -> isSmallest ann1 && isSmallest ann2

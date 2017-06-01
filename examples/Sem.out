@@ -1,69 +1,81 @@
-  wait @ 0  ===  wait @ 0 >> wait @ 0
-  wait @ 0  ===  signal @ 0 >> wait @ 0
-  wait @ 0  ===  signal @ 1 >> wait @ 1
-  wait @ 0  -[-  signal @ x >> wait @ x
-  wait @ 0  ===  wait @ 0 >> signal @ 0
-  wait @ 0  ===  remaining @ >> wait @ 0
-  wait @ 0  ===  wait @ 0 >> remaining @
-  wait @ 0  ===  signal @ 0 >> signal @ 0
-  wait @ 0  ===  (wait @ 0) ||| (wait @ 0)
-  wait @ 0  ===  remaining @ >> signal @ 0
-  wait @ 0  ===  signal @ 0 >> remaining @
-  wait @ 0  ===  (signal @ 0) ||| (wait @ 0)
-  wait @ 0  ===  (signal @ 1) ||| (wait @ 1)
-  wait @ 0  -[-  (signal @ x) ||| (wait @ x)
-  wait @ 0  ===  (remaining @) ||| (wait @ 0)
-  wait @ 0  ===  (signal @ 0) ||| (signal @ 0)
-  wait @ 0  ===  (remaining @) ||| (signal @ 0)
-  wait @ 1  ===  wait @ 0 >> wait @ 1
-  wait @ 1  ===  wait @ 1 >> wait @ 0
-  wait @ 1  ===  signal @ 0 >> wait @ 1
-  wait @ 1  ===  wait @ 1 >> signal @ 0
-  wait @ 1  ===  remaining @ >> wait @ 1
-  wait @ 1  ===  wait @ 1 >> remaining @
-  wait @ 1  ===  (wait @ 0) ||| (wait @ 1)
-  wait @ 1  ===  (signal @ 0) ||| (wait @ 1)
-  wait @ 1  ===  (remaining @) ||| (wait @ 1)
-  wait @ x  ===  wait @ 0 >> wait @ x
-  wait @ x  ===  wait @ x >> wait @ 0
-  wait @ x  ===  signal @ 0 >> wait @ x
-  wait @ x  ===  wait @ x >> signal @ 0
-  wait @ x  ===  remaining @ >> wait @ x
-  wait @ x  ===  wait @ x >> remaining @
-  wait @ x  ===  (wait @ 0) ||| (wait @ x)
-  wait @ x  -[-  (signal @ 0) ||| (wait @ x)
-  wait @ x  ===  (remaining @) ||| (wait @ x)
-signal @ 0  ===  wait @ 0 >> wait @ 0
-signal @ 0  ===  signal @ 0 >> wait @ 0
-signal @ 0  ===  signal @ 1 >> wait @ 1
-signal @ 0  -[-  signal @ x >> wait @ x
-signal @ 0  ===  wait @ 0 >> signal @ 0
-signal @ 0  ===  remaining @ >> wait @ 0
-signal @ 0  ===  wait @ 0 >> remaining @
-signal @ 0  ===  signal @ 0 >> signal @ 0
-signal @ 0  ===  (wait @ 0) ||| (wait @ 0)
-signal @ 0  ===  remaining @ >> signal @ 0
-signal @ 0  ===  signal @ 0 >> remaining @
-signal @ 0  ===  (signal @ 0) ||| (wait @ 0)
-signal @ 0  ===  (signal @ 1) ||| (wait @ 1)
-signal @ 0  -[-  (signal @ x) ||| (wait @ x)
-signal @ 0  ===  (remaining @) ||| (wait @ 0)
-signal @ 0  ===  (signal @ 0) ||| (signal @ 0)
-signal @ 0  ===  (remaining @) ||| (signal @ 0)
-signal @ 1  ===  signal @ 1 >> wait @ 0
-signal @ 1  ===  wait @ 0 >> signal @ 1
-signal @ 1  ===  signal @ 0 >> signal @ 1
-signal @ 1  ===  signal @ 1 >> signal @ 0
-signal @ 1  ===  remaining @ >> signal @ 1
-signal @ 1  ===  signal @ 1 >> remaining @
-signal @ 1  ===  (signal @ 1) ||| (wait @ 0)
-signal @ 1  ===  (signal @ 0) ||| (signal @ 1)
-signal @ 1  ===  (remaining @) ||| (signal @ 1)
-signal @ x  ===  wait @ 0 >> signal @ x
-signal @ x  ===  signal @ 0 >> signal @ x
-signal @ x  ===  signal @ x >> signal @ 0
-signal @ x  ===  remaining @ >> signal @ x
-signal @ x  ===  signal @ x >> remaining @
-signal @ x  -[-  (signal @ x) ||| (wait @ 0)
-signal @ x  ===  (signal @ 0) ||| (signal @ x)
-signal @ x  ===  (remaining @) ||| (signal @ x)
+         wait @ 0  ===  wait @ 0 >> wait @ 0
+         wait @ 0  ===  signal @ 0 >> wait @ 0
+         wait @ 0  ===  signal @ 1 >> wait @ 1
+         wait @ 0  -[-  signal @ x >> wait @ x
+         wait @ 0  ===  wait @ 0 >> signal @ 0
+         wait @ 0  ===  remaining @ >> wait @ 0
+         wait @ 0  ===  wait @ 0 >> remaining @
+         wait @ 0  ===  signal @ 0 >> signal @ 0
+         wait @ 0  ===  (wait @ 0) ||| (wait @ 0)
+         wait @ 0  ===  remaining @ >> signal @ 0
+         wait @ 0  ===  signal @ 0 >> remaining @
+         wait @ 0  ===  (signal @ 0) ||| (wait @ 0)
+         wait @ 0  ===  (signal @ 1) ||| (wait @ 1)
+         wait @ 0  -[-  (signal @ x) ||| (wait @ x)
+         wait @ 0  ===  (remaining @) ||| (wait @ 0)
+         wait @ 0  ===  (signal @ 0) ||| (signal @ 0)
+         wait @ 0  ===  (remaining @) ||| (signal @ 0)
+         wait @ 1  ===  wait @ 0 >> wait @ 1
+         wait @ 1  ===  wait @ 1 >> wait @ 0
+         wait @ 1  ===  signal @ 0 >> wait @ 1
+         wait @ 1  ===  wait @ 1 >> signal @ 0
+         wait @ 1  ===  remaining @ >> wait @ 1
+         wait @ 1  ===  wait @ 1 >> remaining @
+         wait @ 1  ===  (wait @ 0) ||| (wait @ 1)
+         wait @ 1  ===  (signal @ 0) ||| (wait @ 1)
+         wait @ 1  ===  (remaining @) ||| (wait @ 1)
+         wait @ x  ===  wait @ 0 >> wait @ x
+         wait @ x  ===  wait @ x >> wait @ 0
+         wait @ x  ===  signal @ 0 >> wait @ x
+         wait @ x  ===  wait @ x >> signal @ 0
+         wait @ x  ===  remaining @ >> wait @ x
+         wait @ x  ===  wait @ x >> remaining @
+         wait @ x  ===  (wait @ 0) ||| (wait @ x)
+         wait @ x  -[-  (signal @ 0) ||| (wait @ x)
+         wait @ x  ===  (remaining @) ||| (wait @ x)
+       signal @ 0  ===  wait @ 0 >> wait @ 0
+       signal @ 0  ===  signal @ 0 >> wait @ 0
+       signal @ 0  ===  signal @ 1 >> wait @ 1
+       signal @ 0  -[-  signal @ x >> wait @ x
+       signal @ 0  ===  wait @ 0 >> signal @ 0
+       signal @ 0  ===  remaining @ >> wait @ 0
+       signal @ 0  ===  wait @ 0 >> remaining @
+       signal @ 0  ===  signal @ 0 >> signal @ 0
+       signal @ 0  ===  (wait @ 0) ||| (wait @ 0)
+       signal @ 0  ===  remaining @ >> signal @ 0
+       signal @ 0  ===  signal @ 0 >> remaining @
+       signal @ 0  ===  (signal @ 0) ||| (wait @ 0)
+       signal @ 0  ===  (signal @ 1) ||| (wait @ 1)
+       signal @ 0  -[-  (signal @ x) ||| (wait @ x)
+       signal @ 0  ===  (remaining @) ||| (wait @ 0)
+       signal @ 0  ===  (signal @ 0) ||| (signal @ 0)
+       signal @ 0  ===  (remaining @) ||| (signal @ 0)
+       signal @ 1  ===  wait @ (0 - 1)
+       signal @ 1  ===  signal @ 1 >> wait @ 0
+       signal @ 1  ===  wait @ 0 >> signal @ 1
+       signal @ 1  ===  signal @ 0 >> signal @ 1
+       signal @ 1  ===  signal @ 1 >> signal @ 0
+       signal @ 1  ===  remaining @ >> signal @ 1
+       signal @ 1  ===  signal @ 1 >> remaining @
+       signal @ 1  ===  (signal @ 1) ||| (wait @ 0)
+       signal @ 1  ===  (signal @ 0) ||| (signal @ 1)
+       signal @ 1  ===  (remaining @) ||| (signal @ 1)
+       signal @ x  ===  wait @ 0 >> signal @ x
+       signal @ x  ===  signal @ 0 >> signal @ x
+       signal @ x  ===  signal @ x >> signal @ 0
+       signal @ x  ===  remaining @ >> signal @ x
+       signal @ x  ===  signal @ x >> remaining @
+       signal @ x  -[-  (signal @ x) ||| (wait @ 0)
+       signal @ x  ===  (signal @ 0) ||| (signal @ x)
+       signal @ x  ===  (remaining @) ||| (signal @ x)
+ signal @ (1 + 1)  ===  wait @ ((0 - 1) - 1)
+ signal @ (1 + 1)  ===  wait @ (0 - (1 + 1))
+ signal @ (1 + 1)  ===  signal @ 1 >> signal @ 1
+ signal @ (1 + 1)  ===  (signal @ 1) ||| (signal @ 1)
+ signal @ (1 + x)  ===  signal @ 1 >> signal @ x
+ signal @ (1 + x)  -[-  signal @ x >> signal @ 1
+ signal @ (1 + x)  -[-  (signal @ 1) ||| (signal @ x)
+ signal @ (x + x)  ===  signal @ x >> signal @ x
+ signal @ (x + x)  ===  (signal @ x) ||| (signal @ x)
+signal @ (x + x1)  -[-  signal @ x >> signal @ x1
+signal @ (x + x1)  -[-  (signal @ x) ||| (signal @ x1)

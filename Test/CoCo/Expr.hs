@@ -45,6 +45,7 @@ module Test.CoCo.Expr
   , unBind
   , unLet
   , unLit
+  , subterms
   -- ** Evaluation
   , evaluate
   , evaluateDyn
@@ -412,6 +413,11 @@ unLit :: Expr s h -> Maybe (String, Dynamic)
 unLit (Lit _ s dyn) = Just (s, dyn)
 unLit _ = Nothing
 
+-- | All subterms of an expression, including the expression itself.
+subterms :: Expr s h -> [Expr s h]
+subterms e@(Let _ _ _ e1 e2) = e : subterms e1 ++ subterms e2
+subterms e@(Ap  _     e1 e2) = e : subterms e1 ++ subterms e2
+subterms e = [e]
 
 -------------------------------------------------------------------------------
 -- Evaluation
