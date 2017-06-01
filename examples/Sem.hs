@@ -1,12 +1,12 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import Control.Concurrent.Classy.MVar
-import Control.Monad.Catch (mask_, onException, uninterruptibleMask_)
-import Control.Monad.Conc.Class (MonadConc)
-import Data.Maybe
+import           Control.Concurrent.Classy.MVar
+import           Control.Monad.Catch            (mask_, onException,
+                                                 uninterruptibleMask_)
+import           Control.Monad.Conc.Class       (MonadConc)
+import           Data.Maybe
 
-import Test.CoCo
+import           Test.CoCo
 
 sig :: Sig (QSemN Concurrency) Int Int
 sig = Sig
