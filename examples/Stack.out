@@ -1,32 +1,32 @@
-      peekLS @  -[-  pushLS x @ >> popLS @
-      peekLS @  -[-  (popLS @) ||| (pushLS x @)
-      peekLS @  -[-  popLS @ >>= \m -> whenJust pushLS @ m
-   pushLS x1 @  -[-  push2LS x x1 @ >> popLS @
-   pushLS x1 @  -[-  (popLS @) ||| (push2LS x x1 @)
-push2LS x1 x @  -[-  pushLS x @ >> pushLS x @
-push2LS x1 x @  -[-  (pushLS x @) ||| (pushLS x @)
+      peekLS @  ->-  pushLS x @ >> popLS @
+      peekLS @  ->-  (popLS @) ||| (pushLS x @)
+      peekLS @  ->-  popLS @ >>= \m -> whenJust pushLS @ m
+   pushLS x1 @  ->-  push2LS x x1 @ >> popLS @
+   pushLS x1 @  ->-  (popLS @) ||| (push2LS x x1 @)
+push2LS x1 x @  ->-  pushLS x @ >> pushLS x @
+push2LS x1 x @  ->-  (pushLS x @) ||| (pushLS x @)
 
-peekCAS @  -[-  pushCAS x @ >> popCAS @
-peekCAS @  -[-  (popCAS @) ||| (pushCAS x @)
-peekCAS @  -[-  popCAS @ >>= \m -> whenJust pushCAS @ m
+peekCAS @  ->-  pushCAS x @ >> popCAS @
+peekCAS @  ->-  (popCAS @) ||| (pushCAS x @)
+peekCAS @  ->-  popCAS @ >>= \m -> whenJust pushCAS @ m
 
                             popLS @  ===  popCAS @
                            peekLS @  ===  peekCAS @
-                          peekCAS @  -[-  (popLS @) ||| (pushLS x @)
-                          peekCAS @  -[-  popLS @ >>= \m -> whenJust pushLS @ m
+                          peekCAS @  ->-  (popLS @) ||| (pushLS x @)
+                          peekCAS @  ->-  popLS @ >>= \m -> whenJust pushLS @ m
                          pushLS x @  ===  pushCAS x @
-                       pushCAS x1 @  -[-  push2LS x x1 @ >> popLS @
+                       pushCAS x1 @  ->-  push2LS x x1 @ >> popLS @
                  popLS @ >> popLS @  ===  popCAS @ >> popCAS @
                  popLS @ >> popLS @  ===  (popCAS @) ||| (popCAS @)
                 whenJust pushLS @ m  ===  whenJust pushCAS @ m
               popLS @ >> pushLS x @  ===  popCAS @ >> pushCAS x @
             (popLS @) ||| (popLS @)  ===  popCAS @ >> popCAS @
             (popLS @) ||| (popLS @)  ===  (popCAS @) ||| (popCAS @)
-            popCAS @ >> pushCAS x @  -[-  (popLS @) ||| (pushLS x @)
+            popCAS @ >> pushCAS x @  ->-  (popLS @) ||| (pushLS x @)
      popLS @ >> whenJust pushLS @ m  ===  popCAS @ >> whenJust pushCAS @ m
-     popLS @ >> whenJust pushLS @ m  -[-  (popCAS @) ||| (whenJust pushCAS @ m)
+     popLS @ >> whenJust pushLS @ m  ->-  (popCAS @) ||| (whenJust pushCAS @ m)
      whenJust pushLS @ m >> popLS @  ===  whenJust pushCAS @ m >> popCAS @
-     whenJust pushLS @ m >> popLS @  -[-  (popCAS @) ||| (whenJust pushCAS @ m)
-   popCAS @ >> whenJust pushCAS @ m  -[-  (popLS @) ||| (whenJust pushLS @ m)
-   whenJust pushCAS @ m >> popCAS @  -[-  (popLS @) ||| (whenJust pushLS @ m)
+     whenJust pushLS @ m >> popLS @  ->-  (popCAS @) ||| (whenJust pushCAS @ m)
+   popCAS @ >> whenJust pushCAS @ m  ->-  (popLS @) ||| (whenJust pushLS @ m)
+   whenJust pushCAS @ m >> popCAS @  ->-  (popLS @) ||| (whenJust pushLS @ m)
 (popLS @) ||| (whenJust pushLS @ m)  ===  (popCAS @) ||| (whenJust pushCAS @ m)
