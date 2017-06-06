@@ -42,7 +42,7 @@ instance Eq Observation where
 -- ** Discovery
 
 -- | Find observations and either annotate a schema or throw it away.
-observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typeable s2)
+findObservations :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typeable s2)
   => [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover observations which only hold with certain
   -- seeds.
@@ -56,7 +56,7 @@ observe :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeable s1, Typ
   -> f3 (schema2, (Maybe (Ann s2 o x), Ann s2 o x))
   -- ^ Second set of schemas.
   -> (ChurchList (schema2, (Maybe (Ann s2 o x), Ann s2 o x)), ChurchList Observation)
-observe preconditions varf p smallers = foldl' go (cnil, cnil) where
+findObservations preconditions varf p smallers = foldl' go (cnil, cnil) where
   go (ckept, cobs) z@(schema_a, a0@(old_ann_a, ann_a))
       | isBackground ann_a = (csnoc ckept z, cobs)
       | isJust (allResults ann_a) = case foldl' (foldl' go') (Just ann_a, cnil) smallers of

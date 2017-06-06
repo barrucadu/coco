@@ -10,7 +10,7 @@ import           Test.CoCo
 
 sig :: Sig (QSemN Concurrency) Int Int
 sig = Sig
-  { initialState = newQSemN . abs
+  { initialise  = newQSemN . abs
   , expressions =
     [ lit "wait" (waitQSemN :: QSemN Concurrency -> Int -> Concurrency ())
     , lit "signal" (signalQSemN :: QSemN Concurrency -> Int -> Concurrency ())
@@ -23,9 +23,9 @@ sig = Sig
     , lit "0" (0 :: Int)
     , lit "1" (1 :: Int)
     ]
-  , observation = \q _ -> remainingQSemN q
-  , backToSeed  = \q _ -> remainingQSemN q
-  , setState = \q n -> let i = abs (n `div` 2) in waitQSemN q i >> signalQSemN q i
+  , observe    = \q _ -> remainingQSemN q
+  , interfere  = \q n -> let i = abs (n `div` 2) in waitQSemN q i >> signalQSemN q i
+  , backToSeed = \q _ -> remainingQSemN q
   }
 
 example :: Int -> IO ()

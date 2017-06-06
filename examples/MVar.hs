@@ -7,7 +7,7 @@ import           Test.CoCo
 
 sig :: Sig (MVar Concurrency Int) (Maybe Int) (Maybe Int)
 sig = Sig
-  { initialState = maybe newEmptyMVar newMVar
+  { initialise  = maybe newEmptyMVar newMVar
   , expressions =
     [ lit "putMVar"  (putMVar  :: MVar Concurrency A -> A -> Concurrency ())
     , lit "takeMVar" (takeMVar :: MVar Concurrency A -> Concurrency A)
@@ -15,9 +15,9 @@ sig = Sig
     ]
   , backgroundExpressions =
     [ commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ()) ]
-  , observation = const . tryTakeMVar
+  , observe    = const . tryTakeMVar
+  , interfere  = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   , backToSeed = const . tryTakeMVar
-  , setState = \v mi -> tryTakeMVar v >> maybe (pure ()) (void . tryPutMVar v) mi
   }
 
 seedPreds :: [(String, Maybe a -> Bool)]

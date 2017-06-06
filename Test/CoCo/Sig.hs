@@ -23,7 +23,7 @@ import           Test.CoCo.Type  (dynTypeRep, funArgTys, innerTy, unifyAccum)
 
 -- | A collection of expressions.
 data Sig s o x = Sig
-  { initialState :: x -> Concurrency s
+  { initialise :: x -> Concurrency s
   -- ^ Create a new instance of the state variable.
   , expressions :: [Schema s]
   -- ^ The primitive expressions to use.
@@ -31,15 +31,15 @@ data Sig s o x = Sig
   -- ^ Expressions to use as helpers for building new
   -- expressions. Observations will not be reported about terms which
   -- are entirely composed of background expressions.
-  , observation :: s -> x -> Concurrency o
+  , observe :: s -> x -> Concurrency o
   -- ^ The observation to make.
-  , backToSeed :: s -> x -> Concurrency x
-  -- ^ Convert the state back to the seed (used to determine if a term
-  -- is neutral).
-  , setState :: s -> x -> Concurrency ()
+  , interfere :: s -> x -> Concurrency ()
   -- ^ Set the state value. This doesn't need to be atomic, or even
   -- guaranteed to work, its purpose is to cause interference when
   -- evaluating other terms.
+  , backToSeed :: s -> x -> Concurrency x
+  -- ^ Convert the state back to the seed (used to determine if a term
+  -- is neutral).
   }
 
 -- | Complete a signature: add missing holes and the state variable to

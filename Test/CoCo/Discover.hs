@@ -74,17 +74,17 @@ discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim =
     let
       (g1, obs1) = discoverSingleWithSeeds' typeInfos seedPreds sig1 seeds lim
       (g2, obs2) = discoverSingleWithSeeds' typeInfos seedPreds sig2 seeds lim
-      obs3       = crun (findObservations g1 g2 0)
+      obs3       = crun (go g1 g2 0)
     in (obs1, obs2, obs3)
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
-    findObservations g1 g2 = go where
-      go tier =
+    go g1 g2 = loop where
+      loop tier =
         let exprs = getTier tier g1
             smallers = map (`getTier` g2) [0..tier]
-            (_, observations) = observe seedPreds varfun (\_ _ -> False) smallers exprs
-        in cappend observations $ if tier == lim then cnil else go (tier+1)
+            (_, observations) = findObservations seedPreds varfun (\_ _ -> False) smallers exprs
+        in cappend observations $ if tier == lim then cnil else loop (tier+1)
 
     -- get the base name for a variable
     varfun = getVariableBaseName typeInfos
@@ -129,19 +129,19 @@ discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
         g = newGenerator typeInfos
                          ([(e, initialAnn False) | e <- expressions           sigc] ++
                           [(e, initialAnn True)  | e <- backgroundExpressions sigc])
-    in second crun $ findObservations g 0
+    in second crun (go g 0)
   where
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
-    findObservations g tier =
+    go g tier =
       let evaled = map evalSchema . S.toList $ getTier tier g
           smallers = map (`getTier` g) [0..tier-1]
-          (kept, observations) = first crun (observe seedPreds varfun ((==) `on` exprTypeRep) smallers evaled)
+          (kept, observations) = first crun (findObservations seedPreds varfun ((==) `on` exprTypeRep) smallers evaled)
           g' = adjustTier (const (S.fromList kept)) tier g
       in second (cappend observations) $
          if tier == lim
          then (g', cnil)
-         else findObservations (stepGenerator checkNewTerm g') (tier+1)
+         else go (stepGenerator checkNewTerm g') (tier+1)
 
     -- evaluate all terms of a schema and store their results
     evalSchema (schema, (_, ann)) = case theTerms ann of
@@ -171,9 +171,9 @@ discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
     run :: Bool -> Term s -> Maybe (Bool, VarResults o x)
     run interference term =
       runSingle typeInfos
-                (initialState sig)
-                (if interference then Just (setState sig) else Nothing)
-                (observation sig)
+                (initialise sig)
+                (if interference then Just (interfere sig) else Nothing)
+                (observe sig)
                 (backToSeed sig)
                 seeds
                 term

@@ -48,7 +48,7 @@ toListLS (LockStack v) = readMVar v
 
 sigLS :: Sig (LockStack Concurrency Int) [Int] [Int]
 sigLS = Sig
-  { initialState = fromListLS
+  { initialise  = fromListLS
   , expressions =
     [ lit "pushLS"  (pushLS  :: A -> LockStack Concurrency A -> Concurrency ())
     , lit "popLS"   (popLS   :: LockStack Concurrency A -> Concurrency (Maybe A))
@@ -65,9 +65,9 @@ sigLS = Sig
                                                         -> Concurrency ())
     , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
-  , observation = const . toListLS
+  , observe    = const . toListLS
+  , interfere  = \(LockStack v) -> modifyMVar_ v . const . pure
   , backToSeed = const . toListLS
-  , setState = \(LockStack v) -> modifyMVar_ v . const . pure
   }
 
 -------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ toListCAS (CASStack r) = readCRef r
 
 sigCAS :: Sig (CASStack Concurrency Int) [Int] [Int]
 sigCAS = Sig
-  { initialState = fromListCAS
+  { initialise  = fromListCAS
   , expressions =
     [ lit "pushCAS"  (pushCAS  :: A -> CASStack Concurrency A -> Concurrency ())
     , lit "popCAS"   (popCAS   :: CASStack Concurrency A -> Concurrency (Maybe A))
@@ -129,9 +129,9 @@ sigCAS = Sig
                                                         -> Concurrency ())
     , commLit "|||" ((|||) :: Concurrency A -> Concurrency B -> Concurrency ())
     ]
-  , observation = const . toListCAS
+  , observe    = const . toListCAS
+  , interfere  = \(CASStack r) -> modifyCRefCAS_ r . const
   , backToSeed = const . toListCAS
-  , setState = \(CASStack r) -> modifyCRefCAS_ r . const
   }
 
 -------------------------------------------------------------------------------
