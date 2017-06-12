@@ -29,7 +29,7 @@ sig = Sig
   }
 
 example :: Int -> IO ()
-example = prettyPrint defaultTypeInfos . discoverSingle defaultTypeInfos [] sig
+example = prettyPrint defaultPPROpts . discoverSingle defaultTypeInfos [] sig
 
 main :: IO ()
 main = example 7

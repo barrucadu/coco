@@ -72,8 +72,8 @@ discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeabl
   -> ([Observation], [Observation], [Observation])
 discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim =
     let
-      (g1, obs1) = discoverSingleWithSeeds' typeInfos seedPreds sig1 seeds lim
-      (g2, obs2) = discoverSingleWithSeeds' typeInfos seedPreds sig2 seeds lim
+      (g1, obs1) = discoverSingleWithSeeds' LL typeInfos seedPreds sig1 seeds lim
+      (g2, obs2) = discoverSingleWithSeeds' RR typeInfos seedPreds sig2 seeds lim
       obs3       = crun (go g1 g2 0)
     in (obs1, obs2, obs3)
   where
@@ -114,23 +114,29 @@ discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   -> Int
   -> [Observation]
 discoverSingleWithSeeds typeInfos seedPreds sig seeds =
-  snd . discoverSingleWithSeeds' typeInfos seedPreds sig seeds
+  snd . discoverSingleWithSeeds' LL typeInfos seedPreds sig seeds
 
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
-  => [(T.TypeRep, TypeInfo)]
+  => LR
+  -> [(T.TypeRep, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s o x
   -> [x]
   -> Int
   -> (Generator s o x, [Observation])
-discoverSingleWithSeeds' typeInfos seedPreds sig seeds lim =
+discoverSingleWithSeeds' lr typeInfos seedPreds sig seeds lim =
     let sigc = complete sig
         g = newGenerator typeInfos
                          ([(e, initialAnn False) | e <- expressions           sigc] ++
                           [(e, initialAnn True)  | e <- backgroundExpressions sigc])
-    in second crun (go g 0)
+    in second (crunMap fixObs) (go g 0)
   where
+    -- note that every observation comes from the same signature
+    fixObs (Equiv   _ t1 t2) = Equiv   lr t1 t2
+    fixObs (Refines _ t1 t2) = Refines lr t1 t2
+    fixObs o = o
+
     -- check every term on the current tier for equality and
     -- refinement with the smaller terms.
     go g tier =

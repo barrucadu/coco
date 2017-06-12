@@ -100,11 +100,11 @@ seedPreds = []
 example :: Int -> IO ()
 example n = do
   let (obs1, obs2, obs3) = discover defaultTypeInfos seedPreds sigLS sigCAS n
-  prettyPrint defaultTypeInfos obs1
+  prettyPrint defaultPPROpts obs1
   putStrLn ""
-  prettyPrint defaultTypeInfos obs2
+  prettyPrint defaultPPROpts obs2
   putStrLn ""
-  prettyPrint defaultTypeInfos obs3
+  prettyPrint defaultPPROpts obs3
 
 main :: IO ()
 main = example 7

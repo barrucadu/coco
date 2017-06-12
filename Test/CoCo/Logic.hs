@@ -28,15 +28,28 @@ import           Test.CoCo.Util   (ChurchList, cappend, cnil, csnoc,
 
 -- | Observations about pairs of terms.
 data Observation where
-  Equiv   :: (Typeable s1, Typeable s2) => Term s1 -> Term s2 -> Observation
-  Refines :: (Typeable s1, Typeable s2) => Term s1 -> Term s2 -> Observation
+  Equiv   :: (Typeable s1, Typeable s2) => LR -> Term s1 -> Term s2 -> Observation
+  Refines :: (Typeable s1, Typeable s2) => LR -> Term s1 -> Term s2 -> Observation
   Implied :: String -> Observation -> Observation
 
 instance Eq Observation where
-  (Equiv   l1 l2) == (Equiv   r1 r2) = l1 `eq` r1 && l2 `eq` r2
-  (Refines l1 l2) == (Refines r1 r2) = l1 `eq` r1 && l2 `eq` r2
+  (Equiv   lr1 l1 l2) == (Equiv   lr2 r1 r2) = lr1 == lr2 && l1 `eq` r1 && l2 `eq` r2
+  (Refines lr1 l1 l2) == (Refines lr2 r1 r2) = lr1 == lr2 && l1 `eq` r1 && l2 `eq` r2
   (Implied s1 o1) == (Implied s2 o2) = s1 == s2 && o1 == o2
   _ == _ = False
+
+-- | Which signature the expressions in an 'Observation' were
+-- generated from
+data LR
+  = LL
+  -- ^ Both from the left signature.
+  | RR
+  -- ^ Both from the right signature.
+  | LR
+  -- ^ Left from the left signature, right from the right signature.
+  | RL
+  -- ^ Left from the right signature, right from the left signature.
+  deriving (Bounded, Enum, Eq, Ord, Read, Show)
 
 -------------------------------------------------------------------------------
 -- ** Discovery
@@ -135,9 +148,9 @@ makeObservation p (term_a, results_a) (term_b, results_b) renaming_a renaming_b 
     obs
       | uninteresting_failure = Nothing
       | refines_ab && refines_ba = Just $
-        if exprSize term_a > exprSize term_b then Equiv term_b' term_a' else Equiv term_a' term_b'
-      | refines_ab = Just (Refines term_a' term_b')
-      | refines_ba = Just (Refines term_b' term_a')
+        if exprSize term_a > exprSize term_b then Equiv RL term_b' term_a' else Equiv LR term_a' term_b'
+      | refines_ab = Just (Refines LR term_a' term_b')
+      | refines_ba = Just (Refines RL term_b' term_a')
       | otherwise = Nothing
 
 
@@ -152,8 +165,8 @@ equalAndIsInstanceOf :: (Eq a, Eq b)
   -> Bool
 equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
   ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
-    Just (Equiv   t1 t2, Equiv   t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-    Just (Refines t1 t2, Refines t3 t4) -> t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+    Just (Equiv   lr1 t1 t2, Equiv   lr2 t3 t4) -> lr1 == lr2 && t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
+    Just (Refines lr1 t1 t2, Refines lr2 t3 t4) -> lr1 == lr2 && t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
     _ -> False
 
 -- | Given two equal observations, check if the first has a more general naming than the right.

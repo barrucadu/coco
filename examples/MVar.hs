@@ -25,7 +25,7 @@ seedPreds = []
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example = prettyPrint defaultTypeInfos . discoverSingle defaultTypeInfos seedPreds sig
+example = prettyPrint defaultPPROpts . discoverSingle defaultTypeInfos seedPreds sig
 
 main :: IO ()
 main = example 7

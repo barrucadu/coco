@@ -86,3 +86,8 @@ cappend (CL xs) (CL ys) = CL (\c n -> xs c (ys c n))
 -- | Convert a Church-encoded list to a regular list.
 crun :: ChurchList a -> [a]
 crun (CL xs) = xs (:) []
+
+-- | Convert a Church-encoded list to a regular list and map over it
+-- in one pass.
+crunMap :: (a -> b) -> ChurchList a -> [b]
+crunMap f (CL xs) = xs (\a bs -> f a : bs) []

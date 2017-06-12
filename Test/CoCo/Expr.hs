@@ -542,14 +542,21 @@ eq StateVar StateVar = True
 eq _ _ = False
 
 -- | Pretty-print an expression.
-pp :: Typeable s => (TypeRep -> Char) -> Expr s h -> String
-pp nf e0 = go [] True e0 where
+pp :: Typeable s
+  => (TypeRep -> Char)
+  -- ^ Variable-naming function.
+  -> Bool
+  -- ^ If True use the name \"h0\" for the state otherwise use \"@\".
+  -> Expr s h
+  -- ^ Expression to pretty-print.
+  -> String
+pp nf sn e0 = go [] True e0 where
   go _ _ (Lit _ s _) = toPrefix s
   go env top (Var ty v) = case v of
     Hole _ -> wrap top ("_ :: " ++ show ty)
     Bound i -> env !! i
     Named s -> s
-  go _ _ StateVar = "@"
+  go _ _ StateVar = if sn then "h0" else "@"
   go env top e = wrap top . unwords $ case e of
     Let _ True is b x ->
       let v = fresh env . fromJust $ unmonad b
