@@ -46,23 +46,27 @@ library
 executable examples-stack
   hs-source-dirs: examples
   main-is: Stack.hs
+  other-modules: Util
   build-depends: base, concurrency, dejafu, coco
   ghc-options: -Wall -fprof-auto
 
 executable examples-complexstack
   hs-source-dirs: examples
   main-is: ComplexStack.hs
+  other-modules: Util
   build-depends: base, concurrency, dejafu, coco
   ghc-options: -Wall -fprof-auto
 
 executable examples-mvar
   hs-source-dirs: examples
   main-is: MVar.hs
+  other-modules: Util
   build-depends: base, concurrency, dejafu, coco
   ghc-options: -Wall -fprof-auto
 
 executable examples-sem
   hs-source-dirs: examples
   main-is: Sem.hs
+  other-modules: Util
   build-depends: base, concurrency, dejafu, exceptions, coco
   ghc-options: -Wall -fprof-auto

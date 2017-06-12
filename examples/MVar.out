@@ -1,3 +1,4 @@
+-- compact
  readMVar @  ===  readMVar @ >> readMVar @
  readMVar @  ===  (readMVar @) ||| (readMVar @)
  readMVar @  ->-  takeMVar @ >>= \x -> putMVar @ x
@@ -5,3 +6,21 @@
  takeMVar @  ->-  (readMVar @) ||| (takeMVar @)
 putMVar @ x  ->-  putMVar @ x >> readMVar @
 putMVar @ x  ->-  (readMVar @) ||| (putMVar @ x)
+
+-- plain
+check $ sigL (\h0 -> readMVar h0) === sigL (\h0 -> readMVar h0 >> readMVar h0)
+check $ sigL (\h0 -> readMVar h0) === sigL (\h0 -> (readMVar h0) ||| (readMVar h0))
+check $ sigL (\h0 -> readMVar h0) ->- sigL (\h0 -> takeMVar h0 >>= \x -> putMVar h0 x)
+check $ sigL (\h0 -> takeMVar h0) === sigL (\h0 -> readMVar h0 >> takeMVar h0)
+check $ sigL (\h0 -> takeMVar h0) ->- sigL (\h0 -> (readMVar h0) ||| (takeMVar h0))
+check $ \x -> sigL (\h0 -> putMVar h0 x) ->- sigL (\h0 -> putMVar h0 x >> readMVar h0)
+check $ \x -> sigL (\h0 -> putMVar h0 x) ->- sigL (\h0 -> (readMVar h0) ||| (putMVar h0 x))
+
+-- hunit/tasty
+testProperty "name" $ sigL (\h0 -> readMVar h0) === sigL (\h0 -> readMVar h0 >> readMVar h0)
+testProperty "name" $ sigL (\h0 -> readMVar h0) === sigL (\h0 -> (readMVar h0) ||| (readMVar h0))
+testProperty "name" $ sigL (\h0 -> readMVar h0) ->- sigL (\h0 -> takeMVar h0 >>= \x -> putMVar h0 x)
+testProperty "name" $ sigL (\h0 -> takeMVar h0) === sigL (\h0 -> readMVar h0 >> takeMVar h0)
+testProperty "name" $ sigL (\h0 -> takeMVar h0) ->- sigL (\h0 -> (readMVar h0) ||| (takeMVar h0))
+testProperty "name" $ \x -> sigL (\h0 -> putMVar h0 x) ->- sigL (\h0 -> putMVar h0 x >> readMVar h0)
+testProperty "name" $ \x -> sigL (\h0 -> putMVar h0 x) ->- sigL (\h0 -> (readMVar h0) ||| (putMVar h0 x))

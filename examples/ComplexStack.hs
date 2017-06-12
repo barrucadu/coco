@@ -6,6 +6,8 @@ import           Data.Maybe                (listToMaybe)
 
 import           Test.CoCo
 
+import           Util
+
 -------------------------------------------------------------------------------
 -- Lock-based stack
 
@@ -143,11 +145,12 @@ seedPreds = []
 example :: Int -> IO ()
 example n = do
   let (obs1, obs2, obs3) = discover defaultTypeInfos seedPreds sigLS sigCAS n
-  prettyPrint defaultPPROpts obs1
-  putStrLn ""
-  prettyPrint defaultPPROpts obs2
-  putStrLn ""
-  prettyPrint defaultPPROpts obs3
+  putStrLn "===== LockStack"
+  printOutput obs1
+  putStrLn "\n\n===== CASStack"
+  printOutput obs2
+  putStrLn "\n\n===== Both"
+  printOutput obs3
 
 main :: IO ()
 main = example 7

@@ -8,6 +8,8 @@ import           Data.Maybe
 
 import           Test.CoCo
 
+import           Util
+
 sig :: Sig (QSemN Concurrency) Int Int
 sig = Sig
   { initialise  = newQSemN . abs
@@ -29,7 +31,7 @@ sig = Sig
   }
 
 example :: Int -> IO ()
-example = prettyPrint defaultPPROpts . discoverSingle defaultTypeInfos [] sig
+example = printOutput . discoverSingle defaultTypeInfos [] sig
 
 main :: IO ()
 main = example 7

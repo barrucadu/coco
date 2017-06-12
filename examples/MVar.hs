@@ -5,6 +5,8 @@ import           Control.Monad
 
 import           Test.CoCo
 
+import           Util
+
 sig :: Sig (MVar Concurrency Int) (Maybe Int) (Maybe Int)
 sig = Sig
   { initialise  = maybe newEmptyMVar newMVar
@@ -25,7 +27,7 @@ seedPreds = []
 
 -- | For using in GHCi
 example :: Int -> IO ()
-example = prettyPrint defaultPPROpts . discoverSingle defaultTypeInfos seedPreds sig
+example = printOutput . discoverSingle defaultTypeInfos seedPreds sig
 
 main :: IO ()
 main = example 7
