@@ -13,6 +13,7 @@
 -- The concurrency monad.
 module Test.CoCo.Monad
   ( Concurrency
+  , toConcIO
   , subconcurrency
   , runSCT
   , runSCT'
@@ -28,8 +29,12 @@ import qualified Test.DejaFu.Conc         as D
 import qualified Test.DejaFu.SCT          as D
 
 -- | The concurrency monad.
-newtype Concurrency a = Concurrency { toConcIO :: D.ConcIO a }
+newtype Concurrency a = Concurrency (D.ConcIO a)
   deriving (Functor, Applicative, Monad, MonadThrow, MonadCatch, MonadMask)
+
+-- | Extract the underlying 'ConcIO' value.
+toConcIO :: Concurrency a -> D.ConcIO a
+toConcIO (Concurrency ma) = ma
 
 instance MonadConc Concurrency where
   type MVar     Concurrency = MVar     D.ConcIO
