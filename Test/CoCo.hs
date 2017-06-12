@@ -1,10 +1,12 @@
+{-# LANGUAGE RecordWildCards #-}
+
 -- |
--- Module      : Test.CoCo.Discover
+-- Module      : Test.CoCo
 -- Copyright   : (c) 2017 Michael Walker
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : MonoLocalBinds, ScopedTypeVariables, TupleSections
+-- Portability : RecordWildCards
 --
 -- Discover observational equalities and refinements between
 -- concurrent functions.
@@ -39,7 +41,8 @@ module Test.CoCo
 
 import           Control.Monad            (void)
 import           Control.Monad.Conc.Class (readMVar, spawn)
-import           Data.List                (sortOn)
+import           Data.Function            (on)
+import           Data.List                (sort)
 import           Data.Maybe               (isJust)
 import           Data.Typeable            (TypeRep, Typeable)
 
@@ -85,42 +88,60 @@ defaultPPROpts = PPROpts
   , pprDejaFu    = Nothing
   }
 
+data PPRProp = PPRProp
+  { prettyLExpr :: String
+  , prettyRExpr :: String
+  , prettyOp    :: String
+  , prettyPred  :: Maybe String
+  , prettyLSig  :: String
+  , prettyRSig  :: String
+  , prettyArgs  :: [String]
+  } deriving Eq
+
+instance Ord PPRProp where
+  compare = compare `on` cmp where
+    cmp PPRProp{..} =
+      ( maybe 0 length prettyPred
+      , prettyPred
+      , length prettyLExpr
+      , prettyLExpr
+      , length prettyRExpr
+      , prettyRExpr
+      )
+
 -- | Pretty-print a list of observations.
 prettyPrint :: PPROpts -> [L.Observation] -> IO ()
-prettyPrint opts obss0 = mapM_ (putStrLn . ppr) (sortOn cmp obss) where
+prettyPrint opts obss0 = mapM_ (putStrLn . ppr) (sort obss) where
   obss = map go obss0 where
-    go (L.Equiv lr e1 e2) =
-      (Nothing, pp e1, "===", pp e2, map fst . ordNub $ E.environment e1 ++ E.environment e2, lr)
-    go (L.Refines L.RL e1 e2) =
-      (Nothing, pp e2, "-<-", pp e1, map fst . ordNub $ E.environment e1 ++ E.environment e2, L.LR)
-    go (L.Refines lr e1 e2) =
-      (Nothing, pp e1, "->-", pp e2, map fst . ordNub $ E.environment e1 ++ E.environment e2, lr)
-    go (L.Implied p obs) =
-      let (Nothing, e1p, t, e2p, env, lr) = go obs in (Just p, e1p, t, e2p, env, lr)
+    go (L.Equiv   lr e1 e2) = go' "===" "===" lr e1 e2
+    go (L.Refines lr e1 e2) = go' "->-" "-<-" lr e1 e2
+    go (L.Implied p obs)    = (go obs) { prettyPred = Just p }
 
-  cmp (p, e1p, _, e2p, _, _) =
-    (maybe 0 length p, p, length e1p, e1p, length e2p, e2p)
+    go' t1 t2 lr e1 e2 = PPRProp
+      { prettyPred  = Nothing
+      , prettyLExpr = if lr == L.RL then pp e2  else pp e1
+      , prettyRExpr = if lr == L.RL then pp e1  else pp e2
+      , prettyOp    = if lr == L.RL then t2     else t1
+      , prettyLSig  = if lr == L.RR then "sigR" else "sigL"
+      , prettyRSig  = if lr == L.LL then "sigL" else "sigR"
+      , prettyArgs  = map fst . ordNub $ E.environment e1 ++ E.environment e2
+      }
 
-  ppr (p, e1p, t, e2p, env, lr) = case pprDejaFu opts of
+  ppr PPRProp{..} = case pprDejaFu opts of
     Just style ->
       let how = case style of
             Plain -> "check"
             HUnit -> "testProperty \"name\""
             Tasty -> "testProperty \"name\""
-          lambda = if null env then "" else '\\' : unwords env ++ " -> "
-          prefix = maybe "" (++ " ==> ") p
-          (sig1, sig2) = case lr of
-            L.LL -> ("sigL", "sigL")
-            L.RR -> ("sigR", "sigR")
-            L.LR -> ("sigL", "sigR")
-            L.RL -> error "unreachable"
-      in how ++ " $ " ++ lambda ++ prefix ++ sig1 ++ " (\\h0 -> " ++ e1p ++ ") " ++ t ++ " " ++ sig2 ++ " (\\h0 -> " ++ e2p ++ ")"
+          lambda = if null prettyArgs then "" else '\\' : unwords prettyArgs ++ " -> "
+          prefix = maybe "" (++ " ==> ") prettyPred
+      in how ++ " $ " ++ lambda ++ prefix ++ prettyLSig ++ " (\\h0 -> " ++ prettyLExpr ++ ") " ++ prettyOp ++ " " ++ prettyRSig ++ " (\\h0 -> " ++ prettyRExpr ++ ")"
     Nothing ->
-      let off = replicate (maxlen p - length e1p) ' '
-          prefix = maybe "" (++ "  ==>  ") p
-      in prefix ++ off ++ e1p ++ "  " ++ t ++ "  " ++ e2p
+      let off = replicate (maxlen prettyPred - length prettyLExpr) ' '
+          prefix = maybe "" (++ "  ==>  ") prettyPred
+      in prefix ++ off ++ prettyLExpr ++ "  " ++ prettyOp ++ "  " ++ prettyRExpr
 
-  maxlen p0 = maximum (map (\(p, e1p, _, _, _, _) -> if p == p0 then length e1p else 0) obss)
+  maxlen p0 = maximum (map (\PPRProp{..} -> if prettyPred == p0 then length prettyLExpr else 0) obss)
 
   nf = T.getVariableBaseName (pprTypeInfos opts)
 
