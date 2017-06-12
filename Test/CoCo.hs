@@ -31,6 +31,7 @@ module Test.CoCo
     -- * Miscellaneous
   , (|||)
   , prettyPrint
+  , S.cocoToDejaFu
   ) where
 
 import           Control.Monad            (void)

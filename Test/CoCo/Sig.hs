@@ -11,15 +11,19 @@
 -- Expression signatures for property discovery.
 module Test.CoCo.Sig where
 
-import           Data.List       (nub)
-import           Data.Maybe      (fromMaybe, mapMaybe)
-import           Data.Proxy      (Proxy(..))
-import           Data.Typeable   (TypeRep, Typeable, typeRep)
+import           Control.Monad          (void)
+import           Data.List              (nub)
+import           Data.Maybe             (fromMaybe, mapMaybe)
+import           Data.Proxy             (Proxy(..))
+import           Data.Typeable          (TypeRep, Typeable, typeRep)
+import qualified Test.DejaFu.Conc       as D
+import qualified Test.DejaFu.Refinement as D
 
-import           Test.CoCo.Expr  (Schema, exprTypeRep, holeOf, instantiateTys,
-                                  stateVar, unLit)
-import           Test.CoCo.Monad (Concurrency)
-import           Test.CoCo.Type  (dynTypeRep, funArgTys, innerTy, unifyAccum)
+import           Test.CoCo.Expr         (Schema, exprTypeRep, holeOf,
+                                         instantiateTys, stateVar, unLit)
+import           Test.CoCo.Monad        (Concurrency, toConcIO)
+import           Test.CoCo.Type         (dynTypeRep, funArgTys, innerTy,
+                                         unifyAccum)
 
 -- | A collection of expressions.
 data Sig s o x = Sig
@@ -94,3 +98,12 @@ inferHoles sig = nub $ concatMap holesFor (expressions sig) ++ concatMap holesFo
     (aTys, rTy) <- funArgTys (dynTypeRep dyn)
     pure $ mapMaybe unmonad (rTy:aTys) ++ (rTy:aTys)
   unmonad = innerTy (Proxy :: Proxy Concurrency)
+
+-- | Produce a DejaFu 'D.Sig' from a CoCo 'Sig'.
+cocoToDejaFu :: Sig s o x -> (s -> D.ConcIO a) -> D.Sig s o x
+cocoToDejaFu sig expr = D.Sig
+  { D.initialise = toConcIO . initialise sig
+  , D.observe    = \h -> toConcIO . observe   sig h
+  , D.interfere  = \h -> toConcIO . interfere sig h
+  , D.expression = void . expr
+  }
