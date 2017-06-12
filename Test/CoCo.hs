@@ -89,8 +89,10 @@ defaultPPROpts = PPROpts
 prettyPrint :: PPROpts -> [L.Observation] -> IO ()
 prettyPrint opts obss0 = mapM_ (putStrLn . ppr) (sortOn cmp obss) where
   obss = map go obss0 where
-    go (L.Equiv   lr e1 e2) =
+    go (L.Equiv lr e1 e2) =
       (Nothing, pp e1, "===", pp e2, map fst . ordNub $ E.environment e1 ++ E.environment e2, lr)
+    go (L.Refines L.RL e1 e2) =
+      (Nothing, pp e2, "-<-", pp e1, map fst . ordNub $ E.environment e1 ++ E.environment e2, L.LR)
     go (L.Refines lr e1 e2) =
       (Nothing, pp e1, "->-", pp e2, map fst . ordNub $ E.environment e1 ++ E.environment e2, lr)
     go (L.Implied p obs) =
@@ -111,7 +113,7 @@ prettyPrint opts obss0 = mapM_ (putStrLn . ppr) (sortOn cmp obss) where
             L.LL -> ("sigL", "sigL")
             L.RR -> ("sigR", "sigR")
             L.LR -> ("sigL", "sigR")
-            L.RL -> ("sigR", "sigL")
+            L.RL -> error "unreachable"
       in how ++ " $ " ++ lambda ++ prefix ++ sig1 ++ " (\\h0 -> " ++ e1p ++ ") " ++ t ++ " " ++ sig2 ++ " (\\h0 -> " ++ e2p ++ ")"
     Nothing ->
       let off = replicate (maxlen p - length e1p) ' '

@@ -112,184 +112,173 @@ testProperty "name" $ \x -> sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x h0)) ->- 
 
 ===== Both
 -- compact
-                             dupLS @  ===  dupCAS @
-                             popLS @  ===  popCAS @
-                             rotLS @  ===  rotCAS @
-                            dupCAS @  ->-  (dupLS @) ||| (rotLS @)
-                            dupCAS @  ->-  (dupLS @) ||| (swapLS @)
-                            overLS @  ===  overCAS @
-                            peekLS @  ===  peekCAS @
-                            popCAS @  ->-  popLS @ >> rotLS @
-                            popCAS @  ->-  (rotLS @) ||| (popLS @)
-                            popCAS @  ->-  (swapLS @) ||| (popLS @)
-                            swapLS @  ===  swapCAS @
-                           overCAS @  ->-  (overLS @) ||| (rotLS @)
-                           peekCAS @  ->-  swapLS @ >> swapLS @
-                           peekCAS @  ->-  (dupLS @) ||| (popLS @)
-                           peekCAS @  ->-  (swapLS @) ||| (swapLS @)
-                           peekCAS @  ->-  (pushLS x @) ||| (popLS @)
-                           peekCAS @  ->-  popLS @ >>= \m -> whenJust pushLS @ m
-                          pushLS x @  ===  pushCAS x @
-                  dupLS @ >> dupLS @  ===  dupCAS @ >> dupCAS @
-                  dupLS @ >> dupLS @  ===  (dupCAS @) ||| (dupCAS @)
-                  dupLS @ >> dupLS @  ->-  (dupCAS @) ||| (overCAS @)
-                  dupLS @ >> rotLS @  ===  dupCAS @ >> rotCAS @
-                  popLS @ >> dupLS @  ===  popCAS @ >> dupCAS @
-                  popLS @ >> popLS @  ===  popCAS @ >> popCAS @
-                  popLS @ >> popLS @  ===  (popCAS @) ||| (popCAS @)
-                  rotLS @ >> dupLS @  ===  rotCAS @ >> dupCAS @
-                  rotLS @ >> popLS @  ===  rotCAS @ >> popCAS @
-                  rotLS @ >> rotLS @  ===  rotCAS @ >> rotCAS @
-                  rotLS @ >> rotLS @  ===  (rotCAS @) ||| (rotCAS @)
-                 dupLS @ >> overLS @  ===  dupCAS @ >> overCAS @
-                 dupLS @ >> overLS @  ->-  (dupCAS @) ||| (overCAS @)
-                 overLS @ >> dupLS @  ===  overCAS @ >> dupCAS @
-                 overLS @ >> dupLS @  ->-  (dupCAS @) ||| (overCAS @)
-                 overLS @ >> popLS @  ===  overCAS @ >> popCAS @
-                 overLS @ >> popLS @  ->-  (overCAS @) ||| (popCAS @)
-                 overLS @ >> rotLS @  ===  overCAS @ >> rotCAS @
-                 popLS @ >> overLS @  ===  popCAS @ >> overCAS @
-                 popLS @ >> overLS @  ->-  (overCAS @) ||| (popCAS @)
-                 popLS @ >> swapLS @  ===  popCAS @ >> swapCAS @
-                 rotLS @ >> overLS @  ===  rotCAS @ >> overCAS @
-                 rotLS @ >> swapLS @  ===  rotCAS @ >> swapCAS @
-                 rotLS @ >> swapLS @  ->-  (rotCAS @) ||| (swapCAS @)
-                 swapLS @ >> dupLS @  ===  swapCAS @ >> dupCAS @
-                 swapLS @ >> popLS @  ===  swapCAS @ >> popCAS @
-                 swapLS @ >> rotLS @  ===  swapCAS @ >> rotCAS @
-                 swapLS @ >> rotLS @  ->-  (rotCAS @) ||| (swapCAS @)
-                 whenJust pushLS @ m  ===  whenJust pushCAS @ m
-                dupCAS @ >> dupCAS @  ->-  (dupLS @) ||| (overLS @)
-                dupCAS @ >> rotCAS @  ->-  (dupLS @) ||| (rotLS @)
-                overLS @ >> overLS @  ===  overCAS @ >> overCAS @
-                overLS @ >> overLS @  ===  (overCAS @) ||| (overCAS @)
-                overLS @ >> swapLS @  ===  overCAS @ >> swapCAS @
-                overLS @ >> swapLS @  ->-  (overCAS @) ||| (swapCAS @)
-                popCAS @ >> dupCAS @  ->-  (dupLS @) ||| (popLS @)
-                rotCAS @ >> dupCAS @  ->-  (dupLS @) ||| (rotLS @)
-                rotCAS @ >> popCAS @  ->-  (rotLS @) ||| (popLS @)
-                swapLS @ >> overLS @  ===  swapCAS @ >> overCAS @
-                swapLS @ >> overLS @  ->-  (overCAS @) ||| (swapCAS @)
-               dupCAS @ >> overCAS @  ->-  (dupLS @) ||| (overLS @)
-               dupLS @ >> pushLS x @  ===  dupCAS @ >> pushCAS x @
-               dupLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (dupCAS @)
-               overCAS @ >> dupCAS @  ->-  (dupLS @) ||| (overLS @)
-               overCAS @ >> popCAS @  ->-  (dupLS @) ||| (popLS @)
-               overCAS @ >> popCAS @  ->-  (overLS @) ||| (popLS @)
-               overCAS @ >> rotCAS @  ->-  (overLS @) ||| (rotLS @)
-               popCAS @ >> overCAS @  ->-  (overLS @) ||| (popLS @)
-               popCAS @ >> swapCAS @  ->-  (swapLS @) ||| (popLS @)
-               popLS @ >> pushLS x @  ===  popCAS @ >> pushCAS x @
-               pushLS x @ >> dupLS @  ===  pushCAS x @ >> dupCAS @
-               pushLS x @ >> dupLS @  ->-  (pushCAS x @) ||| (dupCAS @)
-               pushLS x @ >> rotLS @  ===  pushCAS x @ >> rotCAS @
-               pushLS x @ >> rotLS @  ->-  (pushCAS x @) ||| (rotCAS @)
-               rotCAS @ >> overCAS @  ->-  (overLS @) ||| (rotLS @)
-               rotCAS @ >> swapCAS @  ->-  (rotLS @) ||| (swapLS @)
-               rotLS @ >> pushLS x @  ===  rotCAS @ >> pushCAS x @
-               rotLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (rotCAS @)
-               swapCAS @ >> dupCAS @  ->-  (dupLS @) ||| (swapLS @)
-               swapCAS @ >> popCAS @  ->-  (swapLS @) ||| (popLS @)
-               swapCAS @ >> rotCAS @  ->-  (rotLS @) ||| (swapLS @)
-              overCAS @ >> swapCAS @  ->-  (overLS @) ||| (swapLS @)
-              overLS @ >> pushLS x @  ===  overCAS @ >> pushCAS x @
-              overLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (overCAS @)
-              pushLS x @ >> overLS @  ===  pushCAS x @ >> overCAS @
-              pushLS x @ >> overLS @  ->-  (pushCAS x @) ||| (overCAS @)
-              pushLS x @ >> swapLS @  ===  pushCAS x @ >> swapCAS @
-              pushLS x @ >> swapLS @  ->-  (pushCAS x @) ||| (swapCAS @)
-              swapCAS @ >> overCAS @  ->-  (overLS @) ||| (swapLS @)
-              swapLS @ >> pushLS x @  ===  swapCAS @ >> pushCAS x @
-              swapLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (swapCAS @)
-             (dupLS @) ||| (dupLS @)  ===  dupCAS @ >> dupCAS @
-             (dupLS @) ||| (dupLS @)  ===  (dupCAS @) ||| (dupCAS @)
-             (dupLS @) ||| (dupLS @)  ->-  (dupCAS @) ||| (overCAS @)
-             (popLS @) ||| (popLS @)  ===  popCAS @ >> popCAS @
-             (popLS @) ||| (popLS @)  ===  (popCAS @) ||| (popCAS @)
-             (rotLS @) ||| (rotLS @)  ===  rotCAS @ >> rotCAS @
-             (rotLS @) ||| (rotLS @)  ===  (rotCAS @) ||| (rotCAS @)
-             dupCAS @ >> pushCAS x @  ->-  (pushLS x @) ||| (dupLS @)
-             popCAS @ >> pushCAS x @  ->-  (pushLS x @) ||| (popLS @)
-             pushCAS x @ >> dupCAS @  ->-  (pushLS x @) ||| (dupLS @)
-             pushCAS x @ >> rotCAS @  ->-  (pushLS x @) ||| (rotLS @)
-             rotCAS @ >> pushCAS x @  ->-  (pushLS x @) ||| (rotLS @)
-            (dupLS @) ||| (overLS @)  ===  (dupCAS @) ||| (overCAS @)
-            (overLS @) ||| (popLS @)  ===  (overCAS @) ||| (popCAS @)
-            (rotLS @) ||| (swapLS @)  ===  (rotCAS @) ||| (swapCAS @)
-            overCAS @ >> pushCAS x @  ->-  (pushLS x @) ||| (overLS @)
-            pushCAS x @ >> overCAS @  ->-  (pushLS x @) ||| (overLS @)
-            pushCAS x @ >> swapCAS @  ->-  (pushLS x @) ||| (swapLS @)
-            pushLS x @ >> pushLS x @  ->-  (pushCAS x @) ||| (dupCAS @)
-            pushLS x @ >> pushLS x @  ===  (pushCAS x @) ||| (pushCAS x @)
-            swapCAS @ >> pushCAS x @  ->-  (pushLS x @) ||| (swapLS @)
-           (dupCAS @) ||| (dupCAS @)  ->-  (dupLS @) ||| (overLS @)
-           (overLS @) ||| (overLS @)  ===  overCAS @ >> overCAS @
-           (overLS @) ||| (overLS @)  ===  (overCAS @) ||| (overCAS @)
-           (overLS @) ||| (swapLS @)  ===  (overCAS @) ||| (swapCAS @)
-           pushLS x @ >> pushLS x1 @  ===  pushCAS x @ >> pushCAS x1 @
-           pushLS x @ >> pushLS x1 @  ->-  (pushCAS x @) ||| (pushCAS x1 @)
-          (pushLS x @) ||| (dupLS @)  ===  (pushCAS x @) ||| (dupCAS @)
-          (pushLS x @) ||| (rotLS @)  ===  (pushCAS x @) ||| (rotCAS @)
-         (pushLS x @) ||| (overLS @)  ===  (pushCAS x @) ||| (overCAS @)
-         (pushLS x @) ||| (swapLS @)  ===  (pushCAS x @) ||| (swapCAS @)
-         pushCAS x @ >> pushCAS x1 @  ->-  (pushLS x @) ||| (pushLS x1 @)
-       (pushLS x @) ||| (pushLS x @)  ===  pushCAS x @ >> pushCAS x @
-       (pushLS x @) ||| (pushLS x @)  ->-  (pushCAS x @) ||| (dupCAS @)
-      (pushLS x @) ||| (pushLS x1 @)  ===  (pushCAS x @) ||| (pushCAS x1 @)
-      dupLS @ >> whenJust pushLS @ m  ===  dupCAS @ >> whenJust pushCAS @ m
-      dupLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (dupCAS @)
-      popLS @ >> whenJust pushLS @ m  ===  popCAS @ >> whenJust pushCAS @ m
-      popLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
-      rotLS @ >> whenJust pushLS @ m  ===  rotCAS @ >> whenJust pushCAS @ m
-      rotLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (rotCAS @)
-      whenJust pushLS @ m >> dupLS @  ===  whenJust pushCAS @ m >> dupCAS @
-      whenJust pushLS @ m >> dupLS @  ->-  (whenJust pushCAS @ m) ||| (dupCAS @)
-      whenJust pushLS @ m >> popLS @  ===  whenJust pushCAS @ m >> popCAS @
-      whenJust pushLS @ m >> popLS @  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
-      whenJust pushLS @ m >> rotLS @  ===  whenJust pushCAS @ m >> rotCAS @
-      whenJust pushLS @ m >> rotLS @  ->-  (whenJust pushCAS @ m) ||| (rotCAS @)
-     overLS @ >> whenJust pushLS @ m  ===  overCAS @ >> whenJust pushCAS @ m
-     overLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (overCAS @)
-     swapLS @ >> whenJust pushLS @ m  ===  swapCAS @ >> whenJust pushCAS @ m
-     swapLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (swapCAS @)
-     whenJust pushLS @ m >> overLS @  ===  whenJust pushCAS @ m >> overCAS @
-     whenJust pushLS @ m >> overLS @  ->-  (whenJust pushCAS @ m) ||| (overCAS @)
-     whenJust pushLS @ m >> swapLS @  ===  whenJust pushCAS @ m >> swapCAS @
-     whenJust pushLS @ m >> swapLS @  ->-  (whenJust pushCAS @ m) ||| (swapCAS @)
-    dupCAS @ >> whenJust pushCAS @ m  ->-  (whenJust pushLS @ m) ||| (dupLS @)
-    popCAS @ >> whenJust pushCAS @ m  ->-  (whenJust pushLS @ m) ||| (popLS @)
-    rotCAS @ >> whenJust pushCAS @ m  ->-  (whenJust pushLS @ m) ||| (rotLS @)
-    whenJust pushCAS @ m >> dupCAS @  ->-  (whenJust pushLS @ m) ||| (dupLS @)
-    whenJust pushCAS @ m >> popCAS @  ->-  (whenJust pushLS @ m) ||| (popLS @)
-    whenJust pushCAS @ m >> rotCAS @  ->-  (whenJust pushLS @ m) ||| (rotLS @)
-   overCAS @ >> whenJust pushCAS @ m  ->-  (whenJust pushLS @ m) ||| (overLS @)
-   swapCAS @ >> whenJust pushCAS @ m  ->-  (whenJust pushLS @ m) ||| (swapLS @)
-   whenJust pushCAS @ m >> overCAS @  ->-  (whenJust pushLS @ m) ||| (overLS @)
-   whenJust pushCAS @ m >> swapCAS @  ->-  (whenJust pushLS @ m) ||| (swapLS @)
- (whenJust pushLS @ m) ||| (dupLS @)  ===  (whenJust pushCAS @ m) ||| (dupCAS @)
- (whenJust pushLS @ m) ||| (popLS @)  ===  (whenJust pushCAS @ m) ||| (popCAS @)
- (whenJust pushLS @ m) ||| (rotLS @)  ===  (whenJust pushCAS @ m) ||| (rotCAS @)
-(whenJust pushLS @ m) ||| (overLS @)  ===  (whenJust pushCAS @ m) ||| (overCAS @)
-(whenJust pushLS @ m) ||| (swapLS @)  ===  (whenJust pushCAS @ m) ||| (swapCAS @)
+                              dupLS @  ===  dupCAS @
+                              popLS @  ===  popCAS @
+                              rotLS @  ===  rotCAS @
+                             overLS @  ===  overCAS @
+                             peekLS @  ===  peekCAS @
+                             swapLS @  ===  swapCAS @
+                           pushLS x @  ===  pushCAS x @
+                   dupLS @ >> dupLS @  ===  dupCAS @ >> dupCAS @
+                   dupLS @ >> dupLS @  ===  (dupCAS @) ||| (dupCAS @)
+                   dupLS @ >> dupLS @  ->-  (dupCAS @) ||| (overCAS @)
+                   dupLS @ >> rotLS @  ===  dupCAS @ >> rotCAS @
+                   popLS @ >> dupLS @  ===  popCAS @ >> dupCAS @
+                   popLS @ >> popLS @  ===  popCAS @ >> popCAS @
+                   popLS @ >> popLS @  ===  (popCAS @) ||| (popCAS @)
+                   popLS @ >> rotLS @  -<-  popCAS @
+                   rotLS @ >> dupLS @  ===  rotCAS @ >> dupCAS @
+                   rotLS @ >> popLS @  ===  rotCAS @ >> popCAS @
+                   rotLS @ >> rotLS @  ===  rotCAS @ >> rotCAS @
+                   rotLS @ >> rotLS @  ===  (rotCAS @) ||| (rotCAS @)
+                  dupLS @ >> overLS @  ===  dupCAS @ >> overCAS @
+                  dupLS @ >> overLS @  ->-  (dupCAS @) ||| (overCAS @)
+                  overLS @ >> dupLS @  ===  overCAS @ >> dupCAS @
+                  overLS @ >> dupLS @  ->-  (dupCAS @) ||| (overCAS @)
+                  overLS @ >> popLS @  ===  overCAS @ >> popCAS @
+                  overLS @ >> popLS @  ->-  (overCAS @) ||| (popCAS @)
+                  overLS @ >> rotLS @  ===  overCAS @ >> rotCAS @
+                  popLS @ >> overLS @  ===  popCAS @ >> overCAS @
+                  popLS @ >> overLS @  ->-  (overCAS @) ||| (popCAS @)
+                  popLS @ >> swapLS @  ===  popCAS @ >> swapCAS @
+                  rotLS @ >> overLS @  ===  rotCAS @ >> overCAS @
+                  rotLS @ >> swapLS @  ===  rotCAS @ >> swapCAS @
+                  rotLS @ >> swapLS @  ->-  (rotCAS @) ||| (swapCAS @)
+                  swapLS @ >> dupLS @  ===  swapCAS @ >> dupCAS @
+                  swapLS @ >> popLS @  ===  swapCAS @ >> popCAS @
+                  swapLS @ >> rotLS @  ===  swapCAS @ >> rotCAS @
+                  swapLS @ >> rotLS @  ->-  (rotCAS @) ||| (swapCAS @)
+                  whenJust pushLS @ m  ===  whenJust pushCAS @ m
+                 overLS @ >> overLS @  ===  overCAS @ >> overCAS @
+                 overLS @ >> overLS @  ===  (overCAS @) ||| (overCAS @)
+                 overLS @ >> swapLS @  ===  overCAS @ >> swapCAS @
+                 overLS @ >> swapLS @  ->-  (overCAS @) ||| (swapCAS @)
+                 swapLS @ >> overLS @  ===  swapCAS @ >> overCAS @
+                 swapLS @ >> overLS @  ->-  (overCAS @) ||| (swapCAS @)
+                 swapLS @ >> swapLS @  -<-  peekCAS @
+                dupLS @ >> pushLS x @  ===  dupCAS @ >> pushCAS x @
+                dupLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (dupCAS @)
+                popLS @ >> pushLS x @  ===  popCAS @ >> pushCAS x @
+                pushLS x @ >> dupLS @  ===  pushCAS x @ >> dupCAS @
+                pushLS x @ >> dupLS @  ->-  (pushCAS x @) ||| (dupCAS @)
+                pushLS x @ >> rotLS @  ===  pushCAS x @ >> rotCAS @
+                pushLS x @ >> rotLS @  ->-  (pushCAS x @) ||| (rotCAS @)
+                rotLS @ >> pushLS x @  ===  rotCAS @ >> pushCAS x @
+                rotLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (rotCAS @)
+               overLS @ >> pushLS x @  ===  overCAS @ >> pushCAS x @
+               overLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (overCAS @)
+               pushLS x @ >> overLS @  ===  pushCAS x @ >> overCAS @
+               pushLS x @ >> overLS @  ->-  (pushCAS x @) ||| (overCAS @)
+               pushLS x @ >> swapLS @  ===  pushCAS x @ >> swapCAS @
+               pushLS x @ >> swapLS @  ->-  (pushCAS x @) ||| (swapCAS @)
+               swapLS @ >> pushLS x @  ===  swapCAS @ >> pushCAS x @
+               swapLS @ >> pushLS x @  ->-  (pushCAS x @) ||| (swapCAS @)
+              (dupLS @) ||| (dupLS @)  ===  dupCAS @ >> dupCAS @
+              (dupLS @) ||| (dupLS @)  ===  (dupCAS @) ||| (dupCAS @)
+              (dupLS @) ||| (dupLS @)  ->-  (dupCAS @) ||| (overCAS @)
+              (dupLS @) ||| (popLS @)  -<-  peekCAS @
+              (dupLS @) ||| (popLS @)  -<-  popCAS @ >> dupCAS @
+              (dupLS @) ||| (popLS @)  -<-  overCAS @ >> popCAS @
+              (dupLS @) ||| (rotLS @)  -<-  dupCAS @
+              (dupLS @) ||| (rotLS @)  -<-  dupCAS @ >> rotCAS @
+              (dupLS @) ||| (rotLS @)  -<-  rotCAS @ >> dupCAS @
+              (popLS @) ||| (popLS @)  ===  popCAS @ >> popCAS @
+              (popLS @) ||| (popLS @)  ===  (popCAS @) ||| (popCAS @)
+              (rotLS @) ||| (popLS @)  -<-  popCAS @
+              (rotLS @) ||| (popLS @)  -<-  rotCAS @ >> popCAS @
+              (rotLS @) ||| (rotLS @)  ===  rotCAS @ >> rotCAS @
+              (rotLS @) ||| (rotLS @)  ===  (rotCAS @) ||| (rotCAS @)
+             (dupLS @) ||| (overLS @)  -<-  dupCAS @ >> dupCAS @
+             (dupLS @) ||| (overLS @)  -<-  dupCAS @ >> overCAS @
+             (dupLS @) ||| (overLS @)  -<-  overCAS @ >> dupCAS @
+             (dupLS @) ||| (overLS @)  -<-  (dupCAS @) ||| (dupCAS @)
+             (dupLS @) ||| (overLS @)  ===  (dupCAS @) ||| (overCAS @)
+             (dupLS @) ||| (swapLS @)  -<-  dupCAS @
+             (dupLS @) ||| (swapLS @)  -<-  swapCAS @ >> dupCAS @
+             (overLS @) ||| (popLS @)  -<-  overCAS @ >> popCAS @
+             (overLS @) ||| (popLS @)  -<-  popCAS @ >> overCAS @
+             (overLS @) ||| (popLS @)  ===  (overCAS @) ||| (popCAS @)
+             (overLS @) ||| (rotLS @)  -<-  overCAS @
+             (overLS @) ||| (rotLS @)  -<-  overCAS @ >> rotCAS @
+             (overLS @) ||| (rotLS @)  -<-  rotCAS @ >> overCAS @
+             (rotLS @) ||| (swapLS @)  -<-  rotCAS @ >> swapCAS @
+             (rotLS @) ||| (swapLS @)  -<-  swapCAS @ >> rotCAS @
+             (rotLS @) ||| (swapLS @)  ===  (rotCAS @) ||| (swapCAS @)
+             (swapLS @) ||| (popLS @)  -<-  popCAS @
+             (swapLS @) ||| (popLS @)  -<-  popCAS @ >> swapCAS @
+             (swapLS @) ||| (popLS @)  -<-  swapCAS @ >> popCAS @
+             pushLS x @ >> pushLS x @  ->-  (pushCAS x @) ||| (dupCAS @)
+             pushLS x @ >> pushLS x @  ===  (pushCAS x @) ||| (pushCAS x @)
+            (overLS @) ||| (overLS @)  ===  overCAS @ >> overCAS @
+            (overLS @) ||| (overLS @)  ===  (overCAS @) ||| (overCAS @)
+            (overLS @) ||| (swapLS @)  -<-  overCAS @ >> swapCAS @
+            (overLS @) ||| (swapLS @)  -<-  swapCAS @ >> overCAS @
+            (overLS @) ||| (swapLS @)  ===  (overCAS @) ||| (swapCAS @)
+            (swapLS @) ||| (swapLS @)  -<-  peekCAS @
+            pushLS x @ >> pushLS x1 @  ===  pushCAS x @ >> pushCAS x1 @
+            pushLS x @ >> pushLS x1 @  ->-  (pushCAS x @) ||| (pushCAS x1 @)
+           (pushLS x @) ||| (dupLS @)  -<-  dupCAS @ >> pushCAS x @
+           (pushLS x @) ||| (dupLS @)  -<-  pushCAS x @ >> dupCAS @
+           (pushLS x @) ||| (dupLS @)  ===  (pushCAS x @) ||| (dupCAS @)
+           (pushLS x @) ||| (popLS @)  -<-  peekCAS @
+           (pushLS x @) ||| (popLS @)  -<-  popCAS @ >> pushCAS x @
+           (pushLS x @) ||| (rotLS @)  -<-  pushCAS x @ >> rotCAS @
+           (pushLS x @) ||| (rotLS @)  -<-  rotCAS @ >> pushCAS x @
+           (pushLS x @) ||| (rotLS @)  ===  (pushCAS x @) ||| (rotCAS @)
+          (pushLS x @) ||| (overLS @)  -<-  overCAS @ >> pushCAS x @
+          (pushLS x @) ||| (overLS @)  -<-  pushCAS x @ >> overCAS @
+          (pushLS x @) ||| (overLS @)  ===  (pushCAS x @) ||| (overCAS @)
+          (pushLS x @) ||| (swapLS @)  -<-  pushCAS x @ >> swapCAS @
+          (pushLS x @) ||| (swapLS @)  -<-  swapCAS @ >> pushCAS x @
+          (pushLS x @) ||| (swapLS @)  ===  (pushCAS x @) ||| (swapCAS @)
+        (pushLS x @) ||| (pushLS x @)  ===  pushCAS x @ >> pushCAS x @
+        (pushLS x @) ||| (pushLS x @)  ->-  (pushCAS x @) ||| (dupCAS @)
+       (pushLS x @) ||| (pushLS x1 @)  -<-  pushCAS x @ >> pushCAS x1 @
+       (pushLS x @) ||| (pushLS x1 @)  ===  (pushCAS x @) ||| (pushCAS x1 @)
+       dupLS @ >> whenJust pushLS @ m  ===  dupCAS @ >> whenJust pushCAS @ m
+       dupLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (dupCAS @)
+       popLS @ >> whenJust pushLS @ m  ===  popCAS @ >> whenJust pushCAS @ m
+       popLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
+       rotLS @ >> whenJust pushLS @ m  ===  rotCAS @ >> whenJust pushCAS @ m
+       rotLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (rotCAS @)
+       whenJust pushLS @ m >> dupLS @  ===  whenJust pushCAS @ m >> dupCAS @
+       whenJust pushLS @ m >> dupLS @  ->-  (whenJust pushCAS @ m) ||| (dupCAS @)
+       whenJust pushLS @ m >> popLS @  ===  whenJust pushCAS @ m >> popCAS @
+       whenJust pushLS @ m >> popLS @  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
+       whenJust pushLS @ m >> rotLS @  ===  whenJust pushCAS @ m >> rotCAS @
+       whenJust pushLS @ m >> rotLS @  ->-  (whenJust pushCAS @ m) ||| (rotCAS @)
+      overLS @ >> whenJust pushLS @ m  ===  overCAS @ >> whenJust pushCAS @ m
+      overLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (overCAS @)
+      swapLS @ >> whenJust pushLS @ m  ===  swapCAS @ >> whenJust pushCAS @ m
+      swapLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (swapCAS @)
+      whenJust pushLS @ m >> overLS @  ===  whenJust pushCAS @ m >> overCAS @
+      whenJust pushLS @ m >> overLS @  ->-  (whenJust pushCAS @ m) ||| (overCAS @)
+      whenJust pushLS @ m >> swapLS @  ===  whenJust pushCAS @ m >> swapCAS @
+      whenJust pushLS @ m >> swapLS @  ->-  (whenJust pushCAS @ m) ||| (swapCAS @)
+  (whenJust pushLS @ m) ||| (dupLS @)  -<-  dupCAS @ >> whenJust pushCAS @ m
+  (whenJust pushLS @ m) ||| (dupLS @)  -<-  whenJust pushCAS @ m >> dupCAS @
+  (whenJust pushLS @ m) ||| (dupLS @)  ===  (whenJust pushCAS @ m) ||| (dupCAS @)
+  (whenJust pushLS @ m) ||| (popLS @)  -<-  popCAS @ >> whenJust pushCAS @ m
+  (whenJust pushLS @ m) ||| (popLS @)  -<-  whenJust pushCAS @ m >> popCAS @
+  (whenJust pushLS @ m) ||| (popLS @)  ===  (whenJust pushCAS @ m) ||| (popCAS @)
+  (whenJust pushLS @ m) ||| (rotLS @)  -<-  rotCAS @ >> whenJust pushCAS @ m
+  (whenJust pushLS @ m) ||| (rotLS @)  -<-  whenJust pushCAS @ m >> rotCAS @
+  (whenJust pushLS @ m) ||| (rotLS @)  ===  (whenJust pushCAS @ m) ||| (rotCAS @)
+ (whenJust pushLS @ m) ||| (overLS @)  -<-  overCAS @ >> whenJust pushCAS @ m
+ (whenJust pushLS @ m) ||| (overLS @)  -<-  whenJust pushCAS @ m >> overCAS @
+ (whenJust pushLS @ m) ||| (overLS @)  ===  (whenJust pushCAS @ m) ||| (overCAS @)
+ (whenJust pushLS @ m) ||| (swapLS @)  -<-  swapCAS @ >> whenJust pushCAS @ m
+ (whenJust pushLS @ m) ||| (swapLS @)  -<-  whenJust pushCAS @ m >> swapCAS @
+ (whenJust pushLS @ m) ||| (swapLS @)  ===  (whenJust pushCAS @ m) ||| (swapCAS @)
+popLS @ >>= \m -> whenJust pushLS @ m  -<-  peekCAS @
 
 -- plain
 check $ sigL (\h0 -> dupLS h0) === sigR (\h0 -> dupCAS h0)
 check $ sigL (\h0 -> popLS h0) === sigR (\h0 -> popCAS h0)
 check $ sigL (\h0 -> rotLS h0) === sigR (\h0 -> rotCAS h0)
-check $ sigR (\h0 -> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
-check $ sigR (\h0 -> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (swapLS h0))
 check $ sigL (\h0 -> overLS h0) === sigR (\h0 -> overCAS h0)
 check $ sigL (\h0 -> peekLS h0) === sigR (\h0 -> peekCAS h0)
-check $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> popLS h0 >> rotLS h0)
-check $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
 check $ sigL (\h0 -> swapLS h0) === sigR (\h0 -> swapCAS h0)
-check $ sigR (\h0 -> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-check $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> swapLS h0 >> swapLS h0)
-check $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (swapLS h0))
-check $ \x -> sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
-check $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m)
 check $ \x -> sigL (\h0 -> pushLS x h0) === sigR (\h0 -> pushCAS x h0)
 check $ sigL (\h0 -> dupLS h0 >> dupLS h0) === sigR (\h0 -> dupCAS h0 >> dupCAS h0)
 check $ sigL (\h0 -> dupLS h0 >> dupLS h0) === sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
@@ -298,6 +287,7 @@ check $ sigL (\h0 -> dupLS h0 >> rotLS h0) === sigR (\h0 -> dupCAS h0 >> rotCAS 
 check $ sigL (\h0 -> popLS h0 >> dupLS h0) === sigR (\h0 -> popCAS h0 >> dupCAS h0)
 check $ sigL (\h0 -> popLS h0 >> popLS h0) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> popLS h0 >> popLS h0) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
+check $ sigL (\h0 -> popLS h0 >> rotLS h0) -<- sigR (\h0 -> popCAS h0)
 check $ sigL (\h0 -> rotLS h0 >> dupLS h0) === sigR (\h0 -> rotCAS h0 >> dupCAS h0)
 check $ sigL (\h0 -> rotLS h0 >> popLS h0) === sigR (\h0 -> rotCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> rotLS h0 >> rotLS h0) === sigR (\h0 -> rotCAS h0 >> rotCAS h0)
@@ -320,82 +310,91 @@ check $ sigL (\h0 -> swapLS h0 >> dupLS h0) === sigR (\h0 -> swapCAS h0 >> dupCA
 check $ sigL (\h0 -> swapLS h0 >> popLS h0) === sigR (\h0 -> swapCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> swapLS h0 >> rotLS h0) === sigR (\h0 -> swapCAS h0 >> rotCAS h0)
 check $ sigL (\h0 -> swapLS h0 >> rotLS h0) ->- sigR (\h0 -> (rotCAS h0) ||| (swapCAS h0))
-check $ sigR (\h0 -> dupCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
-check $ sigR (\h0 -> dupCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
 check $ sigL (\h0 -> overLS h0 >> overLS h0) === sigR (\h0 -> overCAS h0 >> overCAS h0)
 check $ sigL (\h0 -> overLS h0 >> overLS h0) === sigR (\h0 -> (overCAS h0) ||| (overCAS h0))
 check $ sigL (\h0 -> overLS h0 >> swapLS h0) === sigR (\h0 -> overCAS h0 >> swapCAS h0)
 check $ sigL (\h0 -> overLS h0 >> swapLS h0) ->- sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
-check $ sigR (\h0 -> popCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> rotCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
-check $ sigR (\h0 -> rotCAS h0 >> popCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (popLS h0))
 check $ sigL (\h0 -> swapLS h0 >> overLS h0) === sigR (\h0 -> swapCAS h0 >> overCAS h0)
 check $ sigL (\h0 -> swapLS h0 >> overLS h0) ->- sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
-check $ sigR (\h0 -> dupCAS h0 >> overCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
+check $ sigL (\h0 -> swapLS h0 >> swapLS h0) -<- sigR (\h0 -> peekCAS h0)
 check $ \x -> sigL (\h0 -> dupLS h0 >> pushLS x h0) === sigR (\h0 -> dupCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> dupLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
-check $ sigR (\h0 -> overCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
-check $ sigR (\h0 -> overCAS h0 >> popCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> overCAS h0 >> popCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> overCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-check $ sigR (\h0 -> popCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> popCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
 check $ \x -> sigL (\h0 -> popLS h0 >> pushLS x h0) === sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> dupLS h0) === sigR (\h0 -> pushCAS x h0 >> dupCAS h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> dupLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
 check $ \x -> sigL (\h0 -> pushLS x h0 >> rotLS h0) === sigR (\h0 -> pushCAS x h0 >> rotCAS h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> rotLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
-check $ sigR (\h0 -> rotCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-check $ sigR (\h0 -> rotCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (swapLS h0))
 check $ \x -> sigL (\h0 -> rotLS h0 >> pushLS x h0) === sigR (\h0 -> rotCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> rotLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
-check $ sigR (\h0 -> swapCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (swapLS h0))
-check $ sigR (\h0 -> swapCAS h0 >> popCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
-check $ sigR (\h0 -> swapCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (swapLS h0))
-check $ sigR (\h0 -> overCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (swapLS h0))
 check $ \x -> sigL (\h0 -> overLS h0 >> pushLS x h0) === sigR (\h0 -> overCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> overLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
 check $ \x -> sigL (\h0 -> pushLS x h0 >> overLS h0) === sigR (\h0 -> pushCAS x h0 >> overCAS h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> overLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
 check $ \x -> sigL (\h0 -> pushLS x h0 >> swapLS h0) === sigR (\h0 -> pushCAS x h0 >> swapCAS h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> swapLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
-check $ sigR (\h0 -> swapCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (swapLS h0))
 check $ \x -> sigL (\h0 -> swapLS h0 >> pushLS x h0) === sigR (\h0 -> swapCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> swapLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
 check $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) === sigR (\h0 -> dupCAS h0 >> dupCAS h0)
 check $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) === sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
 check $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) ->- sigR (\h0 -> (dupCAS h0) ||| (overCAS h0))
+check $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> dupCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> overCAS h0 >> popCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> dupCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> dupCAS h0 >> rotCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> dupCAS h0)
 check $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
+check $ sigL (\h0 -> (rotLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0)
+check $ sigL (\h0 -> (rotLS h0) ||| (popLS h0)) -<- sigR (\h0 -> rotCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> (rotLS h0) ||| (rotLS h0)) === sigR (\h0 -> rotCAS h0 >> rotCAS h0)
 check $ sigL (\h0 -> (rotLS h0) ||| (rotLS h0)) === sigR (\h0 -> (rotCAS h0) ||| (rotCAS h0))
-check $ \x -> sigR (\h0 -> dupCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (dupLS h0))
-check $ \x -> sigR (\h0 -> popCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
-check $ \x -> sigR (\h0 -> pushCAS x h0 >> dupCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (dupLS h0))
-check $ \x -> sigR (\h0 -> pushCAS x h0 >> rotCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (rotLS h0))
-check $ \x -> sigR (\h0 -> rotCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (rotLS h0))
+check $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> dupCAS h0 >> dupCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> dupCAS h0 >> overCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> dupCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
 check $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) === sigR (\h0 -> (dupCAS h0) ||| (overCAS h0))
+check $ sigL (\h0 -> (dupLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> dupCAS h0)
+check $ sigL (\h0 -> (dupLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> dupCAS h0)
+check $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) -<- sigR (\h0 -> overCAS h0 >> popCAS h0)
+check $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> overCAS h0)
 check $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) === sigR (\h0 -> (overCAS h0) ||| (popCAS h0))
+check $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> overCAS h0)
+check $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> overCAS h0 >> rotCAS h0)
+check $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> overCAS h0)
+check $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> rotCAS h0 >> swapCAS h0)
+check $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> rotCAS h0)
 check $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) === sigR (\h0 -> (rotCAS h0) ||| (swapCAS h0))
-check $ \x -> sigR (\h0 -> overCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (overLS h0))
-check $ \x -> sigR (\h0 -> pushCAS x h0 >> overCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (overLS h0))
-check $ \x -> sigR (\h0 -> pushCAS x h0 >> swapCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (swapLS h0))
+check $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0)
+check $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> swapCAS h0)
+check $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> swapCAS h0 >> popCAS h0)
 check $ \x -> sigL (\h0 -> pushLS x h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
 check $ \x -> sigL (\h0 -> pushLS x h0 >> pushLS x h0) === sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x h0))
-check $ \x -> sigR (\h0 -> swapCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (swapLS h0))
-check $ sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0)) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
 check $ sigL (\h0 -> (overLS h0) ||| (overLS h0)) === sigR (\h0 -> overCAS h0 >> overCAS h0)
 check $ sigL (\h0 -> (overLS h0) ||| (overLS h0)) === sigR (\h0 -> (overCAS h0) ||| (overCAS h0))
+check $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> overCAS h0 >> swapCAS h0)
+check $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> overCAS h0)
 check $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) === sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
+check $ sigL (\h0 -> (swapLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> peekCAS h0)
 check $ \x x1 -> sigL (\h0 -> pushLS x h0 >> pushLS x1 h0) === sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0)
 check $ \x x1 -> sigL (\h0 -> pushLS x h0 >> pushLS x1 h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x1 h0))
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) -<- sigR (\h0 -> dupCAS h0 >> pushCAS x h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> dupCAS h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> rotCAS h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> pushCAS x h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> overCAS h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> swapCAS h0)
+check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
-check $ \x x1 -> sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0) ->- sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0))
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0)) === sigR (\h0 -> pushCAS x h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0)) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
+check $ \x x1 -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0)) -<- sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0)
 check $ \x x1 -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0)) === sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x1 h0))
 check $ \m -> sigL (\h0 -> dupLS h0 >> whenJust pushLS h0 m) === sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m)
 check $ \m -> sigL (\h0 -> dupLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (dupCAS h0))
@@ -417,40 +416,30 @@ check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> overLS h0) === sigR (\h0 -> w
 check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> overLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (overCAS h0))
 check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> swapLS h0) === sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0)
 check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> swapLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (swapCAS h0))
-check $ \m -> sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0))
-check $ \m -> sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0))
-check $ \m -> sigR (\h0 -> rotCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0))
-check $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> dupCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0))
-check $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0))
-check $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> rotCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0))
-check $ \m -> sigR (\h0 -> overCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0))
-check $ \m -> sigR (\h0 -> swapCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0))
-check $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> overCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0))
-check $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0))
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) -<- sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> dupCAS h0)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (dupCAS h0))
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> rotCAS h0)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (rotCAS h0))
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> overCAS h0)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (overCAS h0))
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (swapCAS h0))
+check $ sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m) -<- sigR (\h0 -> peekCAS h0)
 
 -- hunit/tasty
 testProperty "name" $ sigL (\h0 -> dupLS h0) === sigR (\h0 -> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> popLS h0) === sigR (\h0 -> popCAS h0)
 testProperty "name" $ sigL (\h0 -> rotLS h0) === sigR (\h0 -> rotCAS h0)
-testProperty "name" $ sigR (\h0 -> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
-testProperty "name" $ sigR (\h0 -> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (swapLS h0))
 testProperty "name" $ sigL (\h0 -> overLS h0) === sigR (\h0 -> overCAS h0)
 testProperty "name" $ sigL (\h0 -> peekLS h0) === sigR (\h0 -> peekCAS h0)
-testProperty "name" $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> popLS h0 >> rotLS h0)
-testProperty "name" $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> popCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
 testProperty "name" $ sigL (\h0 -> swapLS h0) === sigR (\h0 -> swapCAS h0)
-testProperty "name" $ sigR (\h0 -> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> swapLS h0 >> swapLS h0)
-testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (swapLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0) === sigR (\h0 -> pushCAS x h0)
 testProperty "name" $ sigL (\h0 -> dupLS h0 >> dupLS h0) === sigR (\h0 -> dupCAS h0 >> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> dupLS h0 >> dupLS h0) === sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
@@ -459,6 +448,7 @@ testProperty "name" $ sigL (\h0 -> dupLS h0 >> rotLS h0) === sigR (\h0 -> dupCAS
 testProperty "name" $ sigL (\h0 -> popLS h0 >> dupLS h0) === sigR (\h0 -> popCAS h0 >> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> popLS h0 >> popLS h0) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> popLS h0 >> popLS h0) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
+testProperty "name" $ sigL (\h0 -> popLS h0 >> rotLS h0) -<- sigR (\h0 -> popCAS h0)
 testProperty "name" $ sigL (\h0 -> rotLS h0 >> dupLS h0) === sigR (\h0 -> rotCAS h0 >> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> rotLS h0 >> popLS h0) === sigR (\h0 -> rotCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> rotLS h0 >> rotLS h0) === sigR (\h0 -> rotCAS h0 >> rotCAS h0)
@@ -481,82 +471,91 @@ testProperty "name" $ sigL (\h0 -> swapLS h0 >> dupLS h0) === sigR (\h0 -> swapC
 testProperty "name" $ sigL (\h0 -> swapLS h0 >> popLS h0) === sigR (\h0 -> swapCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> swapLS h0 >> rotLS h0) === sigR (\h0 -> swapCAS h0 >> rotCAS h0)
 testProperty "name" $ sigL (\h0 -> swapLS h0 >> rotLS h0) ->- sigR (\h0 -> (rotCAS h0) ||| (swapCAS h0))
-testProperty "name" $ sigR (\h0 -> dupCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
-testProperty "name" $ sigR (\h0 -> dupCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
 testProperty "name" $ sigL (\h0 -> overLS h0 >> overLS h0) === sigR (\h0 -> overCAS h0 >> overCAS h0)
 testProperty "name" $ sigL (\h0 -> overLS h0 >> overLS h0) === sigR (\h0 -> (overCAS h0) ||| (overCAS h0))
 testProperty "name" $ sigL (\h0 -> overLS h0 >> swapLS h0) === sigR (\h0 -> overCAS h0 >> swapCAS h0)
 testProperty "name" $ sigL (\h0 -> overLS h0 >> swapLS h0) ->- sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
-testProperty "name" $ sigR (\h0 -> popCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> rotCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (rotLS h0))
-testProperty "name" $ sigR (\h0 -> rotCAS h0 >> popCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (popLS h0))
 testProperty "name" $ sigL (\h0 -> swapLS h0 >> overLS h0) === sigR (\h0 -> swapCAS h0 >> overCAS h0)
 testProperty "name" $ sigL (\h0 -> swapLS h0 >> overLS h0) ->- sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
-testProperty "name" $ sigR (\h0 -> dupCAS h0 >> overCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
+testProperty "name" $ sigL (\h0 -> swapLS h0 >> swapLS h0) -<- sigR (\h0 -> peekCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> dupLS h0 >> pushLS x h0) === sigR (\h0 -> dupCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> dupLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
-testProperty "name" $ sigR (\h0 -> overCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
-testProperty "name" $ sigR (\h0 -> overCAS h0 >> popCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> overCAS h0 >> popCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> overCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-testProperty "name" $ sigR (\h0 -> popCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> popCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
 testProperty "name" $ \x -> sigL (\h0 -> popLS h0 >> pushLS x h0) === sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> dupLS h0) === sigR (\h0 -> pushCAS x h0 >> dupCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> dupLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> rotLS h0) === sigR (\h0 -> pushCAS x h0 >> rotCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> rotLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
-testProperty "name" $ sigR (\h0 -> rotCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (rotLS h0))
-testProperty "name" $ sigR (\h0 -> rotCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (swapLS h0))
 testProperty "name" $ \x -> sigL (\h0 -> rotLS h0 >> pushLS x h0) === sigR (\h0 -> rotCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> rotLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
-testProperty "name" $ sigR (\h0 -> swapCAS h0 >> dupCAS h0) ->- sigL (\h0 -> (dupLS h0) ||| (swapLS h0))
-testProperty "name" $ sigR (\h0 -> swapCAS h0 >> popCAS h0) ->- sigL (\h0 -> (swapLS h0) ||| (popLS h0))
-testProperty "name" $ sigR (\h0 -> swapCAS h0 >> rotCAS h0) ->- sigL (\h0 -> (rotLS h0) ||| (swapLS h0))
-testProperty "name" $ sigR (\h0 -> overCAS h0 >> swapCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (swapLS h0))
 testProperty "name" $ \x -> sigL (\h0 -> overLS h0 >> pushLS x h0) === sigR (\h0 -> overCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> overLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> overLS h0) === sigR (\h0 -> pushCAS x h0 >> overCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> overLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> swapLS h0) === sigR (\h0 -> pushCAS x h0 >> swapCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> swapLS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
-testProperty "name" $ sigR (\h0 -> swapCAS h0 >> overCAS h0) ->- sigL (\h0 -> (overLS h0) ||| (swapLS h0))
 testProperty "name" $ \x -> sigL (\h0 -> swapLS h0 >> pushLS x h0) === sigR (\h0 -> swapCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> swapLS h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
 testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) === sigR (\h0 -> dupCAS h0 >> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) === sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
 testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (dupLS h0)) ->- sigR (\h0 -> (dupCAS h0) ||| (overCAS h0))
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (popLS h0)) -<- sigR (\h0 -> overCAS h0 >> popCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> dupCAS h0 >> rotCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> dupCAS h0)
 testProperty "name" $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
+testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0)
+testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (popLS h0)) -<- sigR (\h0 -> rotCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (rotLS h0)) === sigR (\h0 -> rotCAS h0 >> rotCAS h0)
 testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (rotLS h0)) === sigR (\h0 -> (rotCAS h0) ||| (rotCAS h0))
-testProperty "name" $ \x -> sigR (\h0 -> dupCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (dupLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> popCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> pushCAS x h0 >> dupCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (dupLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> pushCAS x h0 >> rotCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (rotLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> rotCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (rotLS h0))
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> dupCAS h0 >> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> dupCAS h0 >> overCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) -<- sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0))
 testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (overLS h0)) === sigR (\h0 -> (dupCAS h0) ||| (overCAS h0))
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (dupLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> dupCAS h0)
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) -<- sigR (\h0 -> overCAS h0 >> popCAS h0)
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> overCAS h0)
 testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (popLS h0)) === sigR (\h0 -> (overCAS h0) ||| (popCAS h0))
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> overCAS h0)
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> overCAS h0 >> rotCAS h0)
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> overCAS h0)
+testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> rotCAS h0 >> swapCAS h0)
+testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> rotCAS h0)
 testProperty "name" $ sigL (\h0 -> (rotLS h0) ||| (swapLS h0)) === sigR (\h0 -> (rotCAS h0) ||| (swapCAS h0))
-testProperty "name" $ \x -> sigR (\h0 -> overCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (overLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> pushCAS x h0 >> overCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (overLS h0))
-testProperty "name" $ \x -> sigR (\h0 -> pushCAS x h0 >> swapCAS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (swapLS h0))
+testProperty "name" $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0)
+testProperty "name" $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> swapCAS h0)
+testProperty "name" $ sigL (\h0 -> (swapLS h0) ||| (popLS h0)) -<- sigR (\h0 -> swapCAS h0 >> popCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> pushLS x h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
 testProperty "name" $ \x -> sigL (\h0 -> pushLS x h0 >> pushLS x h0) === sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x h0))
-testProperty "name" $ \x -> sigR (\h0 -> swapCAS h0 >> pushCAS x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (swapLS h0))
-testProperty "name" $ sigR (\h0 -> (dupCAS h0) ||| (dupCAS h0)) ->- sigL (\h0 -> (dupLS h0) ||| (overLS h0))
 testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (overLS h0)) === sigR (\h0 -> overCAS h0 >> overCAS h0)
 testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (overLS h0)) === sigR (\h0 -> (overCAS h0) ||| (overCAS h0))
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> overCAS h0 >> swapCAS h0)
+testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> overCAS h0)
 testProperty "name" $ sigL (\h0 -> (overLS h0) ||| (swapLS h0)) === sigR (\h0 -> (overCAS h0) ||| (swapCAS h0))
+testProperty "name" $ sigL (\h0 -> (swapLS h0) ||| (swapLS h0)) -<- sigR (\h0 -> peekCAS h0)
 testProperty "name" $ \x x1 -> sigL (\h0 -> pushLS x h0 >> pushLS x1 h0) === sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0)
 testProperty "name" $ \x x1 -> sigL (\h0 -> pushLS x h0 >> pushLS x1 h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x1 h0))
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) -<- sigR (\h0 -> dupCAS h0 >> pushCAS x h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> dupCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (dupLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> rotCAS h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (rotLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (rotCAS h0))
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> pushCAS x h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> overCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (overLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (overCAS h0))
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) -<- sigR (\h0 -> pushCAS x h0 >> swapCAS h0)
+testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (swapLS h0)) === sigR (\h0 -> (pushCAS x h0) ||| (swapCAS h0))
-testProperty "name" $ \x x1 -> sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0) ->- sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0))
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0)) === sigR (\h0 -> pushCAS x h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0)) ->- sigR (\h0 -> (pushCAS x h0) ||| (dupCAS h0))
+testProperty "name" $ \x x1 -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0)) -<- sigR (\h0 -> pushCAS x h0 >> pushCAS x1 h0)
 testProperty "name" $ \x x1 -> sigL (\h0 -> (pushLS x h0) ||| (pushLS x1 h0)) === sigR (\h0 -> (pushCAS x h0) ||| (pushCAS x1 h0))
 testProperty "name" $ \m -> sigL (\h0 -> dupLS h0 >> whenJust pushLS h0 m) === sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m)
 testProperty "name" $ \m -> sigL (\h0 -> dupLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (dupCAS h0))
@@ -578,18 +577,19 @@ testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> overLS h0) === 
 testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> overLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (overCAS h0))
 testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> swapLS h0) === sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> swapLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (swapCAS h0))
-testProperty "name" $ \m -> sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> rotCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> dupCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> rotCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> overCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> swapCAS h0 >> whenJust pushCAS h0 m) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> overCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0))
-testProperty "name" $ \m -> sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0) ->- sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) -<- sigR (\h0 -> dupCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> dupCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (dupLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (dupCAS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) -<- sigR (\h0 -> rotCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> rotCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (rotLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (rotCAS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) -<- sigR (\h0 -> overCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> overCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (overLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (overCAS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) -<- sigR (\h0 -> swapCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> swapCAS h0)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (swapLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (swapCAS h0))
+testProperty "name" $ sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m) -<- sigR (\h0 -> peekCAS h0)
