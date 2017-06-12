@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE StrictData #-}
 
 -- |
@@ -7,7 +6,7 @@
 -- License     : MIT
 -- Maintainer  : Michael Walker <mike@barrucadu.co.uk>
 -- Stability   : experimental
--- Portability : LambdaCase, StrictData
+-- Portability : StrictData
 --
 -- Generating well-typed dynamic expressions from smaller components.
 module Test.CoCo.Gen where
