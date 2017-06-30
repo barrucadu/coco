@@ -11,9 +11,8 @@
 -- Functions for projecting expressions into a consistent namespace.
 module Test.CoCo.Rename where
 
-import           Data.Typeable  (TypeRep)
-
 import           Test.CoCo.Expr (Expr, environment)
+import           Test.CoCo.Type (Type)
 
 -- | The @These@ type is like 'Either', but also has the case for when
 -- we have both values.
@@ -25,15 +24,15 @@ data These a b
 
 -- | A projection into a common namespace.  This only makes sense for
 -- the original two expressions it was generated from.
-type Projection = [(These String String, TypeRep)]
+type Projection n ty = [(These n n, ty)]
 
 -- | Find all type-correct ways of associating environment variables.
-projections :: Expr s1 h1 -> Expr s2 h2 -> [Projection]
+projections :: Expr s1 h1 -> Expr s2 h2 -> [Projection String Type]
 projections e1 e2 = projectionsFromEnv (environment e1) (environment e2)
 
 -- | Like 'projections' but takes the lists of environment variables
 -- directly.
-projectionsFromEnv :: [(String, TypeRep)] -> [(String, TypeRep)] -> [Projection]
+projectionsFromEnv :: (Eq n, Eq ty) => [(n, ty)] -> [(n, ty)] -> [Projection n ty]
 projectionsFromEnv t1 [] = [[(This v, ty) | (v, ty) <- t1]]
 projectionsFromEnv [] t2 = [[(That v, ty) | (v, ty) <- t2]]
 projectionsFromEnv ((vL, tyL):t1) t2 =
@@ -47,7 +46,7 @@ projectionsFromEnv ((vL, tyL):t1) t2 =
 -- | Given a projection into a common namespace, produce a consistent
 -- variable renaming. Variables of the same type, after the first,
 -- will have a number appended starting from 1.
-renaming :: (TypeRep -> Char) -> Projection -> ([(String, String)], [(String, String)])
+renaming :: (ty -> Char) -> Projection String ty -> ([(String, String)], [(String, String)])
 renaming varf = go [] ([], []) where
   go e x ((these, ty):rest) =
     let name = varf ty
@@ -60,7 +59,7 @@ renaming varf = go [] ([], []) where
     These vL vR -> go ((name, n):e) ((vL, name'):l, (vR, name'):r)
 
 -- | Find all consistent renamings of a pair of expressions.
-renamings :: (TypeRep -> Char) -> Expr s1 h1 -> Expr s2 h2 -> [([(String, String)], [(String, String)])]
+renamings :: (Type -> Char) -> Expr s1 h1 -> Expr s2 h2 -> [([(String, String)], [(String, String)])]
 renamings varf t1 t2 = map (renaming varf) (projections t1 t2)
 
 -- | Check if one projection is more general than another (this is a
@@ -79,7 +78,7 @@ renamings varf t1 t2 = map (renaming varf) (projections t1 t2)
 -- well. The first is more general in that it imposes fewer
 -- constraints on the values of the variables. The latter is more
 -- specific as it imposes two constraints.
-isMoreGeneralThan :: Projection -> Projection -> Bool
+isMoreGeneralThan :: (Eq n, Eq ty) => Projection n ty -> Projection n ty -> Bool
 isMoreGeneralThan ((these1, ty1):as) ((these2, ty2):bs)
   | ty1 /= ty2       = False
   | these1 == these2 = isMoreGeneralThan as bs

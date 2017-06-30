@@ -1,8 +1,13 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- |
 -- Module      : Test.CoCo.Type
@@ -28,14 +33,20 @@ module Test.CoCo.Type
   , toDyn
   , fromDyn
   , anyFromDyn
-  , dynTypeRep
+  , dynType
   , dynApp
   -- ** Type-safe coercions
   , unwrapFunctorDyn
   -- ** Unsafe operations
   , unsafeToDyn
   , unsafeWrapFunctorDyn
+  , unsafeSetType
   -- * Types
+  , Type
+  , toType
+  , typeRep
+  , typeOf
+  , tyCon
   , funTys
   , funArgTys
   , typeArity
@@ -47,25 +58,30 @@ module Test.CoCo.Type
   , B
   , C
   , D
-  , isTyVar
   -- *** Unification
-  , unify
-  , unify'
-  , unifyAccum
-  , polyFunResultTy
-  -- *** Environments
-  , TypeEnv
-  , assignTys
-  , assignDynTys
+  , unifies
+  , UnifyM
+  , runUnify
+  , polyApplyFunTy
+  , polyApplyFunTy'
+  , U.applyBindings
+  , dynApplyBindings
   ) where
 
-import           Data.Function (on)
-import           Data.List     (nub)
-import           Data.Maybe    (fromMaybe, isJust)
-import           Data.Proxy    (Proxy(..))
-import           Data.Typeable
-import           GHC.Base      (Any)
-import           Unsafe.Coerce (unsafeCoerce)
+import qualified Control.Monad.Except       as E
+import           Control.Monad.Trans.Class  (lift)
+import qualified Control.Unification        as U
+import qualified Control.Unification.IntVar as U
+import qualified Control.Unification.Types  as U
+import           Data.Char                  (ord)
+import           Data.Function              (on)
+import qualified Data.Functor.Identity      as I
+import           Data.List                  (foldl')
+import           Data.Maybe                 (isJust)
+import           Data.Proxy                 (Proxy(..))
+import qualified Data.Typeable              as T
+import           GHC.Base                   (Any)
+import           Unsafe.Coerce              (unsafeCoerce)
 
 -------------------------------------------------------------------------------
 -- Dynamic
@@ -73,27 +89,27 @@ import           Unsafe.Coerce (unsafeCoerce)
 -- | A dynamically-typed value, with state type @s@ and monad type
 -- @m@.
 data Dynamic where
-  Dynamic :: TypeRep -> Any -> Dynamic
+  Dynamic :: Type -> Any -> Dynamic
 
 instance Show Dynamic where
-  show d = "Dynamic <" ++ show (dynTypeRep d) ++ ">"
+  show d = "Dynamic <" ++ show (dynType d) ++ ">"
 
 -- | This only compares types.
 instance Eq Dynamic where
-  (==) = (==) `on` dynTypeRep
+  (==) = (==) `on` dynType
 
 -- | This only compares types.
 instance Ord Dynamic where
-  compare = compare `on` dynTypeRep
+  compare = compare `on` dynType
 
 -- | Convert a static value into a dynamic one.
-toDyn :: Typeable a => a -> Dynamic
+toDyn :: T.Typeable a => a -> Dynamic
 toDyn a = Dynamic (typeOf a) (unsafeCoerce a)
 
 -- | Try to convert a dynamic value back into a static one.
-fromDyn :: Typeable a => Dynamic -> Maybe a
+fromDyn :: T.Typeable a => Dynamic -> Maybe a
 fromDyn (Dynamic ty x) = case unsafeCoerce x of
-  r | typeOf r == ty -> Just r
+  r | typeOf r `unifies` ty -> Just r
     | otherwise -> Nothing
 
 -- | Throw away type information and get the 'Any' from a 'Dynamic'.
@@ -101,13 +117,13 @@ anyFromDyn :: Dynamic -> Any
 anyFromDyn (Dynamic _ x) = x
 
 -- | Get the type of a dynamic value.
-dynTypeRep :: Dynamic -> TypeRep
-dynTypeRep (Dynamic ty _) = ty
+dynType :: Dynamic -> Type
+dynType (Dynamic ty _) = ty
 
 -- | Apply a dynamic function to a dynamic value, if the types match.
 dynApp :: Dynamic -> Dynamic -> Maybe Dynamic
-dynApp (Dynamic t1 f) (Dynamic t2 x) = case t1 `funResultTy` t2 of
-  Just t3 -> Just (Dynamic t3 ((unsafeCoerce f) x))
+dynApp (Dynamic t1 f) (Dynamic t2 x) = case t1 `polyApplyFunTy` t2 of
+  Just (_, t3) -> Just (Dynamic t3 ((unsafeCoerce f) x))
   Nothing -> Nothing
 
 
@@ -115,7 +131,7 @@ dynApp (Dynamic t1 f) (Dynamic t2 x) = case t1 `funResultTy` t2 of
 -- Type-safe coercions
 
 -- | \"Extract\" a functor from a dynamic value
-unwrapFunctorDyn :: forall f. (Functor f, Typeable f) => Dynamic -> Maybe (f Dynamic)
+unwrapFunctorDyn :: forall f. (Functor f, T.Typeable f) => Dynamic -> Maybe (f Dynamic)
 unwrapFunctorDyn (Dynamic ty a) = case innerTy (Proxy :: Proxy f) ty of
   Just ty' -> Just $ Dynamic ty' <$> unsafeCoerce a
   Nothing  -> Nothing
@@ -125,9 +141,9 @@ unwrapFunctorDyn (Dynamic ty a) = case innerTy (Proxy :: Proxy f) ty of
 -- Unsafe operations
 
 -- | Convert a static value into a dynamic one, using a regular normal
--- Typeable 'TypeRep'. This is safe if 'HasTypeRep' would assign that
--- 'TypeRep', and so is unsafe if the monad or state cases apply.
-unsafeToDyn :: TypeRep -> a -> Dynamic
+-- Typeable 'TypeRep'. This is safe if 'Typeable' would assign that
+-- 'Type', and so is unsafe if the monad or state cases apply.
+unsafeToDyn :: Type -> a -> Dynamic
 unsafeToDyn ty = Dynamic ty . unsafeCoerce
 
 -- | \"Push\" a functor inside a dynamic value, given the type of the
@@ -135,8 +151,13 @@ unsafeToDyn ty = Dynamic ty . unsafeCoerce
 --
 -- This is unsafe because if the type is incorrect and the value is
 -- later used as that type, good luck.
-unsafeWrapFunctorDyn :: Functor f => TypeRep -> f Dynamic -> Dynamic
-unsafeWrapFunctorDyn ty fdyn = Dynamic ty (unsafeCoerce $ fmap anyFromDyn fdyn)
+unsafeWrapFunctorDyn :: Functor f => Type -> f Dynamic -> Dynamic
+unsafeWrapFunctorDyn ty fdyn =
+  Dynamic ty (unsafeCoerce $ fmap anyFromDyn fdyn)
+
+-- | Change the type of a dynamic value to an arbitrary value.
+unsafeSetType :: Type -> Dynamic -> Dynamic
+unsafeSetType ty (Dynamic _ v) = Dynamic ty v
 
 
 -------------------------------------------------------------------------------
@@ -159,116 +180,134 @@ type C = TyVar 2
 -- | A polymorphic type variable.
 type D = TyVar 3
 
--- | Check if a type is a variable.
-isTyVar :: TypeRep -> Bool
-isTyVar = ((==) `on` (fst . splitTyConApp)) (typeRep (Proxy :: Proxy A))
+-- | A representation of Haskell types.
+data TypeF ty = TypeF T.TyCon [ty]
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
--- | An environment of type bindings.
-type TypeEnv = [(TypeRep, TypeRep)]
+instance U.Unifiable TypeF where
+  zipMatch (TypeF con1 args1) (TypeF con2 args2)
+    | con1 /= con2  = Nothing
+    | length args1 /= length args2 = Nothing
+    | otherwise = Just (TypeF con1 $ zipWith (curry Right) args1 args2)
 
--- | Attempt to unify two types.
-unify :: TypeRep -> TypeRep -> Maybe TypeEnv
-unify = unify' True
+-- | Types with type variables.
+type Type = U.UTerm TypeF U.IntVar
 
--- | Attempt to unify two types.
-unify'
-  :: Bool
-  -- ^ Whether to allow either type to be a naked type variable at
-  -- this level (always true in lower levels).
-  -> TypeRep -> TypeRep -> Maybe TypeEnv
-unify' b tyA tyB
-    -- check equality
-    | tyA == tyB = Just []
-    -- check if one is a naked type variable
-    | isTyVar tyA = if not b || occurs tyA tyB then Nothing else Just [(tyA, tyB)]
-    | isTyVar tyB = if not b || occurs tyB tyA then Nothing else Just [(tyB, tyA)]
-    -- deconstruct each and attempt to unify subcomponents
-    | otherwise =
-      let (conA, argsA) = splitTyConApp tyA
-          (conB, argsB) = splitTyConApp tyB
-      in if conA == conB && length argsA == length argsB
-         then unifyAccum True id argsA argsB
-         else Nothing
-  where
-    -- check if a type occurs in another
-    occurs needle haystack = needle == haystack || any (occurs needle) (snd (splitTyConApp haystack))
+instance Eq Type where
+  (U.UTerm (TypeF con1 args1)) == (U.UTerm (TypeF con2 args2)) =
+    con1 == con2 && length args1 == length args2 && and (zipWith (==) args1 args2)
+  (U.UVar v1) == (U.UVar v2) = v1 == v2
+  _ == _ = False
 
--- | An accumulating unify: attempts to unify two lists of types
--- pairwise and checks that the resulting assignments do not conflict
--- with the current type environment.
-unifyAccum :: Bool -> (Maybe TypeEnv -> Maybe TypeEnv) -> [TypeRep] -> [TypeRep] -> Maybe TypeEnv
-unifyAccum b f as bs = foldr go (Just []) (zip as bs) where
-  go (tyA, tyB) (Just env) =
-    unifyTypeEnvs b env =<< f (unify' b tyA tyB)
-  go _ Nothing = Nothing
+instance Ord Type where
+  compare (U.UTerm _) (U.UVar _)  = GT
+  compare (U.UVar _)  (U.UTerm _) = LT
+  compare (U.UTerm (TypeF con1 args1)) (U.UTerm (TypeF con2 args2)) = mconcat $
+    con1 `compare` con2 : length args1 `compare` length args2 : zipWith compare args1 args2
+  compare (U.UVar (U.IntVar v1)) (U.UVar (U.IntVar v2)) = v1 `compare` v2
 
--- | Unify two type environments, if possible.
-unifyTypeEnvs :: Bool -> TypeEnv -> TypeEnv -> Maybe TypeEnv
-unifyTypeEnvs b env1 env2 = foldr go (Just []) (nub $ map fst env1 ++ map fst env2) where
-  go tyvar acc@(Just env) = case (lookup tyvar env, lookup tyvar env1, lookup tyvar env2) of
-    (_, Just ty1, Just ty2) -> unifyTypeEnvs b env . ((tyvar, ty1):) =<< unify' b ty1 ty2
-    (x, Just ty1, _)
-      | isJust x  -> unifyTypeEnvs b env [(tyvar, ty1)]
-      | otherwise -> Just ((tyvar, ty1):env)
-    (x, _, Just ty2)
-      | isJust x  -> unifyTypeEnvs b env [(tyvar, ty2)]
-      | otherwise -> Just ((tyvar, ty2):env)
-    _ -> acc
-  go _ Nothing = Nothing
+-- | Convert a 'TypeRep' into a 'Type'.
+toType :: T.TypeRep -> Type
+toType ty =
+  let (con, args) = T.splitTyConApp ty
+      (vcon, _)   = T.splitTyConApp (T.typeRep (Proxy :: Proxy A))
+  in if con == vcon
+     then U.UVar (U.IntVar (foldl' (\n c -> ord c + n * 10) 0 (show args)))
+     else U.UTerm (TypeF con (map toType args))
+
+-- | Get the 'Type' of a proxy.
+typeRep :: T.Typeable a => proxy a -> Type
+typeRep = toType . T.typeRep
+
+-- | Get the 'Type' of a value.
+typeOf :: T.Typeable a => a -> Type
+typeOf = toType . T.typeOf
+
+-- | Get the 'T.TyCon' of a type.
+tyCon :: Type -> Maybe T.TyCon
+tyCon (U.UTerm (TypeF con _)) = Just con
+tyCon _ = Nothing
+
+type UnifyM = E.ExceptT (U.UFailure TypeF U.IntVar) (U.IntBindingT TypeF I.Identity)
+
+-- | Run a unification computation.
+runUnify :: UnifyM a -> Maybe a
+runUnify =
+  either (const Nothing) Just . I.runIdentity . U.evalIntBindingT . E.runExceptT
+
+-- | Check if two types unify.
+unifies :: Type -> Type -> Bool
+unifies ty1 ty2 = isJust . runUnify $ do
+  -- freshen type variables if there's any overlap
+  vs1 <- lift (U.getFreeVars ty1)
+  vs2 <- lift (U.getFreeVars ty2)
+  (ty1', ty2') <-
+    let f = if any (`elem` vs2) vs1 then U.freshen else pure
+    in (,) <$> f ty1 <*> f ty2
+  U.unify ty1' ty2'
 
 -- | Applies a type to a given function type, if the types match. This
--- performs unification if the @A@, @B@, @C@, or @D@ types are
--- involved.
-polyFunResultTy :: TypeRep -> TypeRep -> Maybe (TypeEnv, TypeRep)
-polyFunResultTy fty aty = do
-  (argTy, resultTy) <- funTys fty
-  assignments       <- unify aty argTy
-  pure (assignments, assignTys assignments resultTy)
+-- performs unification. The argument and result types are the two
+-- return values.
+polyApplyFunTy :: Type -> Type -> Maybe (Type, Type)
+polyApplyFunTy fty xty = runUnify =<< polyApplyFunTy' fty xty
 
--- | Assign type variables in a type
-assignTys :: TypeEnv -> TypeRep -> TypeRep
-assignTys assignments ty
-  | isTyVar ty = fromMaybe ty (lookup ty assignments)
-  | otherwise = let (con, args) = splitTyConApp ty in mkTyConApp con (map (assignTys assignments) args)
+-- | Like 'polyApplyFunTy' but keeps the result in 'UnifyM'.
+polyApplyFunTy' :: Type -> Type -> Maybe (UnifyM (Type, Type))
+polyApplyFunTy' fty xty = case funTys fty of
+  Just (argTy, resTy) -> Just $ do
+      -- freshen type variables if there's any overlap
+      fvs <- lift (U.getFreeVarsAll [argTy, resTy])
+      xvs <- lift (U.getFreeVars xty)
+      ([argTy', resTy'], [xty']) <-
+        let f = if any (`elem` fvs) xvs then U.freshenAll else pure
+        in (,) <$> f [argTy, resTy] <*> f [xty]
+      -- perform unification and apply bindings in result
+      uArgTy <- U.unify argTy' xty'
+      uResTy <- U.applyBindings resTy'
+      pure (uArgTy, uResTy)
+  _ -> Nothing
 
--- | Assign type variables in a dynamic value
-assignDynTys :: TypeEnv -> Dynamic -> Dynamic
-assignDynTys assignments (Dynamic ty x) = Dynamic (assignTys assignments ty) x
+-- | Apply the current type environment bindings to a 'Dynamic' value.
+dynApplyBindings :: Dynamic -> UnifyM Dynamic
+dynApplyBindings (Dynamic ty v) =
+  Dynamic <$> U.applyBindings ty <*> pure v
 
 -- | The arity of a type. Non-function types have an arity of 0.
-typeArity :: TypeRep -> Int
-typeArity ty = case splitTyConApp ty of
-  (con, [_, resultType]) | con == funTyCon -> 1 + typeArity resultType
+typeArity :: Type -> Int
+typeArity ty = case ty of
+  U.UTerm (TypeF con [_, resTy]) | con == funTyCon -> 1 + typeArity resTy
   _ -> 0
 
 -- | Extract the type inside a constructor.
-innerTy :: forall proxy f. Typeable f => proxy (f :: * -> *) -> TypeRep -> Maybe TypeRep
-innerTy p ty = case splitTyConApp ty of
-    (tyCon, tyArgs)
-      | tyCon == ftyCon && not (null tyArgs) && init tyArgs == ftyArgs
-        -> Just (last tyArgs)
+innerTy :: forall proxy f. T.Typeable f => proxy (f :: * -> *) -> Type -> Maybe Type
+innerTy p ty = case ty of
+    U.UTerm (TypeF con args)
+      | con == ftyCon && not (null args) && and (zipWith unifies (init args) (map toType ftyArgs))
+        -> Just (last args)
     _ -> Nothing
   where
-    (ftyCon, ftyArgs) = splitTyConApp (typeRep p)
+    (ftyCon, ftyArgs) = T.splitTyConApp (T.typeRep p)
 
 -- | The types of a function's argument and result. Returns @Nothing@
 -- if applied to any type other than a function type.
-funTys :: TypeRep -> Maybe (TypeRep, TypeRep)
-funTys ty = case splitTyConApp ty of
-  (con, [argTy, resultTy]) | con == funTyCon -> Just (argTy, resultTy)
+funTys :: Type -> Maybe (Type, Type)
+funTys ty = case ty of
+  U.UTerm (TypeF con [argTy, resTy])
+    | con == funTyCon -> Just (argTy, resTy)
   _ -> Nothing
 
 -- | Like 'funTys', but returns the list of all arguments and the
 -- final result.
-funArgTys :: TypeRep -> Maybe ([TypeRep], TypeRep)
+funArgTys :: Type -> Maybe ([Type], Type)
 funArgTys ty = case funTys ty of
-    Just (argTy, resultTy) -> Just (go [argTy] resultTy)
+    Just (argTy, resTy) -> Just (go [argTy] resTy)
     Nothing -> Nothing
   where
-    go argTys resultTy = case funTys resultTy of
-      Just (argTy, resultTy') -> go (argTy:argTys) resultTy'
-      Nothing -> (reverse argTys, resultTy)
+    go argTys resTy = case funTys resTy of
+      Just (argTy, resTy') -> go (argTy:argTys) resTy'
+      Nothing -> (reverse argTys, resTy)
 
 -- | The function arrow.
-funTyCon :: TyCon
-funTyCon = typeRepTyCon (typeRep (Proxy :: Proxy (() -> ())))
+funTyCon :: T.TyCon
+funTyCon = T.typeRepTyCon (T.typeRep (Proxy :: Proxy (() -> ())))

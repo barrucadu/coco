@@ -14,12 +14,13 @@ module Test.CoCo.Logic where
 import           Control.Arrow    (second)
 import           Data.List        (foldl', sortOn)
 import           Data.Maybe       (isJust, isNothing)
-import           Data.Typeable    (TypeRep, Typeable)
+import           Data.Typeable    (Typeable)
 
 import           Test.CoCo.Ann    (Ann(..), Results(..), VarResults, refines)
 import           Test.CoCo.Expr   (Term, eq, exprSize, isInstanceOf, rename)
 import           Test.CoCo.Rename (Projection, isMoreGeneralThan, projections,
                                    renaming)
+import           Test.CoCo.Type   (Type)
 import           Test.CoCo.Util   (ChurchList, cappend, cnil, csnoc,
                                    discardLater)
 
@@ -59,7 +60,7 @@ findObservations :: (Foldable f1, Foldable f2, Foldable f3, Eq x, Ord o, Typeabl
   => [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover observations which only hold with certain
   -- seeds.
-  -> (TypeRep -> Char)
+  -> (Type -> Char)
   -- ^ Get a variable name from a type.
   -> (schema1 -> schema2 -> Bool)
   -- ^ Some predicate on schemas: if the right schema refines the left schema, normally the left is
@@ -96,7 +97,7 @@ findObservations preconditions varf p smallers = foldl' go (cnil, cnil) where
 -- | Helper for 'observations': all interestingly-distinct observations for a pair of schemas.
 allObservations :: (Eq x, Ord o, Typeable s1, Typeable s2)
   => [(String, x -> Bool)]
-  -> (TypeRep -> Char)
+  -> (Type -> Char)
   -> (Maybe (Ann s1 o x), Ann s1 o x)
   -> (Maybe (Ann s2 o x), Ann s2 o x)
   -> [(Bool, Bool, Maybe Observation)]
@@ -170,7 +171,7 @@ equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
     _ -> False
 
 -- | Given two equal observations, check if the first has a more general naming than the right.
-equalAndHasMoreGeneralNaming :: Eq a => (a, Projection) -> (a, Projection) -> Bool
+equalAndHasMoreGeneralNaming :: (Eq a, Eq n, Eq ty) => (a, Projection n ty) -> (a, Projection n ty) -> Bool
 equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) =
   o1 == o2 && p1 `isMoreGeneralThan` p2
 

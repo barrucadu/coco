@@ -27,13 +27,13 @@ import qualified Data.Typeable      as T
 
 import           Test.CoCo.Ann
 import           Test.CoCo.Eval     (runSingle)
-import           Test.CoCo.Expr     (Schema, Term, environment, exprTypeRep,
+import           Test.CoCo.Expr     (Schema, Term, environment, exprType,
                                      findInstance, unBind)
 import           Test.CoCo.Gen      (Generator, adjustTier, getTier,
                                      newGenerator, stepGenerator)
 import           Test.CoCo.Logic
 import           Test.CoCo.Sig      (Sig(..), complete)
-import           Test.CoCo.Type     (fromDyn)
+import           Test.CoCo.Type     (Type, fromDyn, typeRep)
 import           Test.CoCo.TypeInfo (TypeInfo(..), getVariableBaseName)
 import           Test.CoCo.Util
 
@@ -42,7 +42,7 @@ import           Test.CoCo.Util
 -- the first set of expressions; the second set of expressions; and
 -- the combination of the two.
 discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeable s2, T.Typeable x)
-  => [(T.TypeRep, TypeInfo)]
+  => [(Type, TypeInfo)]
   -- ^ Information about types. There MUST be an entry for every hole and seed type!
   -> [(String, x -> Bool)]
   -- ^ Predicates on the seed value. Used to discover properties which
@@ -55,7 +55,7 @@ discover :: forall s1 s2 o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, 
   -- ^ Term size limit
   -> ([Observation], [Observation], [Observation])
 discover typeInfos seedPreds sig1 sig2 =
-  case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
+  case lookup (typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe fromDyn (listValues tyI)
       in discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds
@@ -63,7 +63,7 @@ discover typeInfos seedPreds sig1 sig2 =
 
 -- | Like 'discover', but takes a list of seeds.
 discoverWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s1, T.Typeable s2)
-  => [(T.TypeRep, TypeInfo)]
+  => [(Type, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s1 o x
   -> Sig s2 o x
@@ -93,13 +93,13 @@ discoverWithSeeds typeInfos seedPreds sig1 sig2 seeds lim =
 -- | Like 'discover', but only takes a single set of expressions. This
 -- will lead to better pruning.
 discoverSingle :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s, T.Typeable x)
-  => [(T.TypeRep, TypeInfo)]
+  => [(Type, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s o x
   -> Int
   -> [Observation]
 discoverSingle typeInfos seedPreds sig =
-  case lookup (T.typeRep (Proxy :: Proxy x)) typeInfos of
+  case lookup (typeRep (Proxy :: Proxy x)) typeInfos of
     Just tyI ->
       let seeds = mapMaybe fromDyn (listValues tyI)
       in discoverSingleWithSeeds typeInfos seedPreds sig seeds
@@ -107,7 +107,7 @@ discoverSingle typeInfos seedPreds sig =
 
 -- | Like 'discoverSingle', but takes a list of seeds.
 discoverSingleWithSeeds :: (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
-  => [(T.TypeRep, TypeInfo)]
+  => [(Type, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s o x
   -> [x]
@@ -119,7 +119,7 @@ discoverSingleWithSeeds typeInfos seedPreds sig seeds =
 -- | Like 'discoverSingleWithSeeds', but returns the generator.
 discoverSingleWithSeeds' :: forall s o x. (NFData o, NFData x, Ord o, Ord x, T.Typeable s)
   => LR
-  -> [(T.TypeRep, TypeInfo)]
+  -> [(Type, TypeInfo)]
   -> [(String, x -> Bool)]
   -> Sig s o x
   -> [x]
@@ -142,7 +142,7 @@ discoverSingleWithSeeds' lr typeInfos seedPreds sig seeds lim =
     go g tier =
       let evaled = map evalSchema . S.toList $ getTier tier g
           smallers = map (`getTier` g) [0..tier-1]
-          (kept, observations) = first crun (findObservations seedPreds varfun ((==) `on` exprTypeRep) smallers evaled)
+          (kept, observations) = first crun (findObservations seedPreds varfun ((==) `on` exprType) smallers evaled)
           g' = adjustTier (const (S.fromList kept)) tier g
       in second (cappend observations) $
          if tier == lim

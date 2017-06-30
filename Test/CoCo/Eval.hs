@@ -25,7 +25,7 @@ import           Test.CoCo.Ann
 import           Test.CoCo.Expr            (Term, bind, environment, evaluate,
                                             lit)
 import           Test.CoCo.Monad
-import           Test.CoCo.Type            (Dynamic)
+import           Test.CoCo.Type            (Dynamic, Type)
 import           Test.CoCo.TypeInfo        (TypeInfo(..), getTypeValues)
 import           Test.CoCo.Util
 
@@ -36,7 +36,7 @@ import           Test.CoCo.Util
 -- The @Bool@ in the return value is whether the execution of this
 -- term is atomic.
 runSingle :: (Ord x, NFData o, NFData x, Ord o, T.Typeable s)
-  => [(T.TypeRep, TypeInfo)]
+  => [(Type, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
   -> (x -> Concurrency s)
@@ -99,8 +99,8 @@ runSingle typeInfos mkstate interfere observe unstate seeds expr
 -- 'numVariants' values will be taken of each and zipped together
 -- (producing @numVariants^(length (environment term) + 1)@
 -- assignments).
-varassigns :: forall s x. T.Typeable s
-  => [(T.TypeRep, TypeInfo)]
+varassigns :: forall s x. (T.Typeable s)
+  => [(Type, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
   -> [x]

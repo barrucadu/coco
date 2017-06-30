@@ -35,10 +35,13 @@ library
                      , concurrency ==1.1.*
                      , containers >=0.5.8 && <0.6
                      , deepseq >=1.1 && <2
-                     , exceptions >=0.7
                      , dejafu >=0.7 && <0.8
+                     , exceptions >=0.7
                      , leancheck >=0.6 && <0.7
+                     , mtl >= 2.0 && <3
                      , template-haskell >=2.11 && <3
+                     , transformers >=0.5 && <1
+                     , unification-fd >=0.10 && <0.11
   -- hs-source-dirs:      
   default-language:    Haskell2010
   ghc-options:         -Wall

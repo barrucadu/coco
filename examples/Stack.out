@@ -1,27 +1,33 @@
 ===== LockStack
 -- compact
       peekLS @  ->-  pushLS x @ >> popLS @
+      peekLS @  ->-  (popLS @) ||| (pushLS x @)
       peekLS @  ->-  (pushLS x @) ||| (popLS @)
       peekLS @  ->-  popLS @ >>= \m -> whenJust pushLS @ m
    pushLS x1 @  ->-  push2LS x x1 @ >> popLS @
+   pushLS x1 @  ->-  (popLS @) ||| (push2LS x x1 @)
    pushLS x1 @  ->-  (push2LS x x1 @) ||| (popLS @)
 push2LS x1 x @  ->-  pushLS x @ >> pushLS x @
 push2LS x1 x @  ->-  (pushLS x @) ||| (pushLS x @)
 
 -- plain
 check $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> pushLS x h0 >> popLS h0)
+check $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> (popLS h0) ||| (pushLS x h0))
 check $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
 check $ sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m)
 check $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> push2LS x x1 h0 >> popLS h0)
+check $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> (popLS h0) ||| (push2LS x x1 h0))
 check $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> (push2LS x x1 h0) ||| (popLS h0))
 check $ \x1 x -> sigL (\h0 -> push2LS x1 x h0) ->- sigL (\h0 -> pushLS x h0 >> pushLS x h0)
 check $ \x1 x -> sigL (\h0 -> push2LS x1 x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0))
 
 -- hunit/tasty
 testProperty "name" $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> pushLS x h0 >> popLS h0)
+testProperty "name" $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> (popLS h0) ||| (pushLS x h0))
 testProperty "name" $ \x -> sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> (pushLS x h0) ||| (popLS h0))
 testProperty "name" $ sigL (\h0 -> peekLS h0) ->- sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m)
 testProperty "name" $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> push2LS x x1 h0 >> popLS h0)
+testProperty "name" $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> (popLS h0) ||| (push2LS x x1 h0))
 testProperty "name" $ \x1 x -> sigL (\h0 -> pushLS x1 h0) ->- sigL (\h0 -> (push2LS x x1 h0) ||| (popLS h0))
 testProperty "name" $ \x1 x -> sigL (\h0 -> push2LS x1 x h0) ->- sigL (\h0 -> pushLS x h0 >> pushLS x h0)
 testProperty "name" $ \x1 x -> sigL (\h0 -> push2LS x1 x h0) ->- sigL (\h0 -> (pushLS x h0) ||| (pushLS x h0))
@@ -30,16 +36,19 @@ testProperty "name" $ \x1 x -> sigL (\h0 -> push2LS x1 x h0) ->- sigL (\h0 -> (p
 ===== CASStack
 -- compact
 peekCAS @  ->-  pushCAS x @ >> popCAS @
+peekCAS @  ->-  (popCAS @) ||| (pushCAS x @)
 peekCAS @  ->-  (pushCAS x @) ||| (popCAS @)
 peekCAS @  ->-  popCAS @ >>= \m -> whenJust pushCAS @ m
 
 -- plain
 check $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> pushCAS x h0 >> popCAS h0)
+check $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> (popCAS h0) ||| (pushCAS x h0))
 check $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (popCAS h0))
 check $ sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> popCAS h0 >>= \m -> whenJust pushCAS h0 m)
 
 -- hunit/tasty
 testProperty "name" $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> pushCAS x h0 >> popCAS h0)
+testProperty "name" $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> (popCAS h0) ||| (pushCAS x h0))
 testProperty "name" $ \x -> sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> (pushCAS x h0) ||| (popCAS h0))
 testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> popCAS h0 >>= \m -> whenJust pushCAS h0 m)
 
@@ -56,14 +65,23 @@ testProperty "name" $ sigR (\h0 -> peekCAS h0) ->- sigR (\h0 -> popCAS h0 >>= \m
               (popLS @) ||| (popLS @)  ===  popCAS @ >> popCAS @
               (popLS @) ||| (popLS @)  ===  (popCAS @) ||| (popCAS @)
             push2LS x x1 @ >> popLS @  -<-  pushCAS x1 @
+           (popLS @) ||| (pushLS x @)  -<-  peekCAS @
+           (popLS @) ||| (pushLS x @)  -<-  popCAS @ >> pushCAS x @
            (pushLS x @) ||| (popLS @)  -<-  peekCAS @
            (pushLS x @) ||| (popLS @)  -<-  popCAS @ >> pushCAS x @
        popLS @ >> whenJust pushLS @ m  ===  popCAS @ >> whenJust pushCAS @ m
+       popLS @ >> whenJust pushLS @ m  ->-  (popCAS @) ||| (whenJust pushCAS @ m)
        popLS @ >> whenJust pushLS @ m  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
        whenJust pushLS @ m >> popLS @  ===  whenJust pushCAS @ m >> popCAS @
+       whenJust pushLS @ m >> popLS @  ->-  (popCAS @) ||| (whenJust pushCAS @ m)
        whenJust pushLS @ m >> popLS @  ->-  (whenJust pushCAS @ m) ||| (popCAS @)
+  (popLS @) ||| (whenJust pushLS @ m)  -<-  popCAS @ >> whenJust pushCAS @ m
+  (popLS @) ||| (whenJust pushLS @ m)  -<-  whenJust pushCAS @ m >> popCAS @
+  (popLS @) ||| (whenJust pushLS @ m)  ===  (popCAS @) ||| (whenJust pushCAS @ m)
+  (popLS @) ||| (whenJust pushLS @ m)  ===  (whenJust pushCAS @ m) ||| (popCAS @)
   (whenJust pushLS @ m) ||| (popLS @)  -<-  popCAS @ >> whenJust pushCAS @ m
   (whenJust pushLS @ m) ||| (popLS @)  -<-  whenJust pushCAS @ m >> popCAS @
+  (whenJust pushLS @ m) ||| (popLS @)  ===  (popCAS @) ||| (whenJust pushCAS @ m)
   (whenJust pushLS @ m) ||| (popLS @)  ===  (whenJust pushCAS @ m) ||| (popCAS @)
 popLS @ >>= \m -> whenJust pushLS @ m  -<-  peekCAS @
 
@@ -78,14 +96,23 @@ check $ \x -> sigL (\h0 -> popLS h0 >> pushLS x h0) === sigR (\h0 -> popCAS h0 >
 check $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 check $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
 check $ \x1 x -> sigL (\h0 -> push2LS x x1 h0 >> popLS h0) -<- sigR (\h0 -> pushCAS x1 h0)
+check $ \x -> sigL (\h0 -> (popLS h0) ||| (pushLS x h0)) -<- sigR (\h0 -> peekCAS h0)
+check $ \x -> sigL (\h0 -> (popLS h0) ||| (pushLS x h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
 check $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 check $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) === sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 check $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) === sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) ->- sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 check $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
+check $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+check $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+check $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) === sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
+check $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 check $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 check $ sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m) -<- sigR (\h0 -> peekCAS h0)
 
@@ -100,13 +127,22 @@ testProperty "name" $ \x -> sigL (\h0 -> popLS h0 >> pushLS x h0) === sigR (\h0 
 testProperty "name" $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> popCAS h0 >> popCAS h0)
 testProperty "name" $ sigL (\h0 -> (popLS h0) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (popCAS h0))
 testProperty "name" $ \x1 x -> sigL (\h0 -> push2LS x x1 h0 >> popLS h0) -<- sigR (\h0 -> pushCAS x1 h0)
+testProperty "name" $ \x -> sigL (\h0 -> (popLS h0) ||| (pushLS x h0)) -<- sigR (\h0 -> peekCAS h0)
+testProperty "name" $ \x -> sigL (\h0 -> (popLS h0) ||| (pushLS x h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> peekCAS h0)
 testProperty "name" $ \x -> sigL (\h0 -> (pushLS x h0) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> pushCAS x h0)
 testProperty "name" $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) === sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 testProperty "name" $ \m -> sigL (\h0 -> popLS h0 >> whenJust pushLS h0 m) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) === sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) ->- sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 testProperty "name" $ \m -> sigL (\h0 -> whenJust pushLS h0 m >> popLS h0) ->- sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
+testProperty "name" $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
+testProperty "name" $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+testProperty "name" $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) === sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
+testProperty "name" $ \m -> sigL (\h0 -> (popLS h0) ||| (whenJust pushLS h0 m)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> popCAS h0 >> whenJust pushCAS h0 m)
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) -<- sigR (\h0 -> whenJust pushCAS h0 m >> popCAS h0)
+testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (popCAS h0) ||| (whenJust pushCAS h0 m))
 testProperty "name" $ \m -> sigL (\h0 -> (whenJust pushLS h0 m) ||| (popLS h0)) === sigR (\h0 -> (whenJust pushCAS h0 m) ||| (popCAS h0))
 testProperty "name" $ sigL (\h0 -> popLS h0 >>= \m -> whenJust pushLS h0 m) -<- sigR (\h0 -> peekCAS h0)

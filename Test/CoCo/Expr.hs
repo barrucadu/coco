@@ -53,19 +53,21 @@ module Test.CoCo.Expr
   -- ** Miscellaneous
   , exprSize
   , exprTypeArity
-  , exprTypeRep
+  , exprType
   , instantiateTys
   , eq
   , pp
   ) where
 
+import           Control.Monad   (guard)
 import           Data.Char       (isAlphaNum)
 import           Data.Function   (on)
 import           Data.List       (groupBy, nub, sortOn)
 import           Data.Maybe      (fromJust, fromMaybe, isJust, mapMaybe,
                                   maybeToList)
 import           Data.Ord        (Down(..))
-import           Data.Typeable
+import           Data.Proxy      (Proxy(..))
+import           Data.Typeable   (Typeable)
 import           Data.Void       (Void)
 
 import           Test.CoCo.Monad (Concurrency)
@@ -78,15 +80,15 @@ import           Test.CoCo.Util
 -- | An expression with effects in some monad @m@.
 data Expr s h
   -- It's important that these constructors aren't exposed, so the
-  -- correctness of the 'TypeRep's can be ensured.
+  -- correctness of the 'Type's can be ensured.
   = Lit Bool String Dynamic
   -- ^ @Lit True@ is a commutative lit, which affects function
   -- application.
-  | Var TypeRep (Var h)
+  | Var Type (Var h)
   -- ^ Holes, let-bound variables, and environment variables.
-  | Let TypeRep Bool [Int] (Expr s h) (Expr s h)
+  | Let Type Bool [Int] (Expr s h) (Expr s h)
   -- ^ @Let True@ is a monadic bind, which affects evaluation.
-  | Ap  TypeRep (Expr s h) (Expr s h)
+  | Ap  Type (Expr s h) (Expr s h)
   -- ^ Function application.
   | StateVar
   -- ^ The state variable.
@@ -127,7 +129,7 @@ toTerm StateVar = Just StateVar
 --
 -- This takes a function to assign a letter to each type, subsequent
 -- variables of the same type have digits appended.
-allTerms :: (TypeRep -> Char) -> Schema s -> [Term s]
+allTerms :: (Type -> Char) -> Schema s -> [Term s]
 allTerms nf = mapMaybe toTerm . sortOn (Down . length . environment) . go where
   go e0 = case hs e0 of
     [] -> [e0]
@@ -190,7 +192,7 @@ isInstanceOf eS eG = ok && checkEnv (sortGroupTagged envG) (sortGroupTagged envS
     any (\bs -> all (`elem` bs) as) bss && checkEnv ass bss
   checkEnv [] _ = True
 
-  deq dyn1 dyn2 = dynTypeRep dyn1 == dynTypeRep dyn2
+  deq dyn1 dyn2 = dynType dyn1 == dynType dyn2
 
   -- group a list of tuples by first element (the tag) and then discard it.
   sortGroupTagged = map (map snd) . groupBy ((==) `on` fst) . sortOn fst
@@ -224,10 +226,13 @@ findInstance eG eS
 -- Applying the second argument to a commutative function produces
 -- @Nothing@, even if well-typed, if it is @<@ the first argument.
 ($$) :: (Typeable s, Ord h) => Expr s h -> Expr s h -> Maybe (Expr s h)
-f0 $$ e0 = mkfun =<< exprTypeRep f0 `polyFunResultTy` exprTypeRep e0 where
-  mkfun (env, ty) = case f0 of
-    Ap _ (Lit True _ _) e | e0 < e -> Nothing
-    _ -> Just (Ap ty (instantiateTys env f0) (instantiateTys env e0))
+f0 $$ e0 = do
+  guard $ case f0 of Ap _ (Lit True _ _) e -> e0 >= e; _ -> True
+  tys <- exprType f0 `polyApplyFunTy'` exprType e0
+  runUnify $ do
+    (argTy, resTy) <- tys
+    f <- instantiateTys f0
+    pure (Ap resTy f (setType argTy e0))
 
 -- | Bind a monadic value to a collection of holes, if well typed. The
 -- numbering of unbound holes may be changed by this function.
@@ -241,7 +246,7 @@ bind :: Typeable s
 bind is binder body = do
   _ <- unmonad body
   inner <- unmonad binder
-  Let (exprTypeRep body) True is binder <$> letHelper is inner body
+  Let (exprType body) True is binder <$> letHelper is inner body
 
 -- | A typed hole.
 --
@@ -253,9 +258,9 @@ hole p = Var (typeRep p) (Hole ())
 -- equivalent to 'stateVar'.
 --
 -- @exprSize (holeOf ty) == 1@
-holeOf :: forall s. Typeable s => TypeRep -> Expr s ()
+holeOf :: forall s. Typeable s => Type -> Expr s ()
 holeOf ty
-  | ty == typeRep (Proxy :: Proxy s) = stateVar
+  | ty `unifies` (typeRep (Proxy :: Proxy s)) = stateVar
   | otherwise = Var ty (Hole ())
 
 -- | Bind a value to a collection of holes, if well typed. The
@@ -268,7 +273,7 @@ let_ :: Typeable s
   -> Expr s h -- ^ Expression to bind variable in
   -> Maybe (Expr s h)
 let_ is binder body =
-  Let (exprTypeRep body) False is binder <$> letHelper is (exprTypeRep binder) body
+  Let (exprType body) False is binder <$> letHelper is (exprType binder) body
 
 -- | A literal value.
 --
@@ -327,12 +332,12 @@ envbind is e0 = (\(e,_,_) -> e) <$> go [] 0 e0 where
   go env i e = Just (e, env, i)
 
 -- | Get all the environment variables in an expression.
-environment :: Expr s h -> [(String, TypeRep)]
+environment :: Expr s h -> [(String, Type)]
 environment = nub . environment'
 
 -- | Get all the environment variables in an expression, with
 -- repetition, in the order in which they appear in the expression.
-environment' :: Expr s h -> [(String, TypeRep)]
+environment' :: Expr s h -> [(String, Type)]
 environment' = go where
   go (Var ty (Named s)) = [(s, ty)]
   go (Let _ _ _ b e) = go b ++ go e
@@ -350,7 +355,7 @@ rename rs = go where
   go e = e
 
 -- | Get all holes in an expression, tagged with their position.
-holes :: Expr s h -> [(Int, TypeRep)]
+holes :: Expr s h -> [(Int, Type)]
 holes = fst . go 0 where
   go i (Var ty (Hole _)) = ([(i, ty)], i + 1)
   go i (Let _ _ _ b e) =
@@ -460,7 +465,7 @@ evaluateDyn e0 globals
     env _ (Hole _) = Nothing -- unreachable
 
     check (s, ty) = case lookup s globals of
-      Just dyn -> dynTypeRep dyn == ty
+      Just dyn -> dynType dyn == ty
       Nothing -> False
 
     unFunctor :: Dynamic -> Maybe (Concurrency Dynamic)
@@ -493,15 +498,15 @@ evaluateDynPure e0 globals = go [] e0 where
 -- | Get the arity of an expression. Non-function types have an arity
 -- of 0.
 exprTypeArity :: Typeable s => Expr s h -> Int
-exprTypeArity = typeArity . exprTypeRep
+exprTypeArity = typeArity . exprType
 
 -- | Get the type of an expression.
-exprTypeRep :: forall s h. Typeable s => Expr s h -> TypeRep
-exprTypeRep (Lit _ _ dyn) = dynTypeRep dyn
-exprTypeRep (Var ty _) = ty
-exprTypeRep (Let ty _ _ _ _) = ty
-exprTypeRep (Ap ty _ _) = ty
-exprTypeRep StateVar = typeRep (Proxy :: Proxy s)
+exprType :: forall s h. Typeable s => Expr s h -> Type
+exprType (Lit _ _ dyn) = dynType dyn
+exprType (Var ty _) = ty
+exprType (Let ty _ _ _ _) = ty
+exprType (Ap ty _ _) = ty
+exprType StateVar = typeRep (Proxy :: Proxy s)
 
 -- | Get the size of an expression.
 exprSize :: Expr s h -> Int
@@ -509,20 +514,23 @@ exprSize (Let _ _ _ b e) = 1 + exprSize b + exprSize e
 exprSize (Ap _ f e) = exprSize f + exprSize e
 exprSize _ = 1
 
--- | Instantiate polymorphic type variables according to a provided
+-- | Instantiate polymorphic type variables according to the current
 -- environment.
-instantiateTys :: [(TypeRep, TypeRep)] -> Expr s h -> Expr s h
-instantiateTys env = go where
- go (Lit b s d) = Lit b s (assignDynTys env d)
- go (Var ty v) = Var (assignTys env ty) v
- go (Let ty m is b e) = Let (assignTys env ty) m is (go b) (go e)
- go (Ap ty f e) = Ap (assignTys env ty) (go f) (go e)
- go e = e
+instantiateTys :: Expr s h -> UnifyM (Expr s h)
+instantiateTys (Lit b s d) =
+  Lit b s <$> dynApplyBindings d
+instantiateTys (Var ty v) =
+  Var <$> applyBindings ty <*> pure v
+instantiateTys (Let ty m is b e) =
+  Let <$> applyBindings ty <*> pure m <*> pure is <*> instantiateTys b <*> instantiateTys e
+instantiateTys (Ap ty f e) =
+  Ap <$> applyBindings ty <*> instantiateTys f <*> instantiateTys e
+instantiateTys e = pure e
 
 -- | Check if two expressions are equal, disregarding state and hole
 -- types.
 eq :: Expr s1 h1 -> Expr s2 h2 -> Bool
-eq (Lit _ _ dyn1) (Lit _ _ dyn2) = dynTypeRep dyn1 == dynTypeRep dyn2
+eq (Lit _ _ dyn1) (Lit _ _ dyn2) = dynType dyn1 == dynType dyn2
 eq (Var ty1 v1) (Var ty2 v2) = ty1 == ty2 && case (v1, v2) of
   (Hole _, Hole _) -> True
   (Bound i1, Bound i2) -> i1 == i2
@@ -543,7 +551,7 @@ eq _ _ = False
 
 -- | Pretty-print an expression.
 pp :: Typeable s
-  => (TypeRep -> Char)
+  => (Type -> Char)
   -- ^ Variable-naming function.
   -> Bool
   -- ^ If True use the name \"h0\" for the state otherwise use \"@\".
@@ -566,7 +574,7 @@ pp nf sn e0 = go [] True e0 where
          then [sb, ">>", se]
          else [sb, ">>=", '\\': v, "->", se]
     Let _ False _ b x ->
-      let v = fresh env (exprTypeRep b)
+      let v = fresh env (exprType b)
           sb = go env top b
           se = go (v:env) top x
       in ["let", v, "=", sb, "in", se]
@@ -599,8 +607,16 @@ pp nf sn e0 = go [] True e0 where
 -------------------------------------------------------------------------------
 -- Utils
 
+-- | Set the type of an expression.
+setType :: Type -> Expr s h -> Expr s h
+setType ty (Lit b s d) = Lit b s (unsafeSetType ty d)
+setType ty (Var _ v) = Var ty v
+setType ty (Let _ m is b e) = Let ty m is b e
+setType ty (Ap _ f e) = Ap ty f e
+setType _ StateVar = StateVar
+
 -- | Helper for 'bind' and 'let_': bind holes to the top of the expression.
-letHelper :: [Int] -> TypeRep -> Expr s h -> Maybe (Expr s h)
+letHelper :: [Int] -> Type -> Expr s h -> Maybe (Expr s h)
 letHelper is boundTy e0 = fst <$> go 0 0 e0 where
   go n i (Var ty (Hole h))
     | i `elem` is = if boundTy == ty then Just (Var ty (Bound n), i + 1) else Nothing
@@ -616,5 +632,5 @@ letHelper is boundTy e0 = fst <$> go 0 0 e0 where
   go _ i e = Just (e, i)
 
 -- | Peel off the @Concurrency@ tycon
-unmonad :: forall s h. Typeable s => Expr s h -> Maybe TypeRep
-unmonad = innerTy (Proxy :: Proxy Concurrency) . exprTypeRep
+unmonad :: forall s h. Typeable s => Expr s h -> Maybe Type
+unmonad = innerTy (Proxy :: Proxy Concurrency) . exprType

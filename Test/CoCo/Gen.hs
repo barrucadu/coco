@@ -22,14 +22,14 @@ import           Data.Proxy         (Proxy(..))
 import           Data.Semigroup     ((<>))
 import           Data.Set           (Set)
 import qualified Data.Set           as S
-import           Data.Typeable      (TypeRep, Typeable, splitTyConApp, typeRep)
+import           Data.Typeable      (Typeable)
 
 import           Test.CoCo.Ann
 import           Test.CoCo.Eval     (numVariants)
 import           Test.CoCo.Expr
 import           Test.CoCo.Monad    (Concurrency)
 import           Test.CoCo.Rename   (renamings)
-import           Test.CoCo.Type     (Dynamic)
+import           Test.CoCo.Type     (Dynamic, Type, tyCon, typeRep)
 import           Test.CoCo.TypeInfo (TypeInfo(..), getTypeValues,
                                      getVariableBaseName)
 import           Test.CoCo.Util     (ordNubOn)
@@ -44,12 +44,12 @@ data Generator s o x = Generator
   , sofar      :: Int
   , pures      :: Set (Term s)
   , forbiddens :: Set (Term s)
-  , tyinfos    :: [(TypeRep, TypeInfo)]
+  , tyinfos    :: [(Type, TypeInfo)]
   }
 
 -- | Create a new generator from a collection of basic expressions.
 newGenerator :: (Typeable s, Ord o, Ord x)
-  => [(TypeRep, TypeInfo)] -> [(Schema s, Ann s o x)] -> Generator s o x
+  => [(Type, TypeInfo)] -> [(Schema s, Ann s o x)] -> Generator s o x
 newGenerator typeInfos baseTerms = Generator
   { tiers   = merge
     [ M.singleton
@@ -171,27 +171,27 @@ merge = M.unionsWith S.union
 -- | Check if a schema has a non-monadic and non-function result type.
 isPure :: Typeable s => Schema s -> Bool
 isPure e = not $ ety `ceq` cty || ety `ceq` fty where
-  ceq = (==) `on` fst . splitTyConApp
-  ety = exprTypeRep e
+  ceq = (==) `on` tyCon
+  ety = exprType e
   cty = typeRep (Proxy :: Proxy (Concurrency ()))
   fty = typeRep (Proxy :: Proxy (() -> ()))
 
 -- | Given a collection of forbidden subterms, check if the given term
 -- contains one.
-hasForbiddenSubterm :: Typeable s => (TypeRep -> Char) -> [Term s] -> Term s -> Bool
+hasForbiddenSubterm :: Typeable s => (Type -> Char) -> [Term s] -> Term s -> Bool
 hasForbiddenSubterm varf fs0 t0 = or [match t f | t <- subterms t0, f <- fs0] where
   match t1 t2 =
-    exprSize    t1 == exprSize    t2 &&
-    exprTypeRep t1 == exprTypeRep t2 &&
+    exprSize t1 == exprSize t2 &&
+    exprType t1 == exprType t2 &&
     any (\(r1,r2) -> rename r1 t1 == rename r2 t2) (renamings varf t1 t2)
 
 -- | Given one pure term and a collection of other pure terms return
 -- the equivalent terms (in the left) and the inequivalent ones (in
 -- the right).
-partitionEquivalent :: Typeable s => [(TypeRep, TypeInfo)] -> Term s ->  [Term s] -> ([Term s], [Term s])
+partitionEquivalent :: Typeable s => [(Type, TypeInfo)] -> Term s ->  [Term s] -> ([Term s], [Term s])
 partitionEquivalent typeInfos t0 ts = fromMaybe ([], ts) $ do
-    guard $ all ((exprTypeRep t0 ==) . exprTypeRep) ts
-    tyinfo <- lookup (exprTypeRep t0) typeInfos
+    guard $ all ((exprType t0 ==) . exprType) ts
+    tyinfo <- lookup (exprType t0) typeInfos
     pure $ partition (checkEquiv tyinfo t0) ts
   where
     varf = getVariableBaseName typeInfos
@@ -213,15 +213,14 @@ partitionEquivalent typeInfos t0 ts = fromMaybe ([], ts) $ do
 --
 -- 'numVariants' values will be taken of each and zipped together
 -- (producing @numVariants^(length env)@ assignments).
-assign
-  :: [(TypeRep, TypeInfo)]
+assign :: (Eq ty, Ord n)
+  => [(ty, TypeInfo)]
   -- ^ Information about types.  There MUST be an entry for every hole
   -- type!
-  -> [(String, TypeRep)]
+  -> [(n, ty)]
   -- ^ The free variables.
-  -> [[(String, Dynamic)]]
+  -> [[(n, Dynamic)]]
 assign typeInfos = go . ordNubOn fst . map (second enumerateValues) where
-  go :: [(String, [Dynamic])] -> [[(String, Dynamic)]]
   go ((var, dyns):free) =
     [ (var, dyn) : as
     | dyn <- take numVariants dyns

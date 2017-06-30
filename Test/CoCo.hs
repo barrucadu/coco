@@ -44,7 +44,7 @@ import           Control.Monad.Conc.Class (readMVar, spawn)
 import           Data.Function            (on)
 import           Data.List                (sort)
 import           Data.Maybe               (isJust)
-import           Data.Typeable            (TypeRep, Typeable)
+import           Data.Typeable            (Typeable)
 
 import qualified Test.CoCo.Discover       as D
 import qualified Test.CoCo.Expr           as E
@@ -75,7 +75,7 @@ data DejaFuCompat
 
 -- | Options for the pretty-printer
 data PPROpts = PPROpts
-  { pprTypeInfos :: [(TypeRep, T.TypeInfo)]
+  { pprTypeInfos :: [(T.Type, T.TypeInfo)]
   -- ^ Type infos, used to give names to variables.
   , pprDejaFu    :: Maybe DejaFuCompat
   -- ^ Whether to produce dejafu-compatible output.

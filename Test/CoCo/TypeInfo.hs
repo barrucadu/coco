@@ -19,7 +19,9 @@ import qualified Data.Typeable              as T
 import           Language.Haskell.TH.Syntax (Exp(..), Type(..))
 import           Test.LeanCheck             (Listable, list)
 
-import           Test.CoCo.Type             (Dynamic, fromDyn, unsafeToDyn)
+import           Test.CoCo.Type             (Dynamic, fromDyn, toType,
+                                             unsafeToDyn)
+import qualified Test.CoCo.Type             as Ty
 import           Test.CoCo.Util
 
 -- | Information about a type.
@@ -36,20 +38,20 @@ data TypeInfo = TypeInfo
 -- | Produce a base name for a variable from a type.
 --
 -- Returns @'z'@ if the type is not in the list.
-getVariableBaseName :: [(T.TypeRep, TypeInfo)] -> T.TypeRep -> Char
+getVariableBaseName :: Eq ty => [(ty, TypeInfo)] -> ty -> Char
 getVariableBaseName typeInfos ty = maybe 'z' varName (lookup ty typeInfos)
 
 -- | Get values of a type.
 --
 -- Returns @[]@ if the type is not in the list.
-getTypeValues :: [(T.TypeRep, TypeInfo)] -> T.TypeRep -> [Dynamic]
+getTypeValues :: Eq ty => [(ty, TypeInfo)] -> ty -> [Dynamic]
 getTypeValues typeInfos ty = maybe [] listValues (lookup ty typeInfos)
 
 -- | 'TypeInfo' for @()@, @Bool@, @Char@, @Double@, @Float@, @Int@,
 -- @Integer@ and @Ordering@; and @[a]@, @Maybe a@, @Either a b@,
 -- @(a,b)@, and @(a,b,c)@ where all type variables are concrete in the
 -- first list.
-defaultTypeInfos :: [(T.TypeRep, TypeInfo)]
+defaultTypeInfos :: [(Ty.Type, TypeInfo)]
 defaultTypeInfos =
   $(do c0s <- map constr <$> sequence [[t|()|], [t|Bool|], [t|Char|], [t|Double|], [t|Float|], [t|Int|], [t|Integer|], [t|Ordering|]]
        c1s <- map constr <$> sequence [[t|[()]|], [t|Maybe()|]]
@@ -62,12 +64,14 @@ defaultTypeInfos =
    )
 
 -- | Make the 'TypeInfo' for a listable type.
-makeTypeInfo :: (Listable a, Eq a, T.Typeable a) => proxy a -> (T.TypeRep, TypeInfo)
-makeTypeInfo p = (T.typeRep p, TypeInfo { listValues = dynamicListValues p, dynEq = dynamicEq p, varName = variableName p })
+makeTypeInfo :: (Listable a, Eq a, T.Typeable a) => proxy a -> (Ty.Type, TypeInfo)
+makeTypeInfo p = (ty, ifo) where
+  ty  = toType (T.typeRep p)
+  ifo = TypeInfo { listValues = dynamicListValues p, dynEq = dynamicEq p, varName = variableName p }
 
 -- | Produce dynamic values from a 'Listable' instance.
 dynamicListValues :: forall a proxy. (Listable a, T.Typeable a) => proxy a -> [Dynamic]
-dynamicListValues p = map (unsafeToDyn $ T.typeRep p) (list :: [a])
+dynamicListValues p = map (unsafeToDyn . toType $ T.typeRep p) (list :: [a])
 
 -- | Like 'dynamicListValues' but takes an actual value, not a proxy.
 dynamicListValues' :: forall a. (Listable a, T.Typeable a) => a -> [Dynamic]

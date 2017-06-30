@@ -12,18 +12,20 @@
 module Test.CoCo.Sig where
 
 import           Control.Monad          (void)
+import qualified Control.Unification    as U
+import           Data.Foldable          (for_)
 import           Data.List              (nub)
 import           Data.Maybe             (fromMaybe, mapMaybe)
 import           Data.Proxy             (Proxy(..))
-import           Data.Typeable          (TypeRep, Typeable, typeRep)
+import           Data.Typeable          (Typeable)
 import qualified Test.DejaFu.Conc       as D
 import qualified Test.DejaFu.Refinement as D
 
-import           Test.CoCo.Expr         (Schema, exprTypeRep, holeOf,
+import           Test.CoCo.Expr         (Schema, exprType, holeOf,
                                          instantiateTys, stateVar, unLit)
 import           Test.CoCo.Monad        (Concurrency, toConcIO)
-import           Test.CoCo.Type         (dynTypeRep, funArgTys, innerTy,
-                                         unifyAccum)
+import           Test.CoCo.Type         (Type, dynType, funArgTys, innerTy,
+                                         runUnify, typeRep)
 
 -- | A collection of expressions.
 data Sig s o x = Sig
@@ -84,18 +86,22 @@ monomorphiseState sig = sig { expressions = map monomorphise (expressions sig)
                             }
   where
     monomorphise e = fromMaybe e $ do
-      (argTys, _) <- funArgTys (exprTypeRep e)
-      assignments <- unifyAccum False (maybe (Just []) Just) (repeat stateTy) argTys
-      pure (instantiateTys assignments e)
+      (argTys, _) <- funArgTys (exprType e)
+      runUnify $ do
+        for_ argTys $ \arg -> case arg of
+          -- don't unify a top-level variable with the state
+          U.UVar _ -> pure ()
+          _ -> void (U.unify arg stateTy)
+        instantiateTys e
 
     stateTy = typeRep (Proxy :: Proxy s)
 
 -- | Infer necessary hole types in a signature.
-inferHoles :: Sig s o x -> [TypeRep]
+inferHoles :: Sig s o x -> [Type]
 inferHoles sig = nub $ concatMap holesFor (expressions sig) ++ concatMap holesFor (backgroundExpressions sig) where
   holesFor e = fromMaybe [] $ do
     (_, dyn)    <- unLit e
-    (aTys, rTy) <- funArgTys (dynTypeRep dyn)
+    (aTys, rTy) <- funArgTys (dynType dyn)
     pure $ mapMaybe unmonad (rTy:aTys) ++ (rTy:aTys)
   unmonad = innerTy (Proxy :: Proxy Concurrency)
 
