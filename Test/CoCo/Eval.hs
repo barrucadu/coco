@@ -67,9 +67,8 @@ runSingle typeInfos mkstate interfere observe unstate seeds expr
           s <- mkstate x
           r <- subconcurrency $ case interfere of
             Just interfereFunc -> do
-              i <- C.spawn (interfereFunc s x)
+              _ <- C.fork (interfereFunc s x)
               o <- shoveMaybe (eval_expr s)
-              C.readMVar i
               pure o
             Nothing ->
               shoveMaybe (eval_expr s)
