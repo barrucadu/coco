@@ -155,8 +155,7 @@ discoverSingleWithSeeds' lr typeInfos seedPreds sig seeds lim =
         let mresult = evalTerm mostGeneralTerm
             new_ann = case mresult of
               Just (atomic, no_interference, interference) ->
-                let getResults = getResultsFrom mostGeneralTerm
-                    resultsOf t = (\r1 r2 -> (t, (r1, r2))) <$> getResults no_interference t <*> getResults interference t
+                let resultsOf t = (\(_, r1, r2) -> (t, (r1, r2))) <$> evalTerm t
                     results      = mapMaybe resultsOf rest
                     all_results  = (mostGeneralTerm, (no_interference, interference)) : results
                 in update atomic (Some all_results) ann
