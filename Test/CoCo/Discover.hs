@@ -158,10 +158,10 @@ discoverSingleWithSeeds' lr typeInfos seedPreds sig seeds lim =
                 let resultsOf t = (\(_, r1, r2) -> (t, (r1, r2))) <$> evalTerm t
                     results      = mapMaybe resultsOf rest
                     all_results  = (mostGeneralTerm, (no_interference, interference)) : results
-                in update atomic (Some all_results) ann
-              Nothing -> update False None ann
+                in update atomic (\t -> (\(_,woi,wi) -> (woi, wi)) <$> evalTerm t) (Some all_results) ann
+              Nothing -> update False (\t -> (\(_,woi,wi) -> (woi, wi)) <$> evalTerm t) None ann
         in (schema, (Just ann, new_ann))
-      [] -> (schema, (Just ann, update False None ann))
+      [] -> (schema, (Just ann, update False (\t -> (\(_,woi,wi) -> (woi, wi)) <$> evalTerm t) None ann))
 
     -- evaluate a term
     evalTerm term =
