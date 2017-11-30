@@ -220,7 +220,4 @@ getResultsFrom generic results specific = case findInstance generic specific of
 checkNewTerm :: Ann s o x -> Ann s o x -> Schema s -> Bool
 checkNewTerm ann1 ann2 expr
   | isNeutral ann1 || isNeutral ann2 = False
-  | otherwise = case unBind expr of
-      Just ([], _, _) -> isSmallest ann1 && isSmallest ann2
-      Just _ -> isSmallest ann2
-      _ -> True
+  | otherwise = True
