@@ -32,7 +32,7 @@ import           Test.CoCo.Expr     (Term)
 -- equivalence class (which means there is no unit). It is the job of
 -- the refinement-checking to crush these dreams.
 data Ann s o x = Ann
-  { allResults :: Maybe (Results s o x)
+  { allResults :: Maybe (Term s -> Maybe (VarResults o x, VarResults o x))
   -- ^ Set of (assignment,results) pairs, or @Nothing@ if
   -- untested. Only tested terms can be checked for refinement. The
   -- first 'Results' set is the results of executing the term with no
@@ -61,7 +61,14 @@ data Ann s o x = Ann
   -- previously-known terms.  This is populated by the equivalence
   -- check in Test.CoCo.Gen.
   }
-  deriving (Eq, Ord, Show)
+
+instance Eq (Ann s o x) where
+  ann1 == ann2 = f ann1 == f ann2 where
+    f a = (isBackground a, isFailing a, isSmallest a, isAtomic a, isNeutral a, theTerms a)
+
+instance Ord (Ann s o x) where
+  compare ann1 ann2 = compare (f ann1) (f ann2) where
+    f a = (isBackground a, isFailing a, isSmallest a, isAtomic a, isNeutral a, theTerms a)
 
 instance Semigroup (Ann s o x) where
   ann1 <> ann2 = Ann
@@ -113,9 +120,9 @@ initialAnn background = Ann
   }
 
 -- | Update an annotation with expression-evaluation results.
-update :: Eq x => Bool -> Results s o x -> Ann s o x -> Ann s o x
-update atomic results ann = ann
-  { allResults  = Just results
+update :: Eq x => Bool -> (Term s -> Maybe (VarResults o x, VarResults o x)) -> Results s o x -> Ann s o x -> Ann s o x
+update atomic f results ann = ann
+  { allResults  = Just f
   , isFailing   = case results of { Some rs -> checkIsFailing rs; None -> isFailing ann }
   , isAtomic    = atomic
   , isNeutral   = case results of { Some rs -> checkIsNeutral atomic rs; None -> isNeutral ann }

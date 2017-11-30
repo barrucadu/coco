@@ -13,7 +13,7 @@ module Test.CoCo.Logic where
 
 import           Control.Arrow    (second)
 import           Data.List        (foldl', sortOn)
-import           Data.Maybe       (isJust, isNothing)
+import           Data.Maybe       (isJust, isNothing, fromJust)
 import           Data.Typeable    (TypeRep, Typeable)
 
 import           Test.CoCo.Ann    (Ann(..), Results(..), VarResults, refines)
@@ -112,9 +112,15 @@ allObservations preconditions varf (old_ann_a, ann_a) (old_ann_b, ann_b) =
            | proj <- projections (fst a) (fst b)
            , let (r_a, r_b) = renaming varf proj
            ]
-         | let results x = case allResults x of { Just (Some rs) -> rs; _ -> [] }
-         , a <- results ann_a
-         , b <- results ann_b
+         | let resf x = case allResults x of { Just f -> f; _ -> const Nothing }
+         , ta <- theTerms ann_a
+         , tb <- theTerms ann_b
+         , let ra = resf ann_a ta
+         , let rb = resf ann_b tb
+         , isJust ra
+         , isJust rb
+         , let a = (ta, fromJust ra)
+         , let b = (tb, fromJust rb)
          ]
   ]
 
