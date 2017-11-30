@@ -163,16 +163,11 @@ equalAndIsInstanceOf :: (Eq a, Eq b)
   => (a, b, Maybe Observation)
   -> (a, b, Maybe Observation)
   -> Bool
-equalAndIsInstanceOf (ab1, ba1, ob1) (ab2, ba2, ob2) =
-  ab1 == ab2 && ba1 == ba2 && case (,) <$> ob1 <*> ob2 of
-    Just (Equiv   lr1 t1 t2, Equiv   lr2 t3 t4) -> lr1 == lr2 && t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-    Just (Refines lr1 t1 t2, Refines lr2 t3 t4) -> lr1 == lr2 && t3 `isInstanceOf` t1 && t4 `isInstanceOf` t2
-    _ -> False
+equalAndIsInstanceOf _ _ = False
 
 -- | Given two equal observations, check if the first has a more general naming than the right.
 equalAndHasMoreGeneralNaming :: Eq a => (a, Projection) -> (a, Projection) -> Bool
-equalAndHasMoreGeneralNaming (o1,p1) (o2,p2) =
-  o1 == o2 && p1 `isMoreGeneralThan` p2
+equalAndHasMoreGeneralNaming _ _ = False
 
 -- | Given a list of (precondition name, observations) values, keep only the weakest preconditions
 -- for each observation.
