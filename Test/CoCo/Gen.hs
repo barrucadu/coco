@@ -17,7 +17,7 @@ import           Data.Function      (on)
 import           Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
 import           Data.List          (partition)
-import           Data.Maybe         (fromMaybe, maybeToList)
+import           Data.Maybe         (catMaybes, fromMaybe, maybeToList)
 import           Data.Proxy         (Proxy(..))
 import           Data.Semigroup     ((<>))
 import           Data.Set           (Set)
@@ -84,7 +84,7 @@ stepGenerator check g = g { tiers = tiers', sofar = sofar', pures = pures', forb
 
   -- produce new terms by function application.
   (newForbiddens, funAps) = mkTerms 0 $ \terms candidates ->
-    [ (forbidden, (new, (Nothing, (snd fAnn <> snd eAnn) { theTerms = schemaTerms })))
+    [ (forbidden, may (new, (Nothing, (snd fAnn <> snd eAnn) { theTerms = schemaTerms })))
       | (f, fAnn) <- terms
       , (e, eAnn) <- candidates
       , new <- maybeToList (f $$ e)
@@ -98,11 +98,12 @@ stepGenerator check g = g { tiers = tiers', sofar = sofar', pures = pures', forb
                             let (fs', ts') = partitionEquivalent (tyinfos g) p ts
                             in (fs++fs', ts')) ([], newTerms) . S.toList $ pures g
               else ([], newTerms)
+      , let may = if null schemaTerms then const Nothing else Just
     ]
 
   -- produce new terms by monad-binding variables.
   binds = snd . mkTerms 1 $ \terms candidates ->
-    [ ([], (new, (Nothing, (snd bAnn <> snd eAnn) { theTerms = schemaTerms })))
+    [ ([], Just (new, (Nothing, (snd bAnn <> snd eAnn) { theTerms = schemaTerms })))
       | (b, bAnn) <- terms
       -- don't allow a binder which is a hole
       , not (isHole b)
@@ -116,7 +117,7 @@ stepGenerator check g = g { tiers = tiers', sofar = sofar', pures = pures', forb
 
   -- produce new terms
   mkTerms n f = M.foldMapWithKey go (tiers g) where
-    go tier terms = (concat *** S.fromList) . unzip $
+    go tier terms = (concat *** S.fromList . catMaybes) . unzip $
       let candidates = getTier (sofar g + 1 - tier - n) g
       in f (S.toList terms) (S.toList candidates)
 
